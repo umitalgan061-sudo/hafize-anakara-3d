@@ -8,15 +8,15 @@ Ankara için tarayıcıda çalışan 3B harita: Esri 3B binalar ve Ankara Büyü
 - Arayüz Türkçedir.
 
 # Öncelikler
-0. EN ÖNCELİKLİ — Tasarımı baştan yap (bir sonraki turun hedefi budur). Şimdiki görünümle hiçbir benzerliği olmayan, bambaşka ve modern bir tasarım:
-   - Harita tam ekran olsun; üst başlık çubuğu, sol kenar çubuğu ve sağ kontrol sütunu kalksın. Bunların yerine haritanın üstünde yüzen, yarı saydam, bulanık arka planlı (backdrop-filter) kartlar gelsin: üstte ortada yüzen bir arama kutusu, solda katlanabilir bir katman kartı (açma-kapama anahtarları ile), sağ altta yuvarlak eylem düğmeleri (konum, taban değiştir, katmanlar).
-   - Koyu tema varsayılan olsun, açık tema düğmesiyle geçilsin; renkler CSS değişkenleriyle (--renk-...) tanımlansın. Vurgu rengi Ankara'yı çağrıştıran bir turkuaz-lacivert geçişi olsun.
-   - Simgeler satır içi SVG olsun (emoji kullanılmasın). Yazı tipi olarak Inter ya da benzeri bir yazı tipi jsdelivr üzerinden (@fontsource) yüklenebilir.
-   - Mobilde katman kartı alttan açılan bir çekmeceye (bottom sheet) dönüşsün.
-   - Geçişler yumuşak animasyonlu olsun (transition), odak halkaları ve aria etiketleri eksiksiz olsun.
-   - Kod dosyalara bölünsün: css/tasarim.css ve js/arayuz.js; index.html sade kalsın.
-   - Var olan bütün özellikler (arama, çoklu sonuç seçimi, katmanlar, popup bilgileri, konum, taban değiştirme, hata bildirimleri) yeni tasarımda çalışmaya devam etsin.
-1. Katman noktasına tıklayınca bilgi penceresi (popupTemplate) ile adres bilgisini göster.
-2. Mobilde sol paneli bir menü düğmesiyle açılır yap (şu an mobilde tamamen gizli).
-3. Arama sonucunu haritada işaretle ve birden çok sonuç varsa listele.
-4. Yüklenemeyen katman için kullanıcıya anlaşılır bir uyarı göster.
+1. Sol karttaki "Harita Tabanı" düğmeleri yeni tasarıma uymuyor (tarayıcının düz beyaz düğmeleri olarak görünüyor); bunları tasarımın geri kalanıyla aynı biçimde, seçili olanı vurgulu hâle getir.
+2. Yazı tipi adresi @fontsource-variable/inter@latest yerine sabit bir sürüme bağlansın (ör. @5.1.0).
+3. Arama sonuçları listesi ArcGIS açılır penceresine onclick'li HTML ile yazılıyorsa, öğeleri document.createElement ile oluşturup addEventListener bağla (kütüphane onclick'i temizler).
+4. Mobilde alttan açılan çekmecenin sürükleyerek açılıp kapanması.
+5. Seçili adresi ve tabanı URL'de tut (paylaşılabilir bağlantı), sayfa açılınca oradan geri yükle.
+
+# Tamamlananlar
+Yeni tasarım (5 Kasım 2026): tam ekran harita, yüzen kartlar, koyu/açık tema, SVG simgeler, dosyalara bölünmüş kod
+Katman bilgi pencereleri
+Mobil menü
+Arama sonuç listesi
+Katman hata bildirimleri
