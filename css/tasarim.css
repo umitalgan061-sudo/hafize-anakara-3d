@@ -205,6 +205,7 @@ html, body { height: 100%; width: 100%; overflow: hidden; font-family: var(--fon
   #eylemler { bottom: 12px; right: 12px; left: 12px; flex-direction: row; justify-content: center; padding: 6px; max-width: 480px; margin: 0 auto; border-radius: 999px; }
   .eylem-btn { width: 48px; height: 48px; }
   #arama-karti { top: 12px; left: 12px; right: 12px; width: auto; transform: none; max-width: none; }
+  #katman-overlay.gorunur { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 199; }
 }
 
 /* Arama sonuçları popup içi stil (view.popup.open içine basılır) */
@@ -263,3 +264,5 @@ html, body { height: 100%; width: 100%; overflow: hidden; font-family: var(--fon
 
 /* Gizli yardımcı */
 .gizli { display: none !important; }
+
+.devre-disi { opacity: 0.4; pointer-events: none; }
