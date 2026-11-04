@@ -1,0 +1,19 @@
+name: Hafize kontrol
+# Opens the page in a real browser on every Hafize branch and fails when it shows a JavaScript error main does not.
+on:
+  push:
+    branches: ['hafize/**']
+  workflow_dispatch:
+jobs:
+  kontrol:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm i --no-save --no-package-lock playwright@1.48.2 && npx playwright install --with-deps chromium
+      - run: node .github/hafize-kontrol.mjs
