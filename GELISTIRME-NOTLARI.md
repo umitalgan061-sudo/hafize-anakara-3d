@@ -1,5 +1,6 @@
 # Geliştirme notları
 
+- 4 Kasım 2026 23:00 — Arama sonucuna popup ile adres bilgisini ekle: Arama sonucu bulunduğunda haritada sadece kamera gider, kullanıcıya adres detayı gösterilmiyor. ArcGIS PopupTemplate ile tıklanabilir bilgi penceresi eklendi.
 - 4 Kasım 2026 — Elle düzeltme 2: Taban Değiştir düğmesi tabanları sırayla değiştiriyor, arama kutusunda Enter yeniden çalışıyor.
 
 - 4 Kasım 2026 22:00 — Arama butonu Enter tuşu ile erişilebilir hale getirildi: Arama butonu formun içindeyken type='submit' olmadığı ve Enter tuşu sadece input üzerinde çalışıyordu. Butona type='submit' eklenip form onsubmit ile yönetildi; böylece klavye/ekran okuyucu kullanıcıları da butonu tetikleyebilir.

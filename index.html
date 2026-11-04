@@ -363,7 +363,13 @@
         .then(data => {
           const c = data.candidates?.[0];
           if (c) {
-            view.goTo({ center: [c.location.x, c.location.y], zoom: 16, tilt: 65 });
+            const pt = { type: "point", longitude: c.location.x, latitude: c.location.y };
+            view.popup.open({
+              location: pt,
+              title: "Arama Sonucu",
+              content: c.address
+            });
+            view.goTo({ target: pt, zoom: 16, tilt: 65 });
             document.getElementById("coord").innerText = c.address;
           } else {
             alert("Bulunamadı");
