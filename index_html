@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ankara 3D Harita & Arayüz</title>
+  <!-- ArcGIS API for JavaScript -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" />
+  <style>
+    /* --- GLOBAL BAŞLANGIÇ --- */
+    :root {
+      --bg: #fafafa;
+      --panel-bg: #ffffff;
+      --text: #212529;
+      --accent: #0078d4;
+      --accent-hover: #005fa3;
+      --warning: #d9534f;
+      --success: #28a745;
+      --radius: 8px;
+      --shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    * { box-sizing: border-box; }
+    html, body, #viewDiv { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-hover); }
+
+    /* --- HEADER (Arama + Profil) --- */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      background: var(--panel-bg);
+      border-bottom: 1px solid #e5e5e5;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 { margin: 0; font-size: 1.2rem; font-weight: 600; }
+    .search-wrapper {
+      flex: 1;
+      max-width: 400px;
+      margin: 0 20px;
+      display: flex;
+    }
+    .search-wrapper input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: var(--radius) 0 0 var(--radius);
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .search-wrapper button {
+      padding: 0 16px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 0 var(--radius) var(--radius) 0;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .search-wrapper button:hover { background: var(--accent-hover); }
+
+    /* --- SIDEBAR (Sol Panel) --- */
+    .sidebar {
+      width: 260px;
+      background: var(--panel-bg);
+      padding: 20px;
+      height: 100%;
+      box-shadow: 2px 0 6px rgba(0,0,0,0.08);
+      border-right: 1px solid #e5e5e5;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar h2 { margin-top: 0; margin-bottom: 15px; font-size: 1rem; color: #555; }
+    .sidebar .layer-panel, .sidebar .basemap-panel {
+      background: #f9f9f9;
+      padding: 10px;
+      border-radius: var(--radius);
+      margin-bottom: 10px;
+      overflow-y: auto;
+      max-height: 300px;
+    }
+    .sidebar .layer-panel h3, .sidebar .basemap-panel h3 { margin: 0 0 8px; font-size: 0.85rem; color: #777; }
+    .sidebar .layer-list label { display: block; margin: 4px 0; font-size: 0.8rem; }
+    .sidebar .layer-list input[type="checkbox"] { margin-right: 5px; transform: scale(0.8); }
+    .sidebar .basemap-list button {
+      width: 100%;
+      padding: 6px;
+      margin: 4px 0;
+      background: transparent;
+      border: 1px solid #ddd;
+      border-radius: var(--radius);
+      font-size: 0.8rem;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .sidebar .basemap-list button:hover { background: #eef; }
+
+    /* --- MAIN CONTENT (Harita + Kontroller) --- */
+    #content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #viewDiv { width: 100%; height: 100%; background: #000; } /* 3D arka plan */
+
+    /* --- LAYOUT: Sol Harita + Sağ Kontroller --- */
+    .layout {
+      display: flex;
+      height: calc(100vh - 160px); /* Header + Footer hesaba kat */
+    }
+    .map-area { flex: 1; padding: 20px; overflow: auto; }
+    .controls {
+      padding: 15px 20px;
+      background: var(--panel-bg);
+      border-left: 1px solid #e5e5e5;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .control-btn {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: var(--radius);
+      background: #fff;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .control-btn:hover { border-color: var(--accent); background: #f0f8ff; }
+    .control-btn.active { border-color: var(--accent); background: var(--accent); color: white; }
+
+    /* --- SAĞ ALTA KONUM BUTONU (Floating) --- */
+    .locate-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: transform 0.2s, background 0.2s;
+    }
+    .locate-btn:hover { background: var(--accent-hover); transform: scale(1.1); }
+    .locate-btn:active { transform: scale(0.95); }
+
+    /* --- FOOTER (Koordinat/info) --- */
+    footer {
+      padding: 8px 20px;
+      background: var(--panel-bg);
+      border-top: 1px solid #e5e5e5;
+      font-size: 0.75rem;
+      color: #777;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* --- RESPONSIVE --- */
+    @media (max-width: 768px) {
+      .sidebar { display: none; } /* Mobilde gizle veya hamburger */
+      .layout { flex-direction: column; }
+      .controls { order: -1; } /* Mobilde en üste */
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Ankara 3D Harita</h1>
+  <div class="search-wrapper">
+    <input type="text" id="searchInput" placeholder="Adres, cadde, ilçe..." />
+    <button onclick="searchLocation()">Ara</button>
+  </div>
+</header>
+
+<div id="content">
+  <div class="layout">
+    <!-- SOL: Çubuğu genişletilebilir kategori listesi -->
+    <aside class="sidebar" id="sidebar">
+      <h2>3D Harita Katmanları</h2>
+      <div class="layer-panel">
+        <div class="layer-list">
+          <label><input type="checkbox" id="cb_buildings" checked> Esri 3D Binalar</label>
+          <label><input type="checkbox" id="cb_mahalle" checked> Adres - Mahalle</label>
+          <label><input type="checkbox" id="cb_cadde" checked> Adres - Cadde/Sokak</label>
+          <label><input type="checkbox" id="cb_yapi1" checked> Yapı Planı - Katman 0</label>
+          <label><input type="checkbox" id="cb_yapi2" checked> Yapı Planı - Katman 1</label>
+        </div>
+      </div>
+      <div class="basemap-panel">
+        <h3>Harita Tabanı</h3>
+        <div class="basemap-list">
+          <button data-basemap="hybrid">Karma (Uyu+Etiket)</button>
+          <button data-basemap="satellite">Sadece Uydu</button>
+          <button data-basemap="streets">Yol Haritası</button>
+          <button data-basemap="gray">Gri</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ORTA: 3D Harita Alanı -->
+    <main class="map-area">
+      <div id="viewDiv"></div>
+    </main>
+
+    <!-- SAĞ: Kontroller -->
+    <aside class="controls" id="controls">
+      <button class="control-btn" onclick="toggleLayers()">Katmanları Aç/Kap</button>
+      <button class="control-btn active" onclick="changeBasemap('hybrid')">Taban Değiştir</button>
+      <div style="margin-top:auto;">
+        <button class="locate-btn" onclick="locateUser()">📍 Konum</button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<footer>
+  <span>Koordinat: <span id="coord">--</span></span>
+  <span>Zoomsiz: <span id="zoom">--</span></span>
+</footer>
+
+<script src="https://js.arcgis.com/4.32/"></script>
+<script>
+  // --- ArcGIS Harita Başlatma ---
+  let map, view;
+  require([
+    "esri/Map", "esri/views/SceneView",
+    "esri/layers/SceneLayer", "esri/layers/FeatureLayer",
+    "esri/renderers/SimpleRenderer", "esri/symbols/MeshSymbol3D", "esri/symbols/edges/SketchEdges3D"
+  ], function(Map, SceneView, SceneLayer, FeatureLayer, SimpleRenderer, MeshSymbol3D, SketchEdges3D) {
+    map = new Map({ basemap: "hybrid" });
+
+    // 1) Binalar - Taralı Buz Rengi Kenarları
+    const buildings = new SceneLayer({
+      url: "https://basemaps3d.arcgis.com/arcgis/rest/services/Esri3D_Buildings_v1/SceneServer"
+    });
+    buildings.renderer = new SimpleRenderer({
+      symbol: new MeshSymbol3D({
+        symbolLayers: [{
+          type: "fill",
+          material: { color: [255,255,255,0] }, // İçini şeffaf yap
+          edges: new SketchEdges3D({ color: [173,216,230,1], size: 2 }) // Taralı buz rengi
+        }]
+      })
+    });
+
+    // 2) Adres Katmanları (MapServer)
+    const adres1 = new FeatureLayer({
+      url: "https://gisserver.ankara.bel.tr/webgis/rest/services/ortak/adres/MapServer/1",
+      title: "Adres - Mahalle", outFields: ["*"]
+    });
+    const adres2 = new FeatureLayer({
+      url: "https://gisserver.ankara.bel.tr/webgis/rest/services/ortak/adres/MapServer/2",
+      title: "Adres - Cadde/Sokak", outFields: ["*"]
+    });
+
+    // 3) Yapı Planı Katmanları (FeatureServer)
+    const yapi1 = new FeatureLayer({
+      url: "https://baskentcbs.ankara.bel.tr/server/rest/services/Yapi_Plan_mfg_ozg_2D/FeatureServer/0",
+      title: "Yapı Planı - Katman 0", outFields: ["*"]
+    });
+    const yapi2 = new FeatureLayer({
+      url: "https://baskentcbs.ankara.bel.tr/server/rest/services/Yapi_Plan_mfg_ozg_2D/FeatureServer/1",
+      title: "Yapı Planı - Katman 1", outFields: ["*"]
+    });
+
+    map.addMany([buildings, adres1, adres2, yapi1, yapi2]);
+
+    view = new SceneView({
+      container: "viewDiv",
+      map: map,
+      camera: { position: { x: 32.8597, y: 39.9334, z: 4500 }, tilt: 65 }
+    });
+
+    // --- Dinamik Güncellemeler ---
+
+    // Katman Göster/Gizle
+    function toggleLayers() {
+      const layers = map.layers.items;
+      layers.forEach(layer => {
+        const newVis = !layer.visible;
+        layer.visible = newVis;
+        // buton text güncelleme (basit gösterim)
+      });
+      alert("Katmanlar durumu değiştirildi (Console kontrolü).");
+    }
+
+    // Basemap Değiştir
+    function changeBasemap(name) {
+      map.basemap = name;
+      // buton active class ekleme kaldırma
+      document.querySelectorAll('.basemap-list button').forEach(b => b.classList.toggle('active', b.dataset.basemap === name));
+    }
+
+    // Konumu Bul (Geolocation)
+    function locateUser() {
+      if (!navigator.geolocation) {
+        alert("Tarayıcı GPS desteklemiyor.");
+        return;
+      }
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const { latitude, longitude } = pos.coords;
+        // Haritayı o konuma center et
+        view.goTo({ latitude, longitude, heading: 0, tilt: 65 });
+        // Mavi nokta işareti (Popup/Graphic)
+        alert(`Konum bulundu!\nEnlem: ${latitude.toFixed(4)}\nBoylam: ${longitude.toFixed(4)}\nHarita odaklandı.`);
+      }, (err) => {
+        alert("Konum erişimi reddedildi ya da hata: " + err.message);
+      });
+    }
+
+    // Arama Fonksiyonu (Basit placeholder - gerçek geocoding için ArcGIS World Geocoding Service kullanılabilir)
+    function searchLocation() {
+      const val = document.getElementById("searchInput").value;
+      if (!val) return alert("Lütfen bir adres girin.");
+      // Gerçek implementasyonda: fetch('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/find?f=json&text=' + val)
+      // Ancak burada sadece haritayı kaydırarak simüle edelim:
+      alert(`Arama yapıldı: ${val}\n(Doğrudan Geocoding için ArcGIS API gerektirir.)`);
+    }
+
+    // --- Koordinat ve Zoom Güncelleme (Footer) ---
+    view.watch("scale", function(newScale) {
+      document.getElementById("zoom").innerText = Math.round(newScale);
+    });
+    view.on("target-change", function() {
+      const center = view.center;
+      document.getElementById("coord").innerText = `${center.latitude?.toFixed(4)}, ${center.longitude?.toFixed(4)}`;
+    });
+
+    console.log("Harita ve kontroller hazır.");
+  });
+</script>
+
+</body>
+</html>
