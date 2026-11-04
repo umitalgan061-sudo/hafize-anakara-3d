@@ -8,6 +8,14 @@ Ankara için tarayıcıda çalışan 3B harita: Esri 3B binalar ve Ankara Büyü
 - Arayüz Türkçedir.
 
 # Öncelikler
+0. EN ÖNCELİKLİ — Tasarımı baştan yap (bir sonraki turun hedefi budur). Şimdiki görünümle hiçbir benzerliği olmayan, bambaşka ve modern bir tasarım:
+   - Harita tam ekran olsun; üst başlık çubuğu, sol kenar çubuğu ve sağ kontrol sütunu kalksın. Bunların yerine haritanın üstünde yüzen, yarı saydam, bulanık arka planlı (backdrop-filter) kartlar gelsin: üstte ortada yüzen bir arama kutusu, solda katlanabilir bir katman kartı (açma-kapama anahtarları ile), sağ altta yuvarlak eylem düğmeleri (konum, taban değiştir, katmanlar).
+   - Koyu tema varsayılan olsun, açık tema düğmesiyle geçilsin; renkler CSS değişkenleriyle (--renk-...) tanımlansın. Vurgu rengi Ankara'yı çağrıştıran bir turkuaz-lacivert geçişi olsun.
+   - Simgeler satır içi SVG olsun (emoji kullanılmasın). Yazı tipi olarak Inter ya da benzeri bir yazı tipi jsdelivr üzerinden (@fontsource) yüklenebilir.
+   - Mobilde katman kartı alttan açılan bir çekmeceye (bottom sheet) dönüşsün.
+   - Geçişler yumuşak animasyonlu olsun (transition), odak halkaları ve aria etiketleri eksiksiz olsun.
+   - Kod dosyalara bölünsün: css/tasarim.css ve js/arayuz.js; index.html sade kalsın.
+   - Var olan bütün özellikler (arama, çoklu sonuç seçimi, katmanlar, popup bilgileri, konum, taban değiştirme, hata bildirimleri) yeni tasarımda çalışmaya devam etsin.
 1. Katman noktasına tıklayınca bilgi penceresi (popupTemplate) ile adres bilgisini göster.
 2. Mobilde sol paneli bir menü düğmesiyle açılır yap (şu an mobilde tamamen gizli).
 3. Arama sonucunu haritada işaretle ve birden çok sonuç varsa listele.
