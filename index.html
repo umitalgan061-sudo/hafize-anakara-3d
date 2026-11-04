@@ -343,6 +343,36 @@
     });
 
     console.log("Harita ve kontroller hazır.");
+
+    const cbMap = {
+      cb_buildings: buildings,
+      cb_mahalle: adres1,
+      cb_cadde: adres2,
+      cb_yapi1: yapi1,
+      cb_yapi2: yapi2
+    };
+
+    // Harita katmanı görünürlüğü değiştiğinde checkbox'ı güncelle
+    Object.entries(cbMap).forEach(([id, layer]) => {
+      layer.watch("visible", (vis) => {
+        const cb = document.getElementById(id);
+        if (cb) cb.checked = vis;
+      });
+    });
+
+    // Checkbox değiştiğinde harita katmanını güncelle
+    Object.keys(cbMap).forEach(id => {
+      const cb = document.getElementById(id);
+      if (cb) cb.addEventListener("change", () => {
+        cbMap[id].visible = cb.checked;
+      });
+    });
+
+    // Başlangıçta checkbox'ları mevcut layer.visible ile eşitle
+    Object.entries(cbMap).forEach(([id, layer]) => {
+      const cb = document.getElementById(id);
+      if (cb) cb.checked = layer.visible;
+    });
   });
 </script>
 
