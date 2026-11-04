@@ -1,5 +1,6 @@
 name: Hafize kontrol
-# Opens the page in a real browser on every Hafize branch and fails when it shows a JavaScript error main does not.
+# hafize-kontrol v3: opens the site in a real browser on every Hafize branch and fails when using it shows a
+# JavaScript error main does not.
 on:
   push:
     branches: ['hafize/**']

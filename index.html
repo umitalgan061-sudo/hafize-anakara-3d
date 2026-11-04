@@ -63,6 +63,31 @@
     }
     .search-wrapper button:hover { background: var(--accent-hover); }
 
+    /* Hamburger (mobil) */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 28px;
+      height: 20px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      z-index: 110;
+    }
+    .hamburger span {
+      display: block;
+      width: 100%;
+      height: 3px;
+      background: var(--text);
+      border-radius: 2px;
+      transition: transform 0.3s, opacity 0.3s;
+    }
+    .hamburger.open span:nth-child(1) { transform: translateY(8.5px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; }
+    .hamburger.open span:nth-child(3) { transform: translateY(-8.5px) rotate(-45deg); }
+
     /* --- SIDEBAR (Sol Panel) --- */
     .sidebar {
       width: 260px;
@@ -73,7 +98,15 @@
       border-right: 1px solid #e5e5e5;
       display: flex;
       flex-direction: column;
+      position: fixed;
+      left: 0;
+      top: 64px; /* header height approx */
+      bottom: 48px; /* footer height approx */
+      z-index: 200;
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
     }
+    .sidebar.open { transform: translateX(0); }
     .sidebar h2 { margin-top: 0; margin-bottom: 15px; font-size: 1rem; color: #555; }
     .sidebar .layer-panel, .sidebar .basemap-panel {
       background: #f9f9f9;
@@ -99,6 +132,18 @@
       transition: background 0.2s;
     }
     .sidebar .basemap-list button:hover { background: #eef; }
+
+    /* Sidebar overlay (mobilde arka planı karart) */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 150;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .sidebar-overlay.visible { display: block; opacity: 1; }
 
     /* --- MAIN CONTENT (Harita + Kontroller) --- */
     #content {
@@ -168,9 +213,38 @@
       justify-content: space-between;
     }
 
+    /* --- TOAST BİLDİRİM --- */
+    #toast-container {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      background: #333;
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      font-size: 0.85rem;
+      max-width: 320px;
+      animation: slideIn 0.3s ease, fadeOut 0.5s 3.5s forwards;
+      pointer-events: auto;
+      border-left: 4px solid var(--warning);
+    }
+    .toast.success { border-left-color: var(--success); }
+    .toast.info { border-left-color: var(--accent); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes fadeOut { to { opacity: 0; transform: translateX(100%); } }
+
     /* --- RESPONSIVE --- */
     @media (max-width: 768px) {
-      .sidebar { display: none; } /* Mobilde gizle veya hamburger */
+      .hamburger { display: flex; }
+      .sidebar { display: flex; }
       .layout { flex-direction: column; }
       .controls { order: -1; } /* Mobilde en üste */
     }
@@ -179,6 +253,9 @@
 <body>
 
 <header>
+  <button class="hamburger" id="hamburger" onclick="toggleSidebar()" aria-label="Menüyü aç/kapat" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
   <h1>Ankara 3D Harita</h1>
   <form class="search-wrapper" onsubmit="event.preventDefault(); searchLocation()">
     <input type="text" id="searchInput" placeholder="Adres, cadde, ilçe..." />
@@ -210,6 +287,7 @@
         </div>
       </div>
     </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
     <!-- ORTA: 3D Harita Alanı -->
     <main class="map-area">
@@ -232,6 +310,8 @@
   <span>Ölçek: <span id="zoom">--</span></span>
 </footer>
 
+<div id="toast-container"></div>
+
 <script src="https://js.arcgis.com/4.32/"></script>
 <script>
   // --- ArcGIS Harita Başlatma ---
@@ -239,20 +319,31 @@
   require([
     "esri/Map", "esri/views/SceneView",
     "esri/layers/SceneLayer", "esri/layers/FeatureLayer",
-    "esri/renderers/SimpleRenderer", "esri/symbols/MeshSymbol3D", "esri/symbols/edges/SketchEdges3D", "esri/Graphic"
-  ], function(Map, SceneView, SceneLayer, FeatureLayer, SimpleRenderer, MeshSymbol3D, SketchEdges3D, Graphic) {
+    "esri/renderers/SimpleRenderer", "esri/symbols/MeshSymbol3D", "esri/symbols/edges/SketchEdges3D",
+    "esri/Graphic", "esri/PopupTemplate"
+  ], function(Map, SceneView, SceneLayer, FeatureLayer, SimpleRenderer, MeshSymbol3D, SketchEdges3D, Graphic, PopupTemplate) {
     map = new Map({ basemap: "hybrid" });
+
+    // PopupTemplate yardımcı fonksiyonu
+    function makePopup(titleField, fieldInfos) {
+      return new PopupTemplate({
+        title: "{*" + titleField + "}",
+        content: fieldInfos.map(f => `<b>${f.label}:</b> {${f.fieldName}}`).join("<br>"),
+        fieldInfos: fieldInfos.map(f => ({ fieldName: f.fieldName, visible: true }))
+      });
+    }
 
     // 1) Binalar - Taralı Buz Rengi Kenarları
     const buildings = new SceneLayer({
-      url: "https://basemaps3d.arcgis.com/arcgis/rest/services/Esri3D_Buildings_v1/SceneServer"
+      url: "https://basemaps3d.arcgis.com/arcgis/rest/services/Esri3D_Buildings_v1/SceneServer",
+      popupTemplate: new PopupTemplate({ title: "3D Bina", content: "Esri 3D Buildings katmanı" })
     });
     buildings.renderer = new SimpleRenderer({
       symbol: new MeshSymbol3D({
         symbolLayers: [{
           type: "fill",
-          material: { color: [255,255,255,0] }, // İçini şeffaf yap
-          edges: new SketchEdges3D({ color: [173,216,230,1], size: 2 }) // Taralı buz rengi
+          material: { color: [255,255,255,0] },
+          edges: new SketchEdges3D({ color: [173,216,230,1], size: 2 })
         }]
       })
     });
@@ -260,24 +351,51 @@
     // 2) Adres Katmanları (MapServer) - baskentcbs.ankara.bel.tr (herkese açık)
     const adres1 = new FeatureLayer({
       url: "https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/3",
-      title: "Mahalle", outFields: ["*"]
+      title: "Mahalle", outFields: ["*"],
+      popupTemplate: makePopup("MAHALLE_ADI", [
+        { label: "Mahalle", fieldName: "MAHALLE_ADI" },
+        { label: "İlçe", fieldName: "ILCE_ADI" }
+      ])
     });
     const adres2 = new FeatureLayer({
       url: "https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/1",
-      title: "Yol", outFields: ["*"]
+      title: "Yol", outFields: ["*"],
+      popupTemplate: makePopup("CADDE_ADI", [
+        { label: "Cadde/Sokak", fieldName: "CADDE_ADI" },
+        { label: "Mahalle", fieldName: "MAHALLE_ADI" },
+        { label: "İlçe", fieldName: "ILCE_ADI" }
+      ])
     });
     const yapi1 = new FeatureLayer({
       url: "https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/2",
-      title: "Yapı", outFields: ["*"]
+      title: "Yapı", outFields: ["*"],
+      popupTemplate: makePopup("YAPI_ADI", [
+        { label: "Yapı", fieldName: "YAPI_ADI" },
+        { label: "Mahalle", fieldName: "MAHALLE_ADI" },
+        { label: "İlçe", fieldName: "ILCE_ADI" }
+      ])
     });
     const yapi2 = new FeatureLayer({
       url: "https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/4",
-      title: "İlçe", outFields: ["*"]
+      title: "İlçe", outFields: ["*"],
+      popupTemplate: makePopup("ILCE_ADI", [
+        { label: "İlçe", fieldName: "ILCE_ADI" }
+      ])
     });
 
     map.addMany([buildings, adres1, adres2, yapi1, yapi2]);
 
-    // Katman yüklenemezse ilgili checkbox'ı devre dışı bırak
+    // Toast bildirimi yardımcı
+    function showToast(msg, type = "warning") {
+      const container = document.getElementById("toast-container");
+      const toast = document.createElement("div");
+      toast.className = "toast " + type;
+      toast.textContent = msg;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
+
+    // Katman yüklenemezse ilgili checkbox'ı devre dışı bırak + toast
     const layerErrs = {
       cb_buildings: buildings,
       cb_mahalle: adres1,
@@ -292,6 +410,7 @@
           cb.disabled = true;
           cb.parentElement.appendChild(document.createTextNode(" (erişilemiyor)"));
         }
+        showToast("Katman yüklenemedi: " + layer.title, "warning");
         console.warn("Katman yüklenemedi (" + id + ")", err);
       });
     });
@@ -320,7 +439,6 @@
     // Basemap Değiştir
     function changeBasemap(name) {
       map.basemap = name;
-      // buton active class ekleme kaldırma
       document.querySelectorAll('.basemap-list button').forEach(b => b.classList.toggle('active', b.dataset.basemap === name));
     }
 
@@ -336,49 +454,79 @@
     // Konumu Bul (Geolocation)
     function locateUser() {
       if (!navigator.geolocation) {
-        alert("Tarayıcı GPS desteklemiyor.");
+        showToast("Tarayıcı GPS desteklemiyor.", "warning");
         return;
       }
       navigator.geolocation.getCurrentPosition((pos) => {
         const { latitude, longitude } = pos.coords;
-        // Haritayı o konuma center et
         view.goTo({ latitude, longitude, heading: 0, tilt: 65 });
-        // Mavi nokta işareti (Graphic)
         view.graphics.removeAll();
         view.graphics.add(new Graphic({
           geometry: { type: "point", longitude, latitude },
           symbol: { type: "simple-marker", color: [0, 120, 212], size: 12 }
         }));
+        showToast("Konum bulundu", "success");
       }, (err) => {
-        alert("Konum erişimi reddedildi ya da hata: " + err.message);
+        showToast("Konum erişimi reddedildi ya da hata: " + err.message, "warning");
       });
     }
 
-    // Arama Fonksiyonu - ArcGIS World Geocoding Service
+    // Arama Fonksiyonu - ArcGIS World Geocoding Service (çoklu sonuç)
     function searchLocation() {
       const val = document.getElementById("searchInput").value;
-      if (!val) return alert("Lütfen bir adres girin.");
-      fetch('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&maxLocations=1&countryCode=TUR&SingleLine=' + encodeURIComponent(val + ', Ankara'))
+      if (!val) return showToast("Lütfen bir adres girin.", "warning");
+      fetch('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&maxLocations=10&countryCode=TUR&SingleLine=' + encodeURIComponent(val + ', Ankara'))
         .then(r => r.json())
         .then(data => {
-          const c = data.candidates?.[0];
-          if (c) {
+          const candidates = data.candidates || [];
+          if (candidates.length === 0) {
+            showToast("Sonuç bulunamadı", "warning");
+            return;
+          }
+          if (candidates.length === 1) {
+            const c = candidates[0];
             const pt = { type: "point", longitude: c.location.x, latitude: c.location.y };
-            view.popup.open({
-              location: pt,
-              title: "Arama Sonucu",
-              content: c.address
-            });
+            view.popup.open({ location: pt, title: "Arama Sonucu", content: c.address });
             view.goTo({ target: pt, zoom: 16, tilt: 65 });
             document.getElementById("coord").innerText = c.address;
-          } else {
-            alert("Bulunamadı");
+            showToast("Adres bulundu", "success");
+            return;
           }
+          // Birden fazla sonuç: popup'a liste bas
+          const listHtml = candidates.map((c, i) => `
+            <label style="display:block; padding:8px; border-bottom:1px solid #eee; cursor:pointer;">
+              <input type="radio" name="searchResult" value="${i}" ${i===0?'checked':''} style="margin-right:8px;">
+              <strong>${c.address}</strong>
+            </label>
+          `).join('');
+          const first = candidates[0];
+          const pt = { type: "point", longitude: first.location.x, latitude: first.location.y };
+          view.popup.open({
+            location: pt,
+            title: `${candidates.length} sonuç bulundu`,
+            content: `<div style="max-height:200px; overflow:auto;">${listHtml}</div>
+              <button onclick="selectSearchResult()" style="margin-top:8px; width:100%; padding:8px; background:var(--accent); color:white; border:none; border-radius:4px; cursor:pointer;">Seç ve Git</button>`
+          });
+          // Seçimi sakla
+          window._searchCandidates = candidates;
         })
         .catch(err => {
           console.error(err);
-          alert("Arama hatası: " + err.message);
+          showToast("Arama hatası: " + err.message, "warning");
         });
+    }
+
+    // Popup'taki listeden seçim yapıp git
+    function selectSearchResult() {
+      const radios = document.querySelectorAll('input[name="searchResult"]');
+      let idx = 0;
+      radios.forEach((r, i) => { if (r.checked) idx = i; });
+      const c = window._searchCandidates[idx];
+      const pt = { type: "point", longitude: c.location.x, latitude: c.location.y };
+      view.popup.open({ location: pt, title: "Arama Sonucu", content: c.address });
+      view.goTo({ target: pt, zoom: 16, tilt: 65 });
+      document.getElementById("coord").innerText = c.address;
+      showToast("Adres seçildi", "success");
     }
 
     // --- Koordinat ve Zoom Güncelleme (Footer) ---
@@ -431,8 +579,29 @@
     document.getElementById("searchInput").addEventListener("keydown", (e) => {
       if (e.key === "Enter") searchLocation();
     });
+
+    // Mobil sidebar toggle
+    function toggleSidebar() {
+      const sidebar = document.getElementById("sidebar");
+      const overlay = document.getElementById("sidebarOverlay");
+      const hamburger = document.getElementById("hamburger");
+      const isOpen = sidebar.classList.toggle("open");
+      overlay.classList.toggle("visible", isOpen);
+      hamburger.classList.toggle("open", isOpen);
+      hamburger.setAttribute("aria-expanded", isOpen);
+    }
+    function closeSidebar() {
+      const sidebar = document.getElementById("sidebar");
+      const overlay = document.getElementById("sidebarOverlay");
+      const hamburger = document.getElementById("hamburger");
+      sidebar.classList.remove("open");
+      overlay.classList.remove("visible");
+      hamburger.classList.remove("open");
+      hamburger.setAttribute("aria-expanded", "false");
+    }
+
     // Fonksiyonları global alana taşı (onclick'ler için)
-    Object.assign(window, { toggleLayers, changeBasemap, locateUser, searchLocation, cycleBasemap });
+    Object.assign(window, { toggleLayers, changeBasemap, locateUser, searchLocation, cycleBasemap, selectSearchResult, toggleSidebar, closeSidebar });
   });
 </script>
 
