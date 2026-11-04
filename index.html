@@ -181,7 +181,7 @@
 <header>
   <h1>Ankara 3D Harita</h1>
   <div class="search-wrapper">
-    <input type="text" id="searchInput" placeholder="Adres, cadde, ilçe..." />
+    <input type="text" id="searchInput" placeholder="Adres, cadde, ilçe..." onkeydown="if(event.key==='Enter') searchLocation()" />
     <button onclick="searchLocation()">Ara</button>
   </div>
 </header>
