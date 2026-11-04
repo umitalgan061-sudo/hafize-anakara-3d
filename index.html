@@ -290,12 +290,14 @@
     // Katman Göster/Gizle
     function toggleLayers() {
       const layers = map.layers.items;
+      let anyVisible = false;
       layers.forEach(layer => {
         const newVis = !layer.visible;
         layer.visible = newVis;
-        // buton text güncelleme (basit gösterim)
+        if (newVis) anyVisible = true;
       });
-      alert("Katmanlar durumu değiştirildi (Console kontrolü).");
+      const btn = document.querySelector('.controls .control-btn[onclick="toggleLayers()"]');
+      if (btn) btn.classList.toggle('active', anyVisible);
     }
 
     // Basemap Değiştir
