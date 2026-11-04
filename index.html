@@ -194,16 +194,16 @@
       <div class="layer-panel">
         <div class="layer-list">
           <label><input type="checkbox" id="cb_buildings" checked> Esri 3D Binalar</label>
-          <label><input type="checkbox" id="cb_mahalle" checked> Adres - Mahalle</label>
-          <label><input type="checkbox" id="cb_cadde" checked> Adres - Cadde/Sokak</label>
-          <label><input type="checkbox" id="cb_yapi1" checked> Yapı Planı - Katman 0</label>
-          <label><input type="checkbox" id="cb_yapi2" checked> Yapı Planı - Katman 1</label>
+          <label><input type="checkbox" id="cb_mahalle" checked> Mahalle</label>
+          <label><input type="checkbox" id="cb_cadde" checked> Yol</label>
+          <label><input type="checkbox" id="cb_yapi1" checked> Yapı</label>
+          <label><input type="checkbox" id="cb_yapi2" checked> İlçe</label>
         </div>
       </div>
       <div class="basemap-panel">
         <h3>Harita Tabanı</h3>
         <div class="basemap-list">
-          <button data-basemap="hybrid">Karma (Uyu+Etiket)</button>
+          <button data-basemap="hybrid">Karma (Uydu+Etiket)</button>
           <button data-basemap="satellite">Sadece Uydu</button>
           <button data-basemap="streets">Yol Haritası</button>
           <button data-basemap="gray">Gri</button>
@@ -218,8 +218,8 @@
 
     <!-- SAĞ: Kontroller -->
     <aside class="controls" id="controls">
-      <button class="control-btn" onclick="toggleLayers()">Katmanları Aç/Kap</button>
-      <button class="control-btn active" onclick="changeBasemap('hybrid')">Taban Değiştir</button>
+      <button class="control-btn" onclick="toggleLayers()">Katmanları Aç/Kapa</button>
+      <button class="control-btn active" onclick="cycleBasemap()">Taban Değiştir</button>
       <div style="margin-top:auto;">
         <button class="locate-btn" onclick="locateUser()">📍 Konum</button>
       </div>
@@ -229,7 +229,7 @@
 
 <footer>
   <span>Koordinat: <span id="coord">--</span></span>
-  <span>Zoomsiz: <span id="zoom">--</span></span>
+  <span>Ölçek: <span id="zoom">--</span></span>
 </footer>
 
 <script src="https://js.arcgis.com/4.32/"></script>
@@ -238,9 +238,8 @@
   let map, view;
   require([
     "esri/Map", "esri/views/SceneView",
-    "esri/layers/SceneLayer", "esri/layers/FeatureLayer",
-    "esri/renderers/SimpleRenderer", "esri/symbols/MeshSymbol3D", "esri/symbols/edges/SketchEdges3D"
-  ], function(Map, SceneView, SceneLayer, FeatureLayer, SimpleRenderer, MeshSymbol3D, SketchEdges3D) {
+    "esri/layers/SceneLayer", "esri/layers/FeatureLayer",    "esri/renderers/SimpleRenderer", "esri/symbols/MeshSymbol3D", "esri/symbols/edges/SketchEdges3D", "esri/Graphic"
+  ], function(Map, SceneView, SceneLayer, FeatureLayer, SimpleRenderer, MeshSymbol3D, SketchEdges3D, Graphic) {
     map = new Map({ basemap: "hybrid" });
 
     // 1) Binalar - Taralı Buz Rengi Kenarları
@@ -257,27 +256,44 @@
       })
     });
 
-    // 2) Adres Katmanları (MapServer)
+    // 2) Adres Katmanları (MapServer) - baskentcbs.ankara.bel.tr (herkese açık)
     const adres1 = new FeatureLayer({
-      url: "https://gisserver.ankara.bel.tr/webgis/rest/services/ortak/adres/MapServer/1",
-      title: "Adres - Mahalle", outFields: ["*"]
+      url: "https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/3",
+      title: "Mahalle", outFields: ["*"]
     });
     const adres2 = new FeatureLayer({
-      url: "https://gisserver.ankara.bel.tr/webgis/rest/services/ortak/adres/MapServer/2",
-      title: "Adres - Cadde/Sokak", outFields: ["*"]
+      url: "https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/1",
+      title: "Yol", outFields: ["*"]
     });
-
-    // 3) Yapı Planı Katmanları (FeatureServer)
     const yapi1 = new FeatureLayer({
-      url: "https://baskentcbs.ankara.bel.tr/server/rest/services/Yapi_Plan_mfg_ozg_2D/FeatureServer/0",
-      title: "Yapı Planı - Katman 0", outFields: ["*"]
+      url: "https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/2",
+      title: "Yapı", outFields: ["*"]
     });
     const yapi2 = new FeatureLayer({
-      url: "https://baskentcbs.ankara.bel.tr/server/rest/services/Yapi_Plan_mfg_ozg_2D/FeatureServer/1",
-      title: "Yapı Planı - Katman 1", outFields: ["*"]
+      url: "https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/4",
+      title: "İlçe", outFields: ["*"]
     });
 
     map.addMany([buildings, adres1, adres2, yapi1, yapi2]);
+
+    // Katman yüklenemezse ilgili checkbox'ı devre dışı bırak
+    const layerErrs = {
+      cb_buildings: buildings,
+      cb_mahalle: adres1,
+      cb_cadde: adres2,
+      cb_yapi1: yapi1,
+      cb_yapi2: yapi2
+    };
+    Object.entries(layerErrs).forEach(([id, layer]) => {
+      layer.when(null, (err) => {
+        const cb = document.getElementById(id);
+        if (cb) {
+          cb.disabled = true;
+          cb.parentElement.appendChild(document.createTextNode(" (erişilemiyor)"));
+        }
+        console.warn("Katman yüklenemedi (" + id + ")", err);
+      });
+    });
 
     view = new SceneView({
       container: "viewDiv",
@@ -304,8 +320,10 @@
     function changeBasemap(name) {
       map.basemap = name;
       // buton active class ekleme kaldırma
-      document.querySelectorAll('.basemap-list button').forEach(b => b.classList.toggle('active', b.dataset.basemap === name));
-    }
+      document.querySelectorAll('.basemap-list button').forEach(b => b.classList.toggle('active', b.dataset.basemap === name));    }
+
+    // Taban butonları döngüsü: hybrid > satellite > streets > gray
+    function cycleBasemap() {      const order = ['hybrid', 'satellite', 'streets', 'gray'];      const current = map.basemap;      const idx = order.indexOf(current);      const next = order[(idx + 1) % order.length];      changeBasemap(next);    }
 
     // Konumu Bul (Geolocation)
     function locateUser() {
@@ -317,63 +335,34 @@
         const { latitude, longitude } = pos.coords;
         // Haritayı o konuma center et
         view.goTo({ latitude, longitude, heading: 0, tilt: 65 });
-        // Mavi nokta işareti (Popup/Graphic)
-        alert(`Konum bulundu!\nEnlem: ${latitude.toFixed(4)}\nBoylam: ${longitude.toFixed(4)}\nHarita odaklandı.`);
-      }, (err) => {
+        // Mavi nokta işareti (Graphic)
+        view.graphics.removeAll();        view.graphics.add(new Graphic({          geometry: { type: "point", longitude, latitude },          symbol: { type: "simple-marker", color: [0, 120, 212], size: 12 }        }));      }, (err) => {
         alert("Konum erişimi reddedildi ya da hata: " + err.message);
       });
     }
 
-    // Arama Fonksiyonu (Basit placeholder - gerçek geocoding için ArcGIS World Geocoding Service kullanılabilir)
-    function searchLocation() {
-      const val = document.getElementById("searchInput").value;
-      if (!val) return alert("Lütfen bir adres girin.");
-      // Gerçek implementasyonda: fetch('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/find?f=json&text=' + val)
-      // Ancak burada sadece haritayı kaydırarak simüle edelim:
-      alert(`Arama yapıldı: ${val}\n(Doğrudan Geocoding için ArcGIS API gerektirir.)`);
-    }
+    // Arama Fonksiyonu - ArcGIS World Geocoding Service
+    function searchLocation() {      const val = document.getElementById("searchInput").value;      if (!val) return alert("Lütfen bir adres girin.");      fetch('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&maxLocations=1&countryCode=TUR&SingleLine=' + encodeURIComponent(val + ', Ankara'))        .then(r => r.json())        .then(data => {          const c = data.candidates?.[0];          if (c) {            view.goTo({ center: [c.location.x, c.location.y], zoom: 16, tilt: 65 });            document.getElementById("coord").innerText = c.address;          } else {            alert("Bulunamadı");          }        })        .catch(err => {          console.error(err);          alert("Arama hatası: " + err.message);        });    }
 
     // --- Koordinat ve Zoom Güncelleme (Footer) ---
-    view.watch("scale", function(newScale) {
-      document.getElementById("zoom").innerText = Math.round(newScale);
-    });
-    view.on("target-change", function() {
-      const center = view.center;
-      document.getElementById("coord").innerText = `${center.latitude?.toFixed(4)}, ${center.longitude?.toFixed(4)}`;
-    });
+    view.watch("scale", function(newScale) {      document.getElementById("zoom").innerText = Math.round(newScale);    });    view.on("target-change", function() {      const center = view.center;      document.getElementById("coord").innerText = `${center.latitude?.toFixed(4)}, ${center.longitude?.toFixed(4)}`;    });
 
     console.log("Harita ve kontroller hazır.");
 
-    const cbMap = {
-      cb_buildings: buildings,
-      cb_mahalle: adres1,
-      cb_cadde: adres2,
-      cb_yapi1: yapi1,
-      cb_yapi2: yapi2
-    };
+    const cbMap = {      cb_buildings: buildings,      cb_mahalle: adres1,      cb_cadde: adres2,      cb_yapi1: yapi1,      cb_yapi2: yapi2    };
 
     // Harita katmanı görünürlüğü değiştiğinde checkbox'ı güncelle
-    Object.entries(cbMap).forEach(([id, layer]) => {
-      layer.watch("visible", (vis) => {
-        const cb = document.getElementById(id);
-        if (cb) cb.checked = vis;
-      });
-    });
+    Object.entries(cbMap).forEach(([id, layer]) => {      layer.watch("visible", (vis) => {        const cb = document.getElementById(id);        if (cb) cb.checked = vis;      });    });
 
     // Checkbox değiştiğinde harita katmanını güncelle
-    Object.keys(cbMap).forEach(id => {
-      const cb = document.getElementById(id);
-      if (cb) cb.addEventListener("change", () => {
-        cbMap[id].visible = cb.checked;
-      });
-    });
+    Object.keys(cbMap).forEach(id => {      const cb = document.getElementById(id);      if (cb) cb.addEventListener("change", () => {        cbMap[id].visible = cb.checked;      });    });
 
     // Başlangıçta checkbox'ları mevcut layer.visible ile eşitle
-    Object.entries(cbMap).forEach(([id, layer]) => {
-      const cb = document.getElementById(id);
-      if (cb) cb.checked = layer.visible;
-    });
-  });
+    Object.entries(cbMap).forEach(([id, layer]) => {      const cb = document.getElementById(id);      if (cb) cb.checked = layer.visible;    });
+
+    // Taban butonlarına (data-basemap) tıklama olayı    document.querySelectorAll('.basemap-list button').forEach(b => {      b.addEventListener('click', () => changeBasemap(b.dataset.basemap));    });
+
+    // Fonksiyonları global alana taşı (onclick'ler için)    Object.assign(window, { toggleLayers, changeBasemap, locateUser, searchLocation, cycleBasemap });  });
 </script>
 
 </body>
