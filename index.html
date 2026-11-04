@@ -339,7 +339,11 @@
     });
     view.on("target-change", function() {
       const center = view.center;
-      document.getElementById("coord").innerText = `${center.latitude?.toFixed(4)}, ${center.longitude?.toFixed(4)}`;
+      if (center && typeof center.latitude === "number" && typeof center.longitude === "number") {
+        document.getElementById("coord").innerText = `${center.latitude.toFixed(4)}, ${center.longitude.toFixed(4)}`;
+      } else {
+        document.getElementById("coord").innerText = "--";
+      }
     });
 
     console.log("Harita ve kontroller hazır.");

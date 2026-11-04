@@ -1,5 +1,6 @@
 # Geliştirme notları
 
+- 4 Kasım 2026 22:30 — Footer koordinat göstergesini sıfır koordinatlardan koru: Harita henüz yüklenmede view.center null olabilir ve footer'da 'null, null' yazmasını engellemek için güvenli erişim ve hazır olana kadar '--' gösterimi eklendi.
 - 4 Kasım 2026 22:00 — Arama butonu Enter tuşu ile erişilebilir hale getirildi: Arama butonu formun içindeyken type='submit' olmadığı ve Enter tuşu sadece input üzerinde çalışıyordu. Butona type='submit' eklenip form onsubmit ile yönetildi; böylece klavye/ekran okuyucu kullanıcıları da butonu tetikleyebilir.
 - 4 Kasım 2026 21:31 — Sidebar checkbox'ları harita katmanlarıyla senkronize et: Harita yüklendiğinde ve kullanıcı bir katmanı açıp kapattığında, sol paneldeki checkbox'ların da güncellenmesi için iki yönlü dinleyici ekleniyor. Bu, kullanıcının her zaman doğru durumu görmesini sağlar.
 - 4 Kasım 2026 21:00 — toggleLayers butonuna aktif/pasif görsel geri bildirimi ekle: Katmanları aç/kapa butonuna .active sınıfı ekleyerek kullanıcının anlık durum görebilmesini sağlıyor. Bu, erişilebilirlik ve Kullanıcı Deneyimi için kritik bir iyileştirmedir.
