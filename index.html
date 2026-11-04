@@ -238,7 +238,8 @@
   let map, view;
   require([
     "esri/Map", "esri/views/SceneView",
-    "esri/layers/SceneLayer", "esri/layers/FeatureLayer",    "esri/renderers/SimpleRenderer", "esri/symbols/MeshSymbol3D", "esri/symbols/edges/SketchEdges3D", "esri/Graphic"
+    "esri/layers/SceneLayer", "esri/layers/FeatureLayer",
+    "esri/renderers/SimpleRenderer", "esri/symbols/MeshSymbol3D", "esri/symbols/edges/SketchEdges3D", "esri/Graphic"
   ], function(Map, SceneView, SceneLayer, FeatureLayer, SimpleRenderer, MeshSymbol3D, SketchEdges3D, Graphic) {
     map = new Map({ basemap: "hybrid" });
 
@@ -320,10 +321,17 @@
     function changeBasemap(name) {
       map.basemap = name;
       // buton active class ekleme kaldırma
-      document.querySelectorAll('.basemap-list button').forEach(b => b.classList.toggle('active', b.dataset.basemap === name));    }
+      document.querySelectorAll('.basemap-list button').forEach(b => b.classList.toggle('active', b.dataset.basemap === name));
+    }
 
     // Taban butonları döngüsü: hybrid > satellite > streets > gray
-    function cycleBasemap() {      const order = ['hybrid', 'satellite', 'streets', 'gray'];      const current = map.basemap;      const idx = order.indexOf(current);      const next = order[(idx + 1) % order.length];      changeBasemap(next);    }
+    function cycleBasemap() {
+      const order = ['hybrid', 'satellite', 'streets', 'gray'];
+      const current = map.basemap?.id;
+      const idx = order.indexOf(current);
+      const next = order[(idx + 1) % order.length];
+      changeBasemap(next);
+    }
 
     // Konumu Bul (Geolocation)
     function locateUser() {
@@ -336,33 +344,90 @@
         // Haritayı o konuma center et
         view.goTo({ latitude, longitude, heading: 0, tilt: 65 });
         // Mavi nokta işareti (Graphic)
-        view.graphics.removeAll();        view.graphics.add(new Graphic({          geometry: { type: "point", longitude, latitude },          symbol: { type: "simple-marker", color: [0, 120, 212], size: 12 }        }));      }, (err) => {
+        view.graphics.removeAll();
+        view.graphics.add(new Graphic({
+          geometry: { type: "point", longitude, latitude },
+          symbol: { type: "simple-marker", color: [0, 120, 212], size: 12 }
+        }));
+      }, (err) => {
         alert("Konum erişimi reddedildi ya da hata: " + err.message);
       });
     }
 
     // Arama Fonksiyonu - ArcGIS World Geocoding Service
-    function searchLocation() {      const val = document.getElementById("searchInput").value;      if (!val) return alert("Lütfen bir adres girin.");      fetch('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&maxLocations=1&countryCode=TUR&SingleLine=' + encodeURIComponent(val + ', Ankara'))        .then(r => r.json())        .then(data => {          const c = data.candidates?.[0];          if (c) {            view.goTo({ center: [c.location.x, c.location.y], zoom: 16, tilt: 65 });            document.getElementById("coord").innerText = c.address;          } else {            alert("Bulunamadı");          }        })        .catch(err => {          console.error(err);          alert("Arama hatası: " + err.message);        });    }
+    function searchLocation() {
+      const val = document.getElementById("searchInput").value;
+      if (!val) return alert("Lütfen bir adres girin.");
+      fetch('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&maxLocations=1&countryCode=TUR&SingleLine=' + encodeURIComponent(val + ', Ankara'))
+        .then(r => r.json())
+        .then(data => {
+          const c = data.candidates?.[0];
+          if (c) {
+            view.goTo({ center: [c.location.x, c.location.y], zoom: 16, tilt: 65 });
+            document.getElementById("coord").innerText = c.address;
+          } else {
+            alert("Bulunamadı");
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert("Arama hatası: " + err.message);
+        });
+    }
 
     // --- Koordinat ve Zoom Güncelleme (Footer) ---
-    view.watch("scale", function(newScale) {      document.getElementById("zoom").innerText = Math.round(newScale);    });    view.on("target-change", function() {      const center = view.center;      document.getElementById("coord").innerText = `${center.latitude?.toFixed(4)}, ${center.longitude?.toFixed(4)}`;    });
+    view.watch("scale", function(newScale) {
+      document.getElementById("zoom").innerText = Math.round(newScale);
+    });
+    view.on("target-change", function() {
+      const center = view.center;
+      document.getElementById("coord").innerText = `${center.latitude?.toFixed(4)}, ${center.longitude?.toFixed(4)}`;
+    });
 
     console.log("Harita ve kontroller hazır.");
 
-    const cbMap = {      cb_buildings: buildings,      cb_mahalle: adres1,      cb_cadde: adres2,      cb_yapi1: yapi1,      cb_yapi2: yapi2    };
+    const cbMap = {
+      cb_buildings: buildings,
+      cb_mahalle: adres1,
+      cb_cadde: adres2,
+      cb_yapi1: yapi1,
+      cb_yapi2: yapi2
+    };
 
     // Harita katmanı görünürlüğü değiştiğinde checkbox'ı güncelle
-    Object.entries(cbMap).forEach(([id, layer]) => {      layer.watch("visible", (vis) => {        const cb = document.getElementById(id);        if (cb) cb.checked = vis;      });    });
+    Object.entries(cbMap).forEach(([id, layer]) => {
+      layer.watch("visible", (vis) => {
+        const cb = document.getElementById(id);
+        if (cb) cb.checked = vis;
+      });
+    });
 
     // Checkbox değiştiğinde harita katmanını güncelle
-    Object.keys(cbMap).forEach(id => {      const cb = document.getElementById(id);      if (cb) cb.addEventListener("change", () => {        cbMap[id].visible = cb.checked;      });    });
+    Object.keys(cbMap).forEach(id => {
+      const cb = document.getElementById(id);
+      if (cb) cb.addEventListener("change", () => {
+        cbMap[id].visible = cb.checked;
+      });
+    });
 
     // Başlangıçta checkbox'ları mevcut layer.visible ile eşitle
-    Object.entries(cbMap).forEach(([id, layer]) => {      const cb = document.getElementById(id);      if (cb) cb.checked = layer.visible;    });
+    Object.entries(cbMap).forEach(([id, layer]) => {
+      const cb = document.getElementById(id);
+      if (cb) cb.checked = layer.visible;
+    });
 
-    // Taban butonlarına (data-basemap) tıklama olayı    document.querySelectorAll('.basemap-list button').forEach(b => {      b.addEventListener('click', () => changeBasemap(b.dataset.basemap));    });
+    // Taban butonlarına (data-basemap) tıklama olayı
+    document.querySelectorAll('.basemap-list button').forEach(b => {
+      b.addEventListener('click', () => changeBasemap(b.dataset.basemap));
+    });
 
-    // Fonksiyonları global alana taşı (onclick'ler için)    Object.assign(window, { toggleLayers, changeBasemap, locateUser, searchLocation, cycleBasemap });  });
+    // Arama kutusuna Enter desteği
+    document.getElementById("searchInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") searchLocation();
+    });
+    // Fonksiyonları global alana taşı (onclick'ler için)
+    Object.assign(window, { toggleLayers, changeBasemap, locateUser, searchLocation, cycleBasemap });
+  });
 </script>
 
 </body>
