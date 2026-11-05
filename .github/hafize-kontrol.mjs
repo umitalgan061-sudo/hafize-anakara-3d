@@ -1,4 +1,4 @@
-// hafize-kontrol v8: serves this branch and main over http (so sites of several files and modules work), opens
+// hafize-kontrol v11: serves this branch and main over http (so sites of several files and modules work), opens
 // index.html of each in Chromium, uses the page like a person would (types into text boxes and presses Enter, clicks
 // every button) and compares the uncaught errors with main's. Every error is also written as a GitHub annotation,
 // so Hafize's next round knows what is broken. Written by Hafize.
@@ -42,15 +42,21 @@ function pushOutput(dir, branch) {
   console.log('Derlenmiş site gönderildi: yayin/' + branch);
 }
 const branchName = process.env.GITHUB_REF_NAME || 'yerel';
+// Live audit (on schedule or when Hafize starts it after a release): the published site itself is used like a person
+// would, measured and held to the owner's acceptance checks. Its findings open the next round.
+const live = /^(schedule|workflow_dispatch)$/.test(process.env.GITHUB_EVENT_NAME || '') && /^https?:\/\//.test(rules.canli || '');
+if (live) console.log('Canlı denetim: ' + rules.canli);
 let mineRoot = '.';
-try { mineRoot = siteRoot('.'); } catch (error) { console.log('::error title=Derleme hatası::' + String(error.message || error).split('\n')[0].slice(0, 300)); process.exit(1); }
-if (branchName === 'main') { pushOutput(mineRoot, 'main'); process.exit(0); }
+if (live) mineRoot = rules.canli; else try { mineRoot = siteRoot('.'); } catch (error) { console.log('::error title=Derleme hatası::' + String(error.message || error).split('\n')[0].slice(0, 300)); process.exit(1); }
+if (!live && branchName === 'main') { pushOutput(mineRoot, 'main'); process.exit(0); }
 let mainRoot = '.kontrol/main';
+if (live) hasMain = false;
 if (hasMain) { try { mainRoot = siteRoot('.kontrol/main'); } catch { hasMain = false; } }
 const playwright = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const chromium = playwright.chromium || playwright.default.chromium;
 
 function serve(root) {
+  if (/^https?:\/\//.test(root)) return Promise.resolve({ url: root, close: () => {} });
   const base = resolve(root);
   const server = createServer((request, response) => {
     const path = normalize(decodeURIComponent(new URL(request.url, 'http://x').pathname)).replace(/^([/\\])+/, '');
@@ -72,6 +78,8 @@ async function errorsOf(root) {
   const used = [];
   let using = false;
   page.on('pageerror', (error) => (using ? used : errors).push(String(error?.message ?? error).split('\n')[0].slice(0, 200)));
+  // A script or module that failed to load ("scriptError", a 404 module) stops a page as surely as an uncaught error.
+  page.on('console', (message) => { if (message.type() !== 'error') return; const text = message.text(); if (/scriptError|Failed to load module|is not defined|Uncaught|SyntaxError|TypeError|ReferenceError|Cannot read propert/i.test(text)) (using ? used : errors).push('Konsol: ' + text.split('\n')[0].slice(0, 200)); });
   page.on('dialog', (dialog) => dialog.dismiss().catch(() => {}));
   await page.goto(site.url, { waitUntil: 'load', timeout: 60_000 }).catch((error) => errors.push('Sayfa açılmadı: ' + error.message.slice(0, 160)));
   await page.waitForTimeout(12_000);
@@ -149,13 +157,26 @@ async function acceptance(root, viewport, checks) {
     for (let i = 0; i < 90 && view.updating; i++) await new Promise((done) => setTimeout(done, 500));
   }).catch(() => {});
   const out = [];
+  // Every check has 90 seconds and says how it went as it goes (2026-11-05: one check never answered, the job ran
+  // silently into its time limit and the round's work was thrown away). A page that stops answering is not waited on
+  // check after check: the rest are reported as not measured.
+  let frozen = false;
   for (const check of checks) {
-    const verdict = await page.evaluate(async (code) => {
-      try { const value = await (0, eval)('(async () => (' + code + '))()'); return value === true ? true : typeof value === 'string' ? 'ölçülen: ' + value.slice(0, 200) : false; } catch (error) { return 'hata: ' + String((error && error.message) || error).slice(0, 120); }
-    }, check.ifade).catch((error) => 'hata: ' + String(error.message).slice(0, 120));
+    if (frozen) { out.push(check.ad + ' (ölçülemedi: sayfa yanıt vermiyor)'); continue; }
+    const started = Date.now();
+    let timer;
+    const verdict = await Promise.race([
+      page.evaluate(async (code) => {
+        try { const value = await (0, eval)('(async () => (' + code + '))()'); return value === true ? true : typeof value === 'string' ? 'ölçülen: ' + value.slice(0, 200) : false; } catch (error) { return 'hata: ' + String((error && error.message) || error).slice(0, 120); }
+      }, check.ifade).catch((error) => 'hata: ' + String(error.message).slice(0, 120)),
+      new Promise((done) => { timer = setTimeout(() => done('zaman aşımı: 90 saniyede sonuç vermedi'), 90_000); }),
+    ]);
+    clearTimeout(timer);
+    console.log('  ' + (verdict === true ? '✓' : '✗') + ' ' + Math.round((Date.now() - started) / 1000) + ' sn ' + check.ad.slice(0, 80));
+    if (typeof verdict === 'string' && verdict.startsWith('zaman aşımı')) frozen = !(await Promise.race([page.evaluate(() => true).catch(() => false), new Promise((done) => setTimeout(() => done(false), 20_000))]));
     if (verdict !== true) out.push(check.ad + (typeof verdict === 'string' ? ' (' + verdict + ')' : ''));
   }
-  await context.close();
+  await Promise.race([context.close().catch(() => {}), new Promise((done) => setTimeout(done, 15_000))]);
   site.close();
   return out;
 }
@@ -186,5 +207,5 @@ if (mine.nodes < 3) { console.log('::error title=Açılış hatası::Sayfa boş 
 if (usability.length) { console.error('Kullanılabilirlik:', usability.join(' | ')); process.exit(1); }
 if (accepted.length) { console.error('Kabul:', accepted.join(' | ')); process.exit(1); }
 if (fresh.length || freshUse.length) { console.error('Yeni hata:', [...fresh, ...freshUse].join(' | ')); process.exit(1); }
-pushOutput(mineRoot, branchName);
+if (!live) pushOutput(mineRoot, branchName);
 console.log('Temiz: main\'de olmayan bir hata yok.');
