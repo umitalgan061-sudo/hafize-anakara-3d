@@ -376,6 +376,11 @@ require([
 
   // Sonuç listesinde ok tuşlarıyla gezinme
   aramaSonuclari.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      aramaSonuclari.hidden = true;
+      aramaGirdi.focus();
+      return;
+    }
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
     const dugmeler = Array.from(aramaSonuclari.querySelectorAll(".arama-sonuc"));
     const aktif = document.activeElement;
