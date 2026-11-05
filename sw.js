@@ -28,6 +28,36 @@ function vektorKaynagiMi(url) {
     /\.(pbf|woff2?|png|json)$/i.test(url.pathname);
 }
 
+function lonLatToTile(lon, lat, z) {
+  const n = Math.pow(2, z);
+  const x = Math.floor((lon + 180) / 360 * n);
+  const latRad = lat * Math.PI / 180;
+  const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+  return { x, y };
+}
+
+// Açılış alanı karo ön-yüklemesi: Anıtkabir çevresi z15–z17 uydu karoları önbelleğe alınır
+async function alanOnbellekle(bbox, minZoom, maxZoom) {
+  const c = await caches.open(KARO_AD);
+  let sayac = 0;
+  for (let z = minZoom; z <= maxZoom; z++) {
+    const a = lonLatToTile(bbox.minLon, bbox.maxLat, z);
+    const b = lonLatToTile(bbox.maxLon, bbox.minLat, z);
+    const istekler = [];
+    for (let x = a.x; x <= b.x; x++) {
+      for (let y = a.y; y <= b.y; y++) {
+        const u = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/" + z + "/" + y + "/" + x;
+        istekler.push(
+          fetch(u).then(r => { if (r.ok) { sayac++; return c.put(u, r); } }).catch(() => {})
+        );
+      }
+    }
+    await Promise.all(istekler);
+  }
+  await karoSinirla();
+  return sayac;
+}
+
 // Önbellek sınırını aşınca en eski girdileri baştan sil (Cache API keys eklenme sırasındadır)
 async function karoSinirla() {
   const c = await caches.open(KARO_AD);
@@ -66,6 +96,14 @@ self.addEventListener("message", e => {
       caches.open(KARO_AD)
         .then(c => c.keys())
         .then(keys => { e.ports[0].postMessage({ tip: "KARO_SAYISI", sayi: keys.length }); })
+    );
+  }
+  if (e.data && e.data.tip === "ONBELLEKLE_ALAN" && e.ports && e.ports[0]) {
+    const d = e.data;
+    e.waitUntil(
+      alanOnbellekle(d.bbox || {}, d.minZoom || 15, d.maxZoom || 17)
+        .then(sayi => { e.ports[0].postMessage({ tip: "ONBELLEKLE_TAMAM", sayi: sayi }); })
+        .catch(() => { e.ports[0].postMessage({ tip: "ONBELLEKLE_TAMAM", sayi: 0 }); })
     );
   }
 });

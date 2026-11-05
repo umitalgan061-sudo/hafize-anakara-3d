@@ -588,6 +588,26 @@ require([
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("sw.js").catch(() => {});
     });
+    // Açılış alanı (Anıtkabir çevresi) karo ön-yüklemesi: ilk çevrimiçi açılışta tek sefer
+    navigator.serviceWorker.ready.then(sw => {
+      if (!sw.controller || !navigator.onLine) return;
+      let yapildi = false;
+      try { yapildi = localStorage.getItem("ankara3d-onbellek") === "1"; } catch (_) {}
+      if (yapildi) return;
+      const kanal = new MessageChannel();
+      kanal.port1.onmessage = ev => {
+        if (ev.data && ev.data.tip === "ONBELLEKLE_TAMAM") {
+          try { localStorage.setItem("ankara3d-onbellek", "1"); } catch (_) {}
+          duyur("Açılış alanı çevrimdışı için önbelleğe alındı, " + ev.data.sayi + " karo");
+        }
+      };
+      sw.controller.postMessage({
+        tip: "ONBELLEKLE_ALAN",
+        bbox: { minLon: 32.815, minLat: 39.895, maxLon: 32.865, maxLat: 39.945 },
+        minZoom: 15,
+        maxZoom: 17
+      }, [kanal.port2]);
+    });
   }
 
   // ---------- PWA kurulum düğmesi (beforeinstallprompt, tek seferlik) ----------
