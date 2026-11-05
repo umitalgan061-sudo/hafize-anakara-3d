@@ -177,6 +177,14 @@ require([
   });
   window.view = view;
 
+  // ---------- Bilgi penceresi: alt yerleşik (dock), araç çubuğuyla çakışmaz ----------
+  view.popup.dockEnabled = true;
+  view.popup.dockOptions = { buttonEnabled: false, breakpoint: false, position: "bottom-center" };
+  const altCubuk = document.querySelector(".alt-cubuk");
+  reactiveUtils.watch(() => view.popup.visible, gorunur => {
+    if (altCubuk) altCubuk.style.visibility = gorunur ? "hidden" : "visible";
+  });
+
   function yukleniyoruKapat() {
     const yukleniyor = document.getElementById("yukleniyor");
     if (yukleniyor) yukleniyor.remove();
