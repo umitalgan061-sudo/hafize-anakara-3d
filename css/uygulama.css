@@ -57,6 +57,8 @@ body {
   outline: none;
 }
 #arama-girdi:focus { background: #fff; border-color: var(--vurgu); }
+n/* Arama kutusu: tarayıcı kendi iptal düğmesini hiç çizmesin */\n#arama-girdi { -webkit-appearance: none; appearance: none; }
+n>>>>>>>YENİ
 #arama-temizle {
   position: absolute;
   right: 6px;
