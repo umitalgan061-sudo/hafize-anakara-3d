@@ -4,6 +4,7 @@ Ankara 3D: Ümit'in kendi kullandığı, tek ekranlı, sade ve kusursuz çalış
 # Kurallar
 - Veri yalnızca herkese açık, anahtarsız servislerden gelir: https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer (0 Numarataj, 1 Yol, 2 Yapı, 3 Mahalle, 4 İlçe), Esri3D_Buildings SceneLayer ve ArcGIS World Geocoding (https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates). Token isteyen servis kullanılmaz.
 - ArcGIS JS 4.32 (https://js.arcgis.com/4.32/) dışında kütüphane eklenmez; AMD require kullanılır.
+- ArcGIS 4.32 AMD yükleyicisinde DOJO YOKTUR (kontrol, 5 Kasım 17:35: baştan yazılan uygulama "dojo/domReady!" istediği için hiç başlamadı, konsol: "scriptError: https://js.arcgis.com/4.32/dojo/domReady.js"). require([...]) listesinde yalnız "esri/..." modülleri olur; sayfa hazırlığı için script etiketini body sonunda bırak ya da DOMContentLoaded kullan. Kodu yazınca harita gerçekten açılıyor mu, konsolda hata var mı diye düşün: hiçbir modül adı tahmin edilmez.
 - Arayüz Türkçedir. Kullanıcı tek kişidir: tanıtım, açıklama, pazarlama metni yoktur.
 - Kod üç dosyadır: index.html (yalın iskelet), css/uygulama.css, js/uygulama.js. manifest.json ve ikon/ klasörü olduğu gibi kalır.
 

@@ -1,4 +1,4 @@
-// hafize-kontrol v9: serves this branch and main over http (so sites of several files and modules work), opens
+// hafize-kontrol v10: serves this branch and main over http (so sites of several files and modules work), opens
 // index.html of each in Chromium, uses the page like a person would (types into text boxes and presses Enter, clicks
 // every button) and compares the uncaught errors with main's. Every error is also written as a GitHub annotation,
 // so Hafize's next round knows what is broken. Written by Hafize.
@@ -78,6 +78,8 @@ async function errorsOf(root) {
   const used = [];
   let using = false;
   page.on('pageerror', (error) => (using ? used : errors).push(String(error?.message ?? error).split('\n')[0].slice(0, 200)));
+  // A script or module that failed to load ("scriptError", a 404 module) stops a page as surely as an uncaught error.
+  page.on('console', (message) => { if (message.type() !== 'error') return; const text = message.text(); if (/scriptError|Failed to load module|is not defined|Uncaught|SyntaxError|TypeError|ReferenceError|Cannot read propert/i.test(text)) (using ? used : errors).push('Konsol: ' + text.split('\n')[0].slice(0, 200)); });
   page.on('dialog', (dialog) => dialog.dismiss().catch(() => {}));
   await page.goto(site.url, { waitUntil: 'load', timeout: 60_000 }).catch((error) => errors.push('Sayfa açılmadı: ' + error.message.slice(0, 160)));
   await page.waitForTimeout(12_000);
