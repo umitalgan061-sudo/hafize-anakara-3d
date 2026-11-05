@@ -563,6 +563,10 @@ require([
   const btnKurulum = document.getElementById("btn-kurulum");
   let kurulumIstemi = null;
   const kuruluMu = () => {
+    // Uygulama zaten ana ekrandan (kurulu) açılıyorsa düğme hiç gösterilmez
+    if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
+    if (window.matchMedia && window.matchMedia("(display-mode: fullscreen)").matches) return true;
+    if (navigator.standalone === true) return true;
     try { return localStorage.getItem("ankara3d-kurulu") === "1"; } catch (_) { return false; }
   };
   function kurulumDugmesiniGizle() {
