@@ -1,4 +1,4 @@
-const AD = "ankara3d-v6";
+const AD = "ankara3d-v7";
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
 
@@ -22,23 +22,29 @@ self.addEventListener("activate", e => {
   );
 });
 
+// Yeni sürüm haberi: istemciler sessizce güncellenir
+self.addEventListener("message", e => {
+  if (e.data === "SKIP_WAITING") self.skipWaiting();
+});
+
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
-  // Harita/veri servisleri (başka origin) her zaman ağdan
+  // Harita/veri servisleri (başka origin) her zaman ağdan; ağ yoksa sessiz hata
   if (url.origin !== location.origin) return;
   // Uygulama kabuğu: önce önbellek, yoksa ağ; ağ da yoksa index.html (çevrimdışı açılış)
   e.respondWith(
     caches.match(e.request, { ignoreSearch: e.request.mode === "navigate" }).then(hit => {
       if (hit) return hit;
       return fetch(e.request).then(resp => {
-        if (resp.ok) {
+        if (resp.ok && (url.pathname.endsWith(".css") || url.pathname.endsWith(".js") || url.pathname.endsWith(".json") || url.pathname.endsWith(".png") || url.pathname.endsWith(".svg"))) {
           const kopya = resp.clone();
           caches.open(AD).then(c => c.put(e.request, kopya));
         }
         return resp;
       }).catch(() => {
         if (e.request.mode === "navigate") return caches.match("index.html");
+        if (e.request.destination === "image") return new Response("", { status: 404 });
         return Response.error();
       });
     })

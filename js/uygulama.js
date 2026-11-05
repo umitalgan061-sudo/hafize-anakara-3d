@@ -249,8 +249,11 @@ require([
       maxLocations: "6",
       outFields: "Match_addr"
     });
-    fetch(url + "?" + params.toString())
+    const kontrol = new AbortController();
+    const zamanlayici = setTimeout(() => kontrol.abort(), 8000);
+    fetch(url + "?" + params.toString(), { signal: kontrol.signal })
       .then(r => r.json())
+      .finally(() => clearTimeout(zamanlayici))
       .then(veri => {
         aramaSonuclari.innerHTML = "";
         if (!veri.candidates || veri.candidates.length === 0) {
