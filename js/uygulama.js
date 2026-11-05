@@ -22,16 +22,43 @@ require([
   "use strict";
 
   // ---------- Yardımcılar ----------
-  function gosterBildirim(metin) {
+  function gosterBildirim(metin, onRetry) {
     const el = document.getElementById("bildirim");
     if (!el) return;
-    el.textContent = metin;
+    el.innerHTML = "";
+    const yazi = document.createElement("span");
+    yazi.textContent = metin;
+    el.appendChild(yazi);
+    if (onRetry) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "Yeniden dene";
+      btn.style.cssText = "margin-left:10px;background:none;border:none;color:#ffb4ab;font:inherit;font-weight:600;cursor:pointer;text-decoration:underline;padding:2px 4px;";
+      btn.addEventListener("click", () => {
+        el.hidden = true;
+        clearTimeout(el._timer);
+        onRetry();
+      });
+      el.appendChild(btn);
+    }
     el.hidden = false;
     clearTimeout(el._timer);
-    el._timer = setTimeout(() => { el.hidden = true; }, 3000);
+    el._timer = setTimeout(() => { el.hidden = true; }, onRetry ? 8000 : 3000);
+  }
+
+  // Ekran okuyucu duyurusu (görsel olarak gizli aria-live bölgesi)
+  function duyur(metin) {
+    const d = document.getElementById("duyuru");
+    if (!d) return;
+    d.textContent = "";
+    requestAnimationFrame(() => { d.textContent = metin; });
   }
 
   function titresim() { if (navigator.vibrate) navigator.vibrate(8); }
+
+  // Azaltılmış hareket tercihi: kamera uçuşları anlık olur
+  const hareketAzalt = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function ucus(hedef, sure) { view.goTo(hedef, { duration: hareketAzalt ? 0 : sure }); }
 
   // ---------- Katmanlar ----------
   // 3B Binalar (Esri SceneServer) — opak buz grisi
@@ -193,17 +220,45 @@ require([
   view.when(yukleniyoruKapat).catch(err => {
     console.error("Görünüm yüklenemedi:", err);
     yukleniyoruKapat();
-    gosterBildirim("Harita yüklenemedi");
+    gosterBildirim("Harita yüklenemedi", () => location.reload());
   });
   setTimeout(yukleniyoruKapat, 9000);
 
+  // Katman yüklenemezse kurtarma akışı: tek satır uyarı + "Yeniden dene"
+  const basarisizKatmanlar = new Set();
+  function katmanlariYenidenDene() {
+    if (!basarisizKatmanlar.size) return;
+    const liste = Array.from(basarisizKatmanlar);
+    basarisizKatmanlar.clear();
+    liste.forEach(lyr => {
+      lyr.load().catch(() => {
+        basarisizKatmanlar.add(lyr);
+        gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
+      });
+    });
+    duyur("Katmanlar yeniden yükleniyor");
+  }
   [binalarLayer, yapilarLayer, numaratajLayer, mahallelerLayer, yollarLayer].forEach(lyr => {
     reactiveUtils.watch(() => lyr.loadStatus, status => {
       if (status === "failed") {
-        gosterBildirim("Bazı katmanlar yüklenemedi");
+        basarisizKatmanlar.add(lyr);
+        gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
         console.error(lyr.title, "yükleme hatası:", lyr.loadError);
+      } else if (status === "loaded") {
+        basarisizKatmanlar.delete(lyr);
       }
     });
+  });
+
+  // Ağ durumu: çevrimdışı / çevrimiçi tek satır uyarı + kurtarma
+  window.addEventListener("offline", () => {
+    gosterBildirim("Çevrimdışı — önbellekten çalışıyor");
+    duyur("Çevrimdışı oldunuz, uygulama önbellekten çalışıyor");
+  });
+  window.addEventListener("online", () => {
+    gosterBildirim("Çevrimiçi");
+    duyur("Çevrimiçi oldunuz");
+    katmanlariYenidenDene();
   });
 
   // ---------- İşaret (arama / konum) ----------
@@ -249,15 +304,22 @@ require([
       maxLocations: "6",
       outFields: "Match_addr"
     });
-    fetch(url + "?" + params.toString())
+    const kontrol = new AbortController();
+    const zamanlayici = setTimeout(() => kontrol.abort(), 8000);
+    fetch(url + "?" + params.toString(), { signal: kontrol.signal })
       .then(r => r.json())
+      .finally(() => clearTimeout(zamanlayici))
       .then(veri => {
         aramaSonuclari.innerHTML = "";
+        aramaSonuclari.setAttribute("role", "listbox");
+        aramaSonuclari.setAttribute("aria-label", "Arama sonuçları");
         if (!veri.candidates || veri.candidates.length === 0) {
           const bos = document.createElement("button");
           bos.type = "button";
           bos.className = "arama-sonuc arama-sonuc--bos";
           bos.textContent = "Sonuç yok";
+          bos.setAttribute("role", "option");
+          bos.setAttribute("aria-disabled", "true");
           aramaSonuclari.appendChild(bos);
         } else {
           veri.candidates.forEach(c => {
@@ -265,21 +327,26 @@ require([
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "arama-sonuc";
+            btn.setAttribute("role", "option");
             btn.textContent = adres;
             btn.addEventListener("click", () => {
               const pt = new Point({ longitude: c.location.x, latitude: c.location.y });
               isaretKoy(pt, [200, 30, 30, 1], "Arama sonucu", adres);
               view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: 800 });
               aramaSonuclari.hidden = true;
+              duyur(adres + " seçildi");
             });
             aramaSonuclari.appendChild(btn);
           });
         }
         aramaSonuclari.hidden = false;
+        duyur(veri.candidates && veri.candidates.length ? veri.candidates.length + " sonuç bulundu" : "Sonuç bulunamadı");
       })
       .catch(err => {
         console.error("Arama hatası:", err);
-        gosterBildirim("Arama başarısız oldu");
+        if (err && err.name === "AbortError") gosterBildirim("Arama zaman aşımına uğradı");
+        else if (!navigator.onLine) gosterBildirim("Çevrimdışı — arama yapılamadı");
+        else gosterBildirim("Arama başarısız oldu");
       });
   }
 
@@ -300,6 +367,31 @@ require([
       if (q.length >= 2) aramaYap(q);
     } else if (e.key === "Escape") {
       temizleArama();
+      aramaGirdi.focus();
+    } else if (e.key === "ArrowDown") {
+      const ilk = aramaSonuclari.querySelector(".arama-sonuc");
+      if (ilk && !aramaSonuclari.hidden) { e.preventDefault(); ilk.focus(); }
+    }
+  });
+
+  // Sonuç listesinde ok tuşlarıyla gezinme
+  aramaSonuclari.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      aramaSonuclari.hidden = true;
+      aramaGirdi.focus();
+      return;
+    }
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const dugmeler = Array.from(aramaSonuclari.querySelectorAll(".arama-sonuc"));
+    const aktif = document.activeElement;
+    const sira = dugmeler.indexOf(aktif);
+    e.preventDefault();
+    if (e.key === "ArrowDown") {
+      const sonraki = dugmeler[(sira + 1) % dugmeler.length] || dugmeler[0];
+      if (sonraki) sonraki.focus();
+    } else {
+      const onceki = dugmeler[(sira - 1 + dugmeler.length) % dugmeler.length] || dugmeler[dugmeler.length - 1];
+      if (onceki) onceki.focus(); else aramaGirdi.focus();
     }
   });
 
@@ -364,6 +456,7 @@ require([
   // ---------- Katman kartı ----------
   const katmanKarti = document.getElementById("katman-karti");
   const btnKatmanlar = document.getElementById("btn-katmanlar");
+  btnKatmanlar.setAttribute("aria-controls", "katman-karti");
   const cbBinalar = document.getElementById("cb-binalar");
   const cbYapilar = document.getElementById("cb-yapilar");
   const cbNumarataj = document.getElementById("cb-numarataj");
@@ -377,11 +470,18 @@ require([
     const acilacak = katmanKarti.hidden;
     katmanKarti.hidden = !acilacak;
     btnKatmanlar.setAttribute("aria-expanded", String(acilacak));
+    if (acilacak) {
+      const ilk = katmanKarti.querySelector("input");
+      if (ilk) ilk.focus();
+      duyur("Katmanlar paneli açıldı");
+    }
   });
 
   function katmanKartiKapat() {
+    const odakKartta = katmanKarti.contains(document.activeElement);
     katmanKarti.hidden = true;
     btnKatmanlar.setAttribute("aria-expanded", "false");
+    if (odakKartta) btnKatmanlar.focus();
   }
   document.addEventListener("click", e => {
     if (!e.target.closest(".katman-karti") && !e.target.closest("#btn-katmanlar")) {
@@ -389,22 +489,44 @@ require([
     }
   });
   document.addEventListener("keydown", e => {
-    if (e.key === "Escape") katmanKartiKapat();
+    if (e.key === "Escape" && !katmanKarti.hidden) { katmanKartiKapat(); return; }
+    // Kart açıkken Tab/Shift+Tab kart içinde döngüsel kalsın
+    if (e.key === "Tab" && !katmanKarti.hidden) {
+      const odaklilar = katmanKarti.querySelectorAll("input, button");
+      if (!odaklilar.length) return;
+      const ilk = odaklilar[0], son = odaklilar[odaklilar.length - 1];
+      if (e.shiftKey && document.activeElement === ilk) { e.preventDefault(); son.focus(); }
+      else if (!e.shiftKey && document.activeElement === son) { e.preventDefault(); ilk.focus(); }
+    }
   });
 
-  cbBinalar.addEventListener("change", () => { binalarLayer.visible = cbBinalar.checked; });
-  cbYapilar.addEventListener("change", () => { yapilarLayer.visible = cbYapilar.checked; });
-  cbNumarataj.addEventListener("change", () => { numaratajLayer.visible = cbNumarataj.checked; });
-  cbMahalleler.addEventListener("change", () => { mahallelerLayer.visible = cbMahalleler.checked; });
-  cbYollar.addEventListener("change", () => { yollarLayer.visible = cbYollar.checked; });
+  [
+    [cbBinalar, binalarLayer, "3B Binalar"],
+    [cbYapilar, yapilarLayer, "Yapılar"],
+    [cbNumarataj, numaratajLayer, "Numarataj"],
+    [cbMahalleler, mahallelerLayer, "Mahalleler"],
+    [cbYollar, yollarLayer, "Yollar"]
+  ].forEach(([cb, lyr, ad]) => {
+    cb.addEventListener("change", () => {
+      lyr.visible = cb.checked;
+      duyur(ad + (cb.checked ? " açıldı" : " kapatıldı"));
+    });
+  });
 
   function tabanSec(taban) {
     view.map.basemap = taban;
     tabanUydu.setAttribute("aria-pressed", String(taban === "hybrid"));
     tabanHarita.setAttribute("aria-pressed", String(taban === "streets-vector"));
+    duyur(taban === "hybrid" ? "Uydu taban seçildi" : "Harita taban seçildi");
   }
   tabanUydu.addEventListener("click", () => tabanSec("hybrid"));
   tabanHarita.addEventListener("click", () => tabanSec("streets-vector"));
+  // Taban seçiminde ok tuşlarıyla gezinme
+  document.querySelector(".taban-secimi").addEventListener("keydown", e => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    tabanSec(e.key === "ArrowRight" ? "streets-vector" : "hybrid");
+  });
 
   // ---------- Durum satırı: koordinat/zoom/eğim/yön (yalnızca masaüstünde görünür) ----------
   const durumSatiri = document.getElementById("durum-satiri");
