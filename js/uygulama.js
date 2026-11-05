@@ -12,8 +12,7 @@ require([
   "esri/renderers/SimpleRenderer",
   "esri/symbols/MeshSymbol3D",
   "esri/symbols/edges/SolidEdges3D",
-  "esri/geometry/Point",
-  "dojo/domReady!"
+  "esri/geometry/Point"
 ], function(
   SceneView, WebScene, SceneLayer, FeatureLayer, GraphicsLayer,
   Graphic, PointSymbol3D, IconSymbol3DLayer, LabelSymbol3D, TextSymbol3DLayer,
@@ -405,3 +404,5 @@ require([
 
   console.log("Ankara 3D hazır.");
 });
+// Sayfa hazırlığı: script body sonunda yüklendiği için DOM zaten hazır;
+// ek bir dojo bağımlılığı KULLANILMAZ (4.32 AMD yükleyicisinde yok).
