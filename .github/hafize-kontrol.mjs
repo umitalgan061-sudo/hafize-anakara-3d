@@ -1,4 +1,4 @@
-// hafize-kontrol v3: serves this branch and main over http (so sites of several files and modules work), opens
+// hafize-kontrol v4: serves this branch and main over http (so sites of several files and modules work), opens
 // index.html of each in Chromium, uses the page like a person would (types into text boxes and presses Enter, clicks
 // every button) and compares the uncaught errors with main's. Every error is also written as a GitHub annotation,
 // so Hafize's next round knows what is broken. Written by Hafize.
@@ -64,8 +64,13 @@ const mine = await errorsOf('.');
 const base = hasMain ? await errorsOf('.kontrol/main') : { errors: [], used: [], nodes: 0 };
 await browser.close();
 const oneLine = (text) => String(text).replace(/[\r\n%]/g, ' ');
-const fresh = mine.errors.filter((error) => !base.errors.includes(error));
-const freshUse = mine.used.filter((error) => !base.used.includes(error));
+// A one- or two-letter message comes from the test browser's software WebGL, not from the page; it shows up at load or
+// while clicking at random, on main as well. It is written down but never fails the check. An error main has anywhere
+// (at load or in use) is not new either.
+const noise = (error) => String(error).trim().length <= 2;
+const onMain = (error) => base.errors.includes(error) || base.used.includes(error);
+const fresh = mine.errors.filter((error) => !onMain(error) && !noise(error));
+const freshUse = mine.used.filter((error) => !onMain(error) && !noise(error));
 for (const error of mine.errors) console.log(`::${fresh.includes(error) ? 'error' : 'warning'} title=Açılış hatası${fresh.includes(error) ? '' : ' (main de var)'}::${oneLine(error)}`);
 for (const error of mine.used) console.log(`::${freshUse.includes(error) ? 'error' : 'warning'} title=Kullanım hatası${freshUse.includes(error) ? '' : ' (main de var)'}::${oneLine(error)}`);
 console.log('Bu dal:', JSON.stringify(mine));
