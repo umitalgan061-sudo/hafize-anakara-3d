@@ -405,6 +405,30 @@ require([
   tabanUydu.addEventListener("click", () => tabanSec("hybrid"));
   tabanHarita.addEventListener("click", () => tabanSec("streets-vector"));
 
+  // ---------- Durum satırı: koordinat/zoom/eğim/yön (yalnızca masaüstünde görünür) ----------
+  const durumSatiri = document.getElementById("durum-satiri");
+  let sonDurumLon = null, sonDurumLat = null;
+  function durumGuncelle() {
+    if (!durumSatiri) return;
+    const c = view.camera;
+    const yon = ((c.heading % 360) + 360) % 360;
+    const lon = sonDurumLon !== null ? sonDurumLon : c.position.longitude;
+    const lat = sonDurumLat !== null ? sonDurumLat : c.position.latitude;
+    durumSatiri.textContent =
+      lat.toFixed(5) + ", " + lon.toFixed(5) +
+      "  ·  zoom " + view.zoom.toFixed(1) +
+      "  ·  eğim " + c.tilt.toFixed(0) + "°" +
+      "  ·  yön " + yon.toFixed(0) + "°";
+  }
+  view.on("pointer-move", e => {
+    const p = view.toMap({ x: e.x, y: e.y });
+    if (p) { sonDurumLon = p.longitude; sonDurumLat = p.latitude; durumGuncelle(); }
+  });
+  reactiveUtils.watch(
+    () => [view.zoom, view.camera.tilt, view.camera.heading, view.camera.position.longitude, view.camera.position.latitude],
+    () => durumGuncelle()
+  );
+
   // ---------- PWA service worker ----------
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {

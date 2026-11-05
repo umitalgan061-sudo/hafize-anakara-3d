@@ -137,7 +137,12 @@ body {
 .kontrol-dugme svg { width: 24px; height: 24px; }
 .kontrol-dugme span { font-size: 11px; line-height: 1; white-space: nowrap; }
 /* Tutarlı odak halkası: tüm dokunulabilir kontroller */
-nbutton:focus-visible, input:focus-visible, label:focus-within, a:focus-visible {\n  outline: none;\n  box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.4);\n}\n.kontrol-dugme:focus-visible, .taban-dugme:focus-visible, .arama-sonuc:focus-visible, #arama-girdi:focus-visible {\n  outline: none;\n  box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.4);\n}\n#arama-temizle:focus-visible { border-radius: 50%; }\n.katman-satir:focus-within { background: #f2f2f2; }\n>>>>>>>YENİ
+button:focus-visible, input:focus-visible, a:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.4);
+}
+#arama-temizle:focus-visible { border-radius: 50%; }
+.katman-satir:focus-within { background: #f2f2f2; }
 
 /* Katman kartı */
 .katman-karti {
