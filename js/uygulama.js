@@ -250,16 +250,92 @@ require([
     });
   });
 
-  // Ağ durumu: çevrimdışı / çevrimiçi tek satır uyarı + kurtarma
+  // Ağ durumu + çevrimdışı rozeti + önbellek kurtarma akışı
+  const cevrimoGosterge = document.getElementById("cevrimo-gosterge");
+  function cevrimiGuncelle(sayi) {
+    if (!cevrimoGosterge) return;
+    const cevrimdasi = !navigator.onLine;
+    cevrimoGosterge.hidden = !cevrimdasi;
+    if (cevrimdasi) {
+      cevrimoGosterge.textContent = (typeof sayi === "number")
+        ? "Çevrimdışı · " + sayi + " karo"
+        : "Çevrimdışı";
+    }
+  }
+  function karoSayisiAl(geriCagri) {
+    if (!("serviceWorker" in navigator)) return;
+    const denetci = navigator.serviceWorker.controller;
+    if (!denetci) return;
+    const kanal = new MessageChannel();
+    kanal.port1.onmessage = ev => {
+      if (ev.data && ev.data.tip === "KARO_SAYISI") {
+        duyur("Önbellekte " + ev.data.sayi + " harita karosu var");
+        if (typeof geriCagri === "function") geriCagri(ev.data.sayi);
+      }
+    };
+    denetci.postMessage({ tip: "KARO_SAYISI" }, [kanal.port2]);
+  }
+  cevrimiGuncelle();
+  if (!navigator.onLine) {
+    // Sayfa zaten çevrimdışı açıldıysa rozet hemen karo sayısıyla görünsün
+    navigator.serviceWorker.ready.then(() => karoSayisiAl(sayi => cevrimiGuncelle(sayi)));
+  }
   window.addEventListener("offline", () => {
+    karoSayisiAl(sayi => cevrimiGuncelle(sayi));
     gosterBildirim("Çevrimdışı — önbellekten çalışıyor");
-    duyur("Çevrimdışı oldunuz, uygulama önbellekten çalışıyor");
+    duyur("Çevrimdışı oldunuz, son görüntülenen alan önbellekten açılır");
   });
   window.addEventListener("online", () => {
+    cevrimiGuncelle();
     gosterBildirim("Çevrimiçi");
-    duyur("Çevrimiçi oldunuz");
+    duyur("Çevrimiçi oldunuz, eksik katmanlar yeniden deneniyor");
     katmanlariYenidenDene();
+    // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir
+    guncelAlaniTazele();
   });
+
+  // Harita durunca güncel görünür alanın karoları SW'ye önbelleğe bildirilir (yalnızca eksikler çekilir)
+  let guncelAlanTimer = null;
+  function guncelAlaniGonder() {
+    if (!navigator.onLine || !("serviceWorker" in navigator)) return;
+    const denetci = navigator.serviceWorker.controller;
+    if (!denetci || !view.extent) return;
+    const ex = view.extent;
+    const z = Math.max(1, Math.round(view.zoom || 15));
+    denetci.postMessage({
+      tip: "GUNCEL_ALAN",
+      bbox: { minLon: ex.xmin, minLat: ex.ymin, maxLon: ex.xmax, maxLat: ex.ymax },
+      minZoom: Math.max(1, z - 1),
+      maxZoom: Math.min(19, z + 1)
+    });
+  }
+  function guncelAlaniTazele() {
+    if (!navigator.onLine || !("serviceWorker" in navigator)) return;
+    const denetci = navigator.serviceWorker.controller;
+    if (!denetci || !view.extent) return;
+    const ex = view.extent;
+    const z = Math.max(1, Math.round(view.zoom || 15));
+    const kanal = new MessageChannel();
+    kanal.port1.onmessage = ev => {
+      if (ev.data && ev.data.tip === "TAZELE_TAMAM" && ev.data.sayi > 0) {
+        duyur("Görünür alan tazelendi, " + ev.data.sayi + " karo güncellendi");
+      }
+    };
+    denetci.postMessage({
+      tip: "TAZELE_ALAN",
+      bbox: { minLon: ex.xmin, minLat: ex.ymin, maxLon: ex.xmax, maxLat: ex.ymax },
+      minZoom: Math.max(1, z - 1),
+      maxZoom: Math.min(19, z + 1)
+    }, [kanal.port2]);
+  }
+  // Harita her durduğunda (pan/zoom bitince) görünür alanı önbelleğe al — throttle'lu
+  reactiveUtils.watch(() => view.stationary, durdu => {
+    if (!durdu) return;
+    clearTimeout(guncelAlanTimer);
+    guncelAlanTimer = setTimeout(guncelAlaniGonder, 1200);
+  });
+  // Çevrimdışıyken rozet üzerindeki karo sayısı periyodik yenilenir
+  setInterval(() => { if (!navigator.onLine) karoSayisiAl(sayi => cevrimiGuncelle(sayi)); }, 20000);
 
   // ---------- İşaret (arama / konum) ----------
   let seciliIsaret = null;
@@ -556,6 +632,26 @@ require([
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("sw.js").catch(() => {});
+    });
+    // Açılış alanı (Anıtkabir çevresi) karo ön-yüklemesi: ilk çevrimiçi açılışta tek sefer
+    navigator.serviceWorker.ready.then(sw => {
+      if (!sw.controller || !navigator.onLine) return;
+      let yapildi = false;
+      try { yapildi = localStorage.getItem("ankara3d-onbellek") === "1"; } catch (_) {}
+      if (yapildi) return;
+      const kanal = new MessageChannel();
+      kanal.port1.onmessage = ev => {
+        if (ev.data && ev.data.tip === "ONBELLEKLE_TAMAM") {
+          try { localStorage.setItem("ankara3d-onbellek", "1"); } catch (_) {}
+          duyur("Açılış alanı çevrimdışı için önbelleğe alındı, " + ev.data.sayi + " karo");
+        }
+      };
+      sw.controller.postMessage({
+        tip: "ONBELLEKLE_ALAN",
+        bbox: { minLon: 32.815, minLat: 39.895, maxLon: 32.865, maxLat: 39.945 },
+        minZoom: 15,
+        maxZoom: 17
+      }, [kanal.port2]);
     });
   }
 

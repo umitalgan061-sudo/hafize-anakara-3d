@@ -229,6 +229,22 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   .kurulum-dugme svg { width: 20px; height: 20px; }
 }
 
+/* Çevrimdışı rozeti: yalnızca ağ yokken görünür */
+.cevrimo-gosterge {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f6e3e2;
+  color: var(--vurgu);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .cevrimo-gosterge { padding: 3px 7px; font-size: 0.68rem; }
+}
+
 /* Bildirim */
 .bildirim {
   position: fixed;
