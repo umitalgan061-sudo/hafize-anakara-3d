@@ -1,4 +1,4 @@
-const AD = "ankara3d-v4";
+const AD = "ankara3d-v5";
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
 
