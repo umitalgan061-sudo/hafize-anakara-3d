@@ -13,11 +13,12 @@ require([
   "esri/renderers/SimpleRenderer",
   "esri/symbols/MeshSymbol3D",
   "esri/symbols/edges/SolidEdges3D",
+  "esri/Camera",
   "esri/geometry/Point"
 ], function(
   SceneView, WebScene, reactiveUtils, SceneLayer, FeatureLayer, GraphicsLayer,
   Graphic, PointSymbol3D, IconSymbol3DLayer, LabelSymbol3D, TextSymbol3DLayer,
-  SimpleRenderer, MeshSymbol3D, SolidEdges3D, Point
+  SimpleRenderer, MeshSymbol3D, SolidEdges3D, Camera, Point
 ) {
   "use strict";
 
@@ -260,7 +261,11 @@ require([
             btn.addEventListener("click", () => {
               const pt = new Point({ longitude: c.location.x, latitude: c.location.y });
               isaretKoy(pt, [200, 30, 30, 1], "Arama sonucu", adres);
-              view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: 800 });
+              view.goTo(new Camera({
+                position: { longitude: c.location.x, latitude: c.location.y, z: 250 },
+                heading: view.camera.heading,
+                tilt: 60
+              }), { duration: 800 });
               aramaSonuclari.hidden = true;
             });
             aramaSonuclari.appendChild(btn);
@@ -305,7 +310,11 @@ require([
   let watchId = null;
   function konumaGit(pt) {
     isaretKoy(pt, [30, 100, 200, 1], "Konumunuz", "");
-    view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: 800 });
+    view.goTo(new Camera({
+      position: { longitude: pt.longitude, latitude: pt.latitude, z: 250 },
+      heading: view.camera.heading,
+      tilt: 60
+    }), { duration: 800 });
   }
   btnKonum.addEventListener("click", () => {
     titresim();
@@ -335,18 +344,22 @@ require([
   // ---------- Anıtkabir'e dön ----------
   document.getElementById("btn-anitkabir").addEventListener("click", () => {
     titresim();
-    view.goTo({
+    view.goTo(new Camera({
       position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
       heading: 355,
       tilt: 70
-    }, { duration: 1000 });
+    }), { duration: 1000 });
   });
 
   // ---------- Kuzeye çevir ----------
   const kuzeySimge = document.getElementById("kuzey-simge");
   document.getElementById("btn-kuzey").addEventListener("click", () => {
     titresim();
-    view.goTo({ heading: 0 }, { duration: 600 });
+    view.goTo(new Camera({
+      position: view.camera.position,
+      heading: 0,
+      tilt: view.camera.tilt
+    }), { duration: 600 });
   });
   reactiveUtils.watch(() => view.camera.heading, h => {
     if (kuzeySimge) kuzeySimge.style.transform = "rotate(" + (-h) + "deg)";
