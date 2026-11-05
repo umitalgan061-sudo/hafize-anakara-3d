@@ -52,6 +52,10 @@ KALDIRILACAKLAR (hiçbiri geri gelmez): Keşfet/Katmanlar/Mahalle/Araçlar sekme
   8. (20:40) Yedi madde yapıldı ve 20 ölçütün hepsi tarayıcıda geçti. GitHub kontrolündeki "harita gitmedi" / "zaman aşımı" ölçümleri kontrolün hatasıydı (yazılımla çizen makinede kamera hareketi bitmiyor), kod doğruydu; kontrol düzeltildi. Hareket düğmelerine DOKUNMA: arama ve konumda view.goTo({ target: nokta, zoom: 17, tilt: 60 }) doğrudur; kamerayı noktanın tam üstüne koyma (eğimle nokta ekranın ortasına düşmez). "goTo çağrılarını Camera nesnesiyle düzelt" adımı bu yüzden geri alındı.
   Düğmeler, arama ve katman kartı kodda doğru bağlanmış; önceki "hiçbir şey yapmıyor" ölçümleri kontrolün animasyon bitmeden ölçmesindendi (kontrol düzeltildi). Bu yedi maddeyi düzelt, başka bir şeye dokunma.
 
+- KONTROL BULGULARI (5 Kasım 21:10, canlı sitede ölçüldü; 20 kabul ölçütü telefonda ve masaüstünde geçti). CİLA:
+  1. Arama kutusuna yazınca iki temizle (×) düğmesi yan yana çıkıyor: tarayıcının kendi düğmesi ve uygulamanınki. css/uygulama.css'e input[type=search]::-webkit-search-cancel-button { -webkit-appearance: none; display: none; } ekle; uygulamanın kendi düğmesi kalsın.
+  2. Yapılar etiketi adı olmayan binalara "4 kat", "5 kat" yazıyor; harita bu yazılarla doluyor (sahibi gereksiz yazı istemiyor). Etiket yalnız $feature.ad olsun (adı boş binada etiket çizilmez); kat sayısı yalnız binaya dokununca açılan bilgide görünsün. Etiketler açık kalır.
+
 # Kabul denetimi
 .github/hafize-kontrol.json içindeki "kabul" listesi sahibin isteklerinin otomatik testidir; tarayıcı kontrolü her adımda ve canlı sitede 2 saatte bir bunları çalıştırır. "Kabul hatası" çıkan tur main'e giremez. Bu listeyi değiştirme ya da gevşetme; kodu ona uydur. Tutmayan ölçüt ne ölçtüğünü yazar: ona göre düzelt.
 

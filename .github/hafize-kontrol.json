@@ -85,6 +85,14 @@
     {
       "ad": "Yapı etiketleri 3B'de çizilebilir: çokgen katmanı (Yapılar) için labelPlacement verilmez ya da \"always-horizontal\" olur (\"above-center\" SceneView'de çokgenlerde desteklenmez, etiket hiç çizilmez)",
       "ifade": "(() => { const l = view.map.allLayers.find((x) => x.title === 'Yapılar'); if (!l) return 'Yapılar katmanı yok'; const bad = (l.labelingInfo || []).map((c) => c.labelPlacement).filter((p) => p && p !== 'always-horizontal'); return bad.length === 0 || ('Yapılar etiket yerleşimi: ' + bad.join(', ')); })()"
+    },
+    {
+      "ad": "Arama kutusunda tek temizle düğmesi: uygulamanın kendi temizle (×) düğmesi varken tarayıcının arama iptal düğmesi gizlidir",
+      "ifade": "(() => { const i = document.querySelector('input[type=search]'); if (!i) return 'arama kutusu yok'; const own = [...document.querySelectorAll('button')].some((b) => /temizle|clear/i.test((b.getAttribute('aria-label') || '') + ' ' + (b.title || ''))); const s = getComputedStyle(i, '::-webkit-search-cancel-button'); const native = s.display !== 'none' && s.webkitAppearance !== 'none' && s.appearance !== 'none'; return !(own && native) || 'arama kutusunda iki temizle (×) düğmesi var: tarayıcınınki ve uygulamanınki'; })()"
+    },
+    {
+      "ad": "Yapı etiketleri yalnız bina adını yazar: adı olmayan binalara \"N kat\" gibi yazı çizilmez (kat sayısı dokununca açılan bilgide)",
+      "ifade": "(() => { const l = view.map.allLayers.find((x) => x.title === 'Yapılar'); if (!l) return 'Yapılar katmanı yok'; const e = (l.labelingInfo || []).map((c) => (c.labelExpressionInfo && c.labelExpressionInfo.expression) || '').join(' '); return (!!e && !/kat/i.test(e)) || ('Yapılar etiketi: ' + e.slice(0, 120)); })()"
     }
   ],
   "canli": "https://ankara-3d-harita.web.app/"
