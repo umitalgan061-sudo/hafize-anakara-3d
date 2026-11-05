@@ -2,24 +2,14 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#f7f1e6" />
-  <meta name="description" content="Ankara 3D — Keşfet, Katmanlar, Mahalle, Araçlar" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="description" content="Ankara 3D" />
   <title>Ankara 3D</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 100'%3E%3Cg fill='%23b3261e'%3E%3Crect x='19' y='1' width='2' height='9'/%3E%3Cpath d='M15 11h10l-1.5 5h-7z'/%3E%3Cpath fill-rule='evenodd' d='M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z'/%3E%3Cpath d='M16 34h8l2 62H14z'/%3E%3Crect x='12' y='96' width='16' height='3'/%3E%3C/g%3E%3C/svg%3E" />
-  <!-- Fonts: Inter (sans) + Fraunces (serif) via jsdelivr @fontsource fixed versions -->
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/inter@5.1.0/latin.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fraunces@5.0.12/latin-700.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fraunces@5.0.12/latin-600.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fraunces@5.0.12/latin-500.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.0.14/latin-400.css" />
-  <!-- ArcGIS API for JavaScript 4.32 -->
   <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" />
   <script src="https://js.arcgis.com/4.32/"></script>
-  <!-- Proje stilleri -->
-  <link rel="stylesheet" href="css/tasarim.css" />
-  <!-- PWA Manifest -->
+  <link rel="stylesheet" href="css/uygulama.css" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" sizes="180x180" href="ikon/atakule-180.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -27,226 +17,66 @@
   <meta name="apple-mobile-web-app-title" content="Ankara 3D" />
 </head>
 <body>
-  <!-- Üst Bant — Ankara Silüeti -->
-  <header class="ust-bant" role="banner">
-    <div class="ust-bant__sol">
-      <a href="#" class="ust-bant__logo" aria-label="Ankara 3D - Ana Sayfa">
-        <div class="ust-bant__siluet">
-          <!-- Atakule: ince gövde, kadeh/disk baş (2 pencere bandı), kapak ve anten -->
-          <svg role="img" aria-label="Atakule" viewBox="0 0 40 100" style="width: 15px; height: 38px; color: var(--renk-vurgu);"><g fill="currentColor"><rect x="19" y="1" width="2" height="9"/><path d="M15 11h10l-1.5 5h-7z"/><path fill-rule="evenodd" d="M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z"/><path d="M16 34h8l2 62H14z"/><rect x="12" y="96" width="16" height="3"/></g></svg>
-        </div>
-        <span class="ust-bant__baslik">Ankara 3D</span>
-      </a>
-    </div>
-    <div class="ust-bant__sag">
-      <button class="eylem-btn" id="btn-tema" aria-label="Tema değiştir" aria-pressed="false" title="Tema değiştir">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-      </button>
+  <!-- Harita: bütün ekran -->
+  <div id="viewDiv"></div>
+
+  <!-- Üst çubuk: logo + başlık + arama -->
+  <header class="ust-cubuk">
+    <a class="ust-bant__logo" href="#" aria-label="Ankara 3D">
+      <svg role="img" aria-label="Atakule" viewBox="0 0 40 100" class="atakule-simge"><g fill=\"#b3261e\"><rect x="19" y="1" width="2" height="9"/><path d="M15 11h10l-1.5 5h-7z"/><path fill-rule="evenodd" d="M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z"/><path d="M16 34h8l2 62H14z"/><rect x="12" y="96" width="16" height="3"/></g></svg>
+      <span class="ust-bant__baslik">Ankara 3D</span>
+    </a>
+    <div class="arama-kapsayici">
+      <input type="search" id="arama-girdi" placeholder="Adres ara" aria-label="Adres ara" autocomplete="off" />
+      <div id="arama-sonuclari" class="arama-sonuclari" hidden></div>
     </div>
   </header>
 
-  <!-- Harita Alanı (Sağ) -->
-  <div id="viewDiv"></div>
-
-  <!-- Sol Panel (Masaüstü) / Mobil Sayfa Konteyneri -->
-  <aside class="sol-panel" id="sol-panel" role="complementary" aria-label="Ana panel">
-    <!-- Sekme Listesi -->
-    <nav class="sol-panel__sekme-listesi" role="tablist" aria-label="Ana sekmeler">
-      <button class="sol-panel__sekme aktif" role="tab" aria-selected="true" aria-controls="sayfa-kesfet" id="sekme-kesfet" data-sayfa="kesfet">Keşfet</button>
-      <button class="sol-panel__sekme" role="tab" aria-selected="false" aria-controls="sayfa-katmanlar" id="sekme-katmanlar" data-sayfa="katmanlar">Katmanlar</button>
-      <button class="sol-panel__sekme" role="tab" aria-selected="false" aria-controls="sayfa-mahalle" id="sekme-mahalle" data-sayfa="mahalle">Mahalle</button>
-      <button class="sol-panel__sekme" role="tab" aria-selected="false" aria-controls="sayfa-araclar" id="sekme-araclar" data-sayfa="araclar">Araçlar</button>
-    </nav>
-
-    <!-- Sayfa İçerikleri -->
-    <div class="sol-panel__icerik">
-      <!-- KEŞFET -->
-      <section class="sol-panel__sayfa aktif" id="sayfa-kesfet" role="tabpanel" aria-labelledby="sekme-kesfet">
-        <h1 class="sayfa-baslik">Keşfet</h1>
-
-        <div class="kart-editoryal">
-          <form id="arama-form" class="arama-kutu" role="search" aria-label="Adres arama">
-            <input type="text" id="arama-girdi" class="arama-kutu__girdi" placeholder="Adres, cadde, mahalle, ilçe..." autocomplete="off" aria-label="Arama terimi" />
-            <button type="submit" class="arama-kutu__btn" aria-label="Ara">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            </button>
-          </form>
-        </div>
-
-        <div class="kart-editoryal">
-          <button class="mini-btn" id="btn-son-gorunum" type="button">Son görünümüm</button>
-          <h2 class="grup-baslik">Son Aramalar</h2>
-          <div id="son-aramalar" class="mini-liste"></div>
-          <h2 class="grup-baslik">Favoriler</h2>
-          <div id="favoriler" class="mini-liste"></div>
-        </div>
-
-        <div class="kart-editoryal">
-          <h2 class="grup-baslik">Hızlı Erişim</h2>
-          <div class="eylem-izgara" id="kesfet-hizli-erisim">
-            <button class="eylem-btn-buyuk" id="btn-konum-hizli" aria-label="Konumumu bul ve haritayı oraya getir">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2"></path></svg>
-              <span>Konumum</span>
-            </button>
-            <button class="eylem-btn-buyuk" id="btn-paylas" aria-label="Mevcut harita görünümünü paylaşılabilir bağlantı olarak kopyala">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="19" r="3"></circle><path d="M13.19 5C13.19 5 18 5 18 5 18 5 18 10 18 10 18 10 13 15 13 15 13 15 8 19 8 19"></path></svg>
-              <span>Paylaş</span>
-            </button>
-            <button class="eylem-btn-buyuk" id="btn-tur-baslat" aria-label="Ankara keşif turunu başlat/durdur">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-              <span>Keşif Turu</span>
-            </button>
-            <button class="eylem-btn-buyuk" id="btn-yakindakiler" aria-label="Yakınımdaki durağı, parkı, istasyonu listele">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
-              <span>Yakınımdakiler</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="kart-editoryal">
-          <h2 class="grup-baslik">Öne Çıkan Yerler</h2>
-          <div class="one-cikan-liste" id="one-cikan-yerler" role="list" aria-label="Öne çıkan yerler"></div>
-        </div>
-
-      </section>
-
-      <!-- KATMANLAR -->
-      <section class="sol-panel__sayfa" id="sayfa-katmanlar" role="tabpanel" aria-labelledby="sekme-katmanlar" hidden>
-        <h1 class="sayfa-baslik">Katmanlar</h1>
-
-        <div class="kart-editoryal">
-          <h2 class="grup-baslik">Adres ve Bina Katmanları</h2>
-          <div id="katman-listesi-adres" role="list" aria-label="Adres ve bina katmanları"></div>
-        </div>
-
-        <div class="kart-editoryal">
-          <h2 class="grup-baslik">Kent Rehberi Katmanları</h2>
-          <div id="katman-listesi-kent" role="list" aria-label="Kent rehberi katmanları"></div>
-        </div>
-
-        <div class="kart-editoryal">
-          <h2 class="grup-baslik">Harita Tabanı</h2>
-          <div class="taban-kartlari" id="taban-kartlari" role="radiogroup" aria-label="Harita tabanı seçimi"></div>
-        </div>
-      </section>
-
-      <!-- MAHALLE -->
-      <section class="sol-panel__sayfa" id="sayfa-mahalle" role="tabpanel" aria-labelledby="sekme-mahalle" hidden>
-        <h1 class="sayfa-baslik">Mahalle</h1>
-
-        <div class="kart-editoryal" id="mahalle-bilgi-karti" style="display: none;">
-          <h2 class="grup-baslik" id="mahalle-baslik">Mahalle Adı</h2>
-          <dl class="flex" style="flex-direction: column; gap: 10px;">
-            <div class="flex justify-between"><dt style="color: var(--renk-metin-solgun);">İlçe</dt><dd id="mahalle-ilce" style="font-weight: 500;">—</dd></div>
-            <div class="flex justify-between"><dt style="color: var(--renk-metin-solgun);">Otobüs Durağı</dt><dd id="mahalle-otobus" style="font-weight: 500;">—</dd></div>
-            <div class="flex justify-between"><dt style="color: var(--renk-metin-solgun);">Park / Yeşil Alan</dt><dd id="mahalle-park" style="font-weight: 500;">—</dd></div>
-            <div class="flex justify-between"><dt style="color: var(--renk-metin-solgun);">Kültür / Sanat</dt><dd id="mahalle-kultur" style="font-weight: 500;">—</dd></div>
-            <div class="flex justify-between"><dt style="color: var(--renk-metin-solgun);">Spor Tesisi</dt><dd id="mahalle-spor" style="font-weight: 500;">—</dd></div>
-          </dl>
-          <button class="eylem-btn-buyuk mt-16" id="mahalle-git" style="width: 100%;">Haritada Göster</button>
-        </div>
-
-        <div class="kart-editoryal" id="mahalle-bos-karti">
-          <p style="text-align: center; padding: 24px 12px; color: var(--renk-metin-solgun); font-size: 0.9rem;">Mahalleye dokun</p>
-        </div>
-      </section>
-
-      <!-- ARAÇLAR -->
-      <section class="sol-panel__sayfa" id="sayfa-araclar" role="tabpanel" aria-labelledby="sekme-araclar" hidden>
-        <h1 class="sayfa-baslik">Araçlar</h1>
-
-        <div class="kart-editoryal">
-          <h2 class="grup-baslik">3B Ölçüm</h2>
-          <div class="eylem-izgara" id="arac-olcum">
-            <button class="eylem-btn-buyuk" id="btn-olcum-mesafe" aria-label="İki nokta arası 3B mesafe ölçümü başlat">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14v14M5 5l14 14"></path></svg>
-              <span>Mesafe Ölç</span>
-            </button>
-            <button class="eylem-btn-buyuk" id="btn-olcum-alan" aria-label="Alan ölçümü başlat (en az 3 nokta)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
-              <span>Alan Ölç</span>
-            </button>
-            <button class="eylem-btn-buyuk" id="btn-olcum-temizle" aria-label="Tüm ölçümleri temizle">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-              <span>Temizle</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="kart-editoryal">
-          <h2 class="grup-baslik">Güneş ve Gölge Analizi</h2>
-          <div class="eylem-izgara" id="arac-gunes">
-            <button class="eylem-btn-buyuk" id="btn-gunes-gunduz" aria-label="Gündüz ışığı analizi (gölge yok)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-              <span>Gündüz</span>
-            </button>
-            <button class="eylem-btn-buyuk" id="btn-gunes-gece" aria-label="Gece/gölge analizi">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-              <span>Gece</span>
-            </button>
-            <button class="eylem-btn-buyuk" id="btn-gunes-ozel" aria-label="Özel tarih/saat için gölge analizi">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-              <span>Özel Tarih</span>
-            </button>
-          </div>
-          <div class="kart-editoryal" id="gunes-ayarlari" style="display: none; margin-top: 16px;">
-            <label style="display: flex; align-items: center; gap: 12px; font-size: 0.9rem;">
-              <input type="datetime-local" id="gunes-tarih-saat" style="padding: 10px 12px; border-radius: var(--yaricap-kucuk); border: 1px solid rgba(45, 38, 32, 0.12); background: var(--renk-bg); color: var(--renk-metin); font-family: inherit; font-size: 0.9rem;" />
-              <button class="eylem-btn-buyuk" id="btn-gunes-uygula" style="padding: 10px 16px; font-size: 0.85rem;">Uygula</button>
-            </label>
-          </div>
-        </div>
-      </section>
+  <!-- Katmanlar kartı (araç çubuğunun üstünde açılır) -->
+  <div id="katman-karti" class="katman-karti" hidden>
+    <label class="katman-satir"><input type="checkbox" id="cb-binalar" checked /> <span>3B Binalar</span></label>
+    <label class="katman-satir"><input type="checkbox" id="cb-yapilar" checked /> <span>Yapılar</span></label>
+    <label class="katman-satir"><input type="checkbox" id="cb-numarataj" checked /> <span>Numarataj</span></label>
+    <label class="katman-satir"><input type="checkbox" id="cb-mahalleler" /> <span>Mahalleler</span></label>
+    <label class="katman-satir"><input type="checkbox" id="cb-yollar" /> <span>Yollar</span></label>
+    <div class="taban-secimi" role="radiogroup" aria-label="Harita tabanı">
+      <button type="button" class="taban-dugme aktif" data-taban="hybrid" aria-pressed="true">Uydu</button>
+      <button type="button" class="taban-dugme" data-taban="streets-vector" aria-pressed="false">Harita</button>
     </div>
-  </aside>
+  </div>
 
-  <!-- Mobil Alt Sekme Çubuğu -->
-  <nav class="mobil-sekme-cubugu" id="mobil-sekme-cubugu" role="tablist" aria-label="Mobil ana sekmeler" aria-hidden="true">
-    <div class="mobil-sekme-cubugu__liste">
-      <button class="mobil-sekme-cubugu__btn aktif" role="tab" aria-selected="true" aria-controls="panel-harita" data-panel="harita">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-        <span>Harita</span>
-      </button>
-      <button class="mobil-sekme-cubugu__btn" role="tab" aria-selected="false" aria-controls="panel-bilgi" data-panel="bilgi">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <span>Keşfet</span>
-      </button>
-      <button class="mobil-sekme-cubugu__btn" role="tab" aria-selected="false" aria-controls="panel-katmanlar" data-panel="katmanlar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
-        <span>Katmanlar</span>
-      </button>
-      <button class="mobil-sekme-cubugu__btn" role="tab" aria-selected="false" aria-controls="panel-araclar" data-panel="araclar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
-        <span>Araçlar</span>
-      </button>
-    </div>
+  <!-- Alt araç çubuğu -->
+  <nav class="arac-cubugu" aria-label="Harita araçları">
+    <button type="button" class="arac-dugme" id="btn-konum" aria-label="Konumumu bul">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>
+      <span>Konum</span>
+    </button>
+    <button type="button" class="arac-dugme" id="btn-anitkabir" aria-label="Anıtkabir'e dön">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V10l7-6 7 6v11M9 21v-7h6v7"/></svg>
+      <span>Anıtkabir</span>
+    </button>
+    <button type="button" class="arac-dugme" id="btn-katmanlar" aria-label="Katmanlar" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+      <span>Katmanlar</span>
+    </button>
+    <button type="button" class="arac-dugme" id="btn-kuzey" aria-label="Kuzeye çevir">
+      <svg id="kuzey-simge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l5 18-5-4-5 4z"/></svg>
+      <span>Kuzey</span>
+    </button>
   </nav>
 
-  <!-- Footer Koordinat / Zoom -->
-  <footer class="alt-bilgi" id="alt-bilgi" role="contentinfo" aria-label="Harita koordinat ve zoom bilgisi">
-    <div class="alt-bilgi__sol">
-      <div class="alt-bilgi__ogesi"><span class="alt-bilgi__etiket">Koordinat:</span><span class="alt-bilgi__deger" id="coord">—</span></div>
-      <div class="alt-bilgi__ogesi"><span class="alt-bilgi__etiket">Zoom:</span><span class="alt-bilgi__deger" id="zoom">—</span></div>
-      <div class="alt-bilgi__ogesi"><span class="alt-bilgi__etiket">Eğim:</span><span class="alt-bilgi__deger" id="tilt">—</span></div>
-      <div class="alt-bilgi__ogesi"><span class="alt-bilgi__etiket">Yön:</span><span class="alt-bilgi__deger" id="heading">—</span></div>
-    </div>
-    <div class="alt-bilgi__sag">
-      <a href="https://baskentcbs.ankara.bel.tr/" target="_blank" rel="noopener" style="font-size: 0.75rem; color: var(--renk-metin-solgun); text-decoration: none;" aria-label="Ankara Büyükşehir Belediye CBS">Veri: ABB CBS</a>
-      <a href="https://developers.arcgis.com/javascript/" target="_blank" rel="noopener" style="font-size: 0.75rem; color: var(--renk-metin-solgun); text-decoration: none;" aria-label="ArcGIS API for JavaScript">ArcGIS JS 4.32</a>
-    </div>
-  </footer>
+  <!-- Masaüstü durum satırı (telefonda gizli) -->
+  <div class="durum-satiri" id="durum-satiri" aria-hidden="true"></div>
 
-  <!-- Toast Konteyneri -->
-  <div id="toast-konteyner" aria-live="polite" aria-atomic="true"></div>
+  <!-- Bildirim -->
+  <div id="bildirim" class="bildirim" hidden></div>
 
-  <!-- Uygulama Mantığı -->
-  <script src="js/kentrehberi.js"></script>
-  <script src="js/arayuz.js"></script>
-  <!-- Service Worker Kaydı -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
-    }
-  </script>
+  <!-- Yükleniyor göstergesi -->
+  <div id="yukleniyor" class="yukleniyor">
+    <svg role="img" aria-label="Atakule" viewBox="0 0 40 100" class="atakule-simge yukleniyor-logo"><g fill=\"#b3261e\"><rect x="19" y="1" width="2" height="9"/><path d="M15 11h10l-1.5 5h-7z"/><path fill-rule="evenodd" d="M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z"/><path d="M16 34h8l2 62H14z"/><rect x="12" y="96" width="16" height="3"/></g></svg>
+    <div class="yukleniyor-halka"></div>
+  </div>
+
+  <script src="js/uygulama.js"></script>
 </body>
 </html>
