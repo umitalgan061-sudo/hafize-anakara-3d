@@ -239,7 +239,7 @@ function katmanlariYukle() {
         symbol: new MeshSymbol3D({
           symbolLayers: [{
             type: 'fill',
-            material: { color: [221, 230, 236, 1] },
+            material: { color: [221, 230, 236, 1], colorMixMode: 'replace' },
             edges: new SolidEdges3D({ color: [120, 135, 150, 0.55], size: 0.5 })
           }]
         })
@@ -341,6 +341,9 @@ function katmanlariYukle() {
           if (!isNaN(p.zoom)) o.zoom = p.zoom;
           if (!isNaN(p.tilt)) o.tilt = p.tilt;
           view.goTo(o).catch(() => {});
+        } else {
+          // Açılışta ekranın ortası tam Anıtkabir (39.9250, 32.8369) olsun
+          view.goTo({ target: { latitude: 39.9250, longitude: 32.8369 } }).catch(() => {});
         }
         if (p.adres) { const g = $('arama-girdi'); if (g) g.value = p.adres; }
         sayfaGoster('kesfet');
