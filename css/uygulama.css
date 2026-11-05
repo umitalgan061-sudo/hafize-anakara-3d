@@ -26,7 +26,7 @@ body {
   align-items: center;
   gap: 12px;
   max-height: 56px;
-  padding: 8px 12px;
+  padding: 6px 12px;
   background: var(--yuzey);
   border-radius: var(--yaricap);
   box-shadow: var(--golge);
@@ -46,7 +46,7 @@ body {
 .arama-kutu { position: relative; flex: 1; display: flex; align-items: center; min-width: 0; }
 #arama-girdi {
   width: 100%;
-  height: 40px;
+  height: 44px;
   padding: 0 36px 0 12px;
   font: inherit;
   font-size: 0.95rem;
@@ -57,12 +57,13 @@ body {
   outline: none;
 }
 #arama-girdi:focus { background: #fff; border-color: var(--vurgu); }
+#arama-girdi::placeholder { color: #595959; opacity: 1; }
 /* Arama kutusu: tarayıcının kendi iptal düğmesi asla çizilmez */
 #arama-girdi { -webkit-appearance: none; appearance: none; }
 #arama-temizle {
   position: absolute;
-  right: 6px;
-  width: 28px; height: 28px;
+  right: 2px;
+  width: 44px; height: 44px;
   border: none;
   background: transparent;
   color: #666;
@@ -111,7 +112,7 @@ input[type="search"]::-webkit-search-results-decoration,
   text-overflow: ellipsis;
 }
 .arama-sonuc:hover, .arama-sonuc:focus-visible { background: #f2f2f2; }
-.arama-sonuc--bos { color: #777; cursor: default; }
+.arama-sonuc--bos { color: #595959; cursor: default; }
 
 /* Alt araç çubuğu: ortada yatay hap */
 .alt-cubuk {
@@ -224,7 +225,7 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 .kurulum-dugme:hover { background: #9c1f18; }
 .kurulum-dugme svg { width: 18px; height: 18px; }
 @media (max-width: 600px) {
-  .kurulum-dugme { min-height: 36px; padding: 4px 10px; font-size: 0.8rem; }
+  .kurulum-dugme { min-height: 44px; padding: 4px 10px; font-size: 0.8rem; }
   .kurulum-dugme span { display: none; }
   .kurulum-dugme svg { width: 20px; height: 20px; }
 }
@@ -297,7 +298,7 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   bottom: calc(12px + env(safe-area-inset-bottom));
   z-index: 5;
   padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.8);
   border-radius: 6px;
   font-size: 12px;
   line-height: 1.4;
