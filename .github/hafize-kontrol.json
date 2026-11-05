@@ -76,6 +76,11 @@
     {
       "ad": "3B ışık ve gölge: SceneView environment lighting virtual, binalar gölge düşürür (directShadowsEnabled), atmosfer açık",
       "ifade": "(() => { const env = view.environment || {}; const l = env.lighting || {}; return (l.type === 'virtual' && l.directShadowsEnabled === true && env.atmosphereEnabled !== false) || ('ışık ' + l.type + ', gölge ' + l.directShadowsEnabled + ', atmosfer ' + env.atmosphereEnabled); })()"
+    },
+    {
+      "ad": "Telefonda durum satırı yok: koordinat, zoom, eğim ve yön değerleri telefonda görünmez (masaüstünde kalabilir)",
+      "cihaz": "telefon",
+      "ifade": "(() => { const shown = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden' && getComputedStyle(e).display !== 'none'; const hits = [...document.querySelectorAll('body *')].filter((e) => e.children.length === 0 && /^(koordinat|zoom|eğim|yön)\\s*:?$/i.test(e.textContent.trim()) && shown(e) && !e.closest('.esri-popup')).map((e) => e.textContent.trim()); return hits.length === 0 || ('telefonda görünen: ' + hits.join(', ')); })()"
     }
   ],
   "canli": "https://ankara-3d-harita.web.app/"
