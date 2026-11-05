@@ -143,12 +143,24 @@ function katmanListeleriniDoldur() {
     ].forEach(([id, b, a]) => adres.appendChild(katmanSatiriOlustur(id, b, a).satir));
   }
   if (kent) {
-    [['cb_ego_durak', 'Otobüs Durakları', 'EGO kent rehberi'],
-     ['cb_ego_metro', 'Metro & Ankaray', 'EGO kent rehberi'],
-     ['cb_abb_park', 'Parklar', 'ABB kent rehberi'],
-     ['cb_abb_kultur', 'Kültür ve Sanat', 'ABB kent rehberi'],
-     ['cb_abb_spor', 'Spor Tesisleri', 'ABB kent rehberi']
-    ].forEach(([id, b, a]) => { const { satir, cb } = katmanSatiriOlustur(id, b, a); cb.checked = false; kent.appendChild(satir); });
+    const tanimlar = window.KENT_KATMAN_TANIMLARI || [];
+    const gruplar = [];
+    tanimlar.forEach(t => {
+      let g = gruplar.find(x => x.ad === t.grup);
+      if (!g) { g = { ad: t.grup, ogeler: [] }; gruplar.push(g); }
+      g.ogeler.push(t);
+    });
+    gruplar.forEach(g => {
+      const baslik = document.createElement('div');
+      baslik.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--renk-metin-solgun);margin:14px 0 8px;';
+      baslik.textContent = g.ad === 'EGO' ? 'EGO — Toplu Taşıma' : 'ABB — Kent Rehberi';
+      kent.appendChild(baslik);
+      g.ogeler.forEach(t => {
+        const { satir, cb } = katmanSatiriOlustur(t.id, t.baslik, t.alt);
+        cb.checked = false;
+        kent.appendChild(satir);
+      });
+    });
   }
 }
 function katmanSenkronizeEt(id, layer) {
@@ -267,14 +279,23 @@ function katmanlariYukle() {
       });
       const ilce = new FeatureLayer({ url: adresUrl + '4', title: 'İlçeler', outFields: ['*'], visible: false, popupTemplate: new PopupTemplate(popupSablon('ILCE_ADI', [{ etiket: 'İlçe', alan: 'ILCE_ADI' }])) });
 
-      const durak = new FeatureLayer({ url: egoUrl + '8', title: 'Otobüs Durakları', outFields: ['*'], visible: false });
-      const metro = new FeatureLayer({ url: egoUrl + '4', title: 'Metro Hattı', outFields: ['*'], visible: false });
-      const park = new FeatureLayer({ url: abbUrl + '5', title: 'Parklar', outFields: ['*'], visible: false });
-      const kultur = new FeatureLayer({ url: abbUrl + '6', title: 'Kültür ve Sanat', outFields: ['*'], visible: false });
-      const spor = new FeatureLayer({ url: abbUrl + '7', title: 'Spor Tesisleri', outFields: ['*'], visible: false });
+      // Kent rehberi katmanları: tek tanım dosyasından (js/kentrehberi.js) tümü yüklenir
+      kentKatmanlar = {};
+      (window.KENT_KATMAN_TANIMLARI || []).forEach(t => {
+        const servis = t.grup === 'EGO' ? egoUrl : abbUrl;
+        const layer = new FeatureLayer({
+          url: servis + t.katman, title: t.baslik, outFields: ['*'], visible: false
+        });
+        let sembol;
+        if (t.geometri === 'line') sembol = new SimpleLineSymbol({ color: t.renk, width: 3 });
+        else if (t.geometri === 'polygon') sembol = new SimpleFillSymbol({ color: [t.renk[0], t.renk[1], t.renk[2], 0.45], outline: { color: t.renk, width: 1.5 } });
+        else sembol = new SimpleMarkerSymbol({ color: t.renk, size: 9, outline: { color: [255, 255, 255], width: 1.5 } });
+        layer.renderer = new SimpleRenderer({ symbol: sembol });
+        window.KentRehberi.popupAyarla(layer);
+        kentKatmanlar[t.id] = layer;
+      });
 
       katmanlar = { cb_binalar: binalar, cb_mahalle: mahalle, cb_yol: yol, cb_yapi: yapi, cb_numarataj: numarataj, cb_ilce: ilce };
-      kentKatmanlar = { cb_ego_durak: durak, cb_ego_metro: metro, cb_abb_park: park, cb_abb_kultur: kultur, cb_abb_spor: spor };
       map.addMany([...Object.values(katmanlar), ...Object.values(kentKatmanlar)]);
 
       // Açılış kamerası: URL'de konum yoksa Anıtkabir'e bakan eğik görünüm
