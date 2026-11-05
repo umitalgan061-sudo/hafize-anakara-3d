@@ -319,7 +319,7 @@ function katmanlariYukle() {
         view.watch('stationary', st => {
           if (!st) return;
           const c = view.center;
-          if (c && isFinite(c.latitude)) { sonKoordinat = c.latitude.toFixed(4) + ', ' + c.longitude.toFixed(4); sonMerkez = { lat: c.latitude, lon: c.longitude }; footerPlanla(); }
+          if (c && isFinite(c.latitude)) { sonKoordinat = c.latitude.toFixed(4) + ', ' + c.longitude.toFixed(4); sonMerkez = { lat: c.latitude, lon: c.longitude }; footerPlanla(); gorunumuKaydet(); }
           const t = $('tilt'), h = $('heading');
           if (t && view.camera) t.textContent = Math.round(view.camera.tilt) + '°';
           if (h && view.camera) h.textContent = Math.round(view.camera.heading) + '°';
@@ -430,6 +430,20 @@ async function aramaYap() {
     btn.textContent = 'Seç ve Git';
     btn.addEventListener('click', aramaSec);
     liste.appendChild(btn);
+    const fav = document.createElement('button');
+    fav.type = 'button';
+    fav.className = 'arama-sec-btn';
+    fav.style.marginTop = '8px';
+    fav.textContent = '★ Favorilere ekle/çıkar';
+    fav.addEventListener('click', () => {
+      const secili = document.querySelector('input[name=\"aramaSonuc\"]:checked');
+      if (!secili) return;
+      const c = aramaAdaylar[parseInt(secili.value, 10)];
+      favoriDegistir(c.address, c.location);
+      fav.textContent = favoriDurum(c.address) ? '★ Favorilerden çıkar' : '★ Favorilere ekle';
+      toastGoster(favoriDurum(c.address) ? 'Favorilere eklendi.' : 'Favorilerden çıkarıldı.', 'bilgi');
+    });
+    liste.appendChild(fav);
     view.openPopup({ location: pt, title: adaylar.length + ' sonuç bulundu', content: liste });
     toastGoster(adaylar.length + ' sonuç listelendi.', 'bilgi');
   } catch (err) {
@@ -443,9 +457,23 @@ function aramaSec() {
 }
 function adresGit(c) {
   const pt = { type: 'point', longitude: c.location.x, latitude: c.location.y };
-  view.openPopup({ location: pt, title: 'Arama Sonucu', content: c.address });
+  const kont = document.createElement('div');
+  const p = document.createElement('p');
+  p.textContent = c.address;
+  p.style.cssText = 'margin:0 0 10px;font-size:0.9rem';
+  const fav = document.createElement('button');
+  fav.type = 'button';
+  fav.className = 'arama-sec-btn';
+  fav.style.marginTop = '0';
+  const favGuncelle = () => { fav.textContent = favoriDurum(c.address) ? '★ Favorilerden çıkar' : '★ Favorilere ekle'; };
+  favGuncelle();
+  fav.addEventListener('click', () => { favoriDegistir(c.address, c.location); favGuncelle(); toastGoster(favoriDurum(c.address) ? 'Favorilere eklendi.' : 'Favorilerden çıkarıldı.', 'bilgi'); });
+  kont.appendChild(p);
+  kont.appendChild(fav);
+  view.openPopup({ location: pt, title: 'Arama Sonucu', content: kont });
   view.goTo({ target: pt, zoom: 16, tilt: 62 }).catch(() => {});
   urlYaz({ ...urlOku(), lat: c.location.y, lon: c.location.x, zoom: 16, tilt: 62, adres: c.address });
+  sonAramaKaydet(c.address, c.location);
   toastGoster('Adres bulundu.', 'basari');
 }
 
@@ -681,6 +709,90 @@ function mesafe(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
+// ---------- SON ARAMALAR / FAVORİLER / SON GÖRÜNÜM (localStorage) ----------
+function lsOku(anahtar, varsayilan) {
+  try { const v = localStorage.getItem(anahtar); return v ? JSON.parse(v) : varsayilan; } catch (e) { return varsayilan; }
+}
+function lsYaz(anahtar, deger) {
+  try { localStorage.setItem(anahtar, JSON.stringify(deger)); } catch (e) {}
+}
+function sonAramaKaydet(ad, loc) {
+  const liste = lsOku('sonAramalar', []).filter(x => x.ad !== ad);
+  liste.unshift({ ad: ad, lat: loc.y, lon: loc.x });
+  lsYaz('sonAramalar', liste.slice(0, 8));
+  sonAramalariDoldur();
+}
+function favoriDurum(ad) { return lsOku('favoriler', []).some(x => x.ad === ad); }
+function favoriDegistir(ad, loc) {
+  let liste = lsOku('favoriler', []);
+  if (favoriDurum(ad)) liste = liste.filter(x => x.ad !== ad);
+  else liste.unshift({ ad: ad, lat: loc.y, lon: loc.x });
+  lsYaz('favoriler', liste);
+  favorileriDoldur();
+}
+function miniSatirOlustur(ad, onGit, onSil) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'mini-satir';
+  const govde = document.createElement('span');
+  govde.className = 'mini-satir__govde';
+  const adEl = document.createElement('span');
+  adEl.className = 'mini-satir__ad';
+  adEl.textContent = ad;
+  govde.appendChild(adEl);
+  b.appendChild(govde);
+  b.addEventListener('click', onGit);
+  if (onSil) {
+    const sil = document.createElement('span');
+    sil.className = 'mini-satir__sil';
+    sil.textContent = '✕';
+    sil.setAttribute('role', 'button');
+    sil.setAttribute('aria-label', ad + ' kaydını sil');
+    sil.addEventListener('click', e => { e.stopPropagation(); onSil(); });
+    b.appendChild(sil);
+  }
+  return b;
+}
+function sonAramalariDoldur() {
+  const kaps = $('son-aramalar');
+  if (!kaps) return;
+  kaps.innerHTML = '';
+  const liste = lsOku('sonAramalar', []);
+  if (!liste.length) { const p = document.createElement('p'); p.className = 'mini-bos'; p.textContent = 'Henüz arama yok'; kaps.appendChild(p); return; }
+  liste.forEach(x => {
+    kaps.appendChild(miniSatirOlustur(x.ad, () => adresGit({ address: x.ad, location: { x: x.lon, y: x.lat } }), () => {
+      lsYaz('sonAramalar', lsOku('sonAramalar', []).filter(y => y.ad !== x.ad));
+      sonAramalariDoldur();
+    }));
+  });
+}
+function favorileriDoldur() {
+  const kaps = $('favoriler');
+  if (!kaps) return;
+  kaps.innerHTML = '';
+  const liste = lsOku('favoriler', []);
+  if (!liste.length) { const p = document.createElement('p'); p.className = 'mini-bos'; p.textContent = 'Yıldızla kaydedin'; kaps.appendChild(p); return; }
+  liste.forEach(x => {
+    kaps.appendChild(miniSatirOlustur(x.ad, () => adresGit({ address: x.ad, location: { x: x.lon, y: x.lat } }), () => {
+      lsYaz('favoriler', lsOku('favoriler', []).filter(y => y.ad !== x.ad));
+      favorileriDoldur();
+    }));
+  });
+}
+function gorunumuKaydet() {
+  if (!view || !view.camera || !view.center) return;
+  lsYaz('sonGorunum', {
+    lat: view.center.latitude, lon: view.center.longitude,
+    zoom: view.zoom, tilt: view.camera.tilt, heading: view.camera.heading
+  });
+}
+function sonGorunumeDon() {
+  const g = lsOku('sonGorunum', null);
+  if (!g || !view) return toastGoster('Kayıtlı görünüm yok.', 'uyari');
+  view.goTo({ target: { latitude: g.lat, longitude: g.lon }, zoom: g.zoom || 15, tilt: g.tilt || 62, heading: g.heading || 0 }, { duration: 1500 }).catch(() => {});
+  toastGoster('Son görünüme dönüldü.', 'basari');
+}
+
 // ---------- OLAY BAĞLAMA ----------
 function olaylariBagla() {
   document.querySelectorAll('.sol-panel__sekme').forEach(s => {
@@ -706,6 +818,9 @@ function olaylariBagla() {
   if (btur) btur.addEventListener('click', kesifTuruBaslat);
   const byak = $('btn-yakindakiler');
   if (byak) byak.addEventListener('click', yakindakiler);
+  const bsg = $('btn-son-gorunum');
+  if (bsg) bsg.addEventListener('click', sonGorunumeDon);
+  window.addEventListener('beforeunload', gorunumuKaydet);
 
   const bm = $('btn-olcum-mesafe'); if (bm) bm.addEventListener('click', () => olcumBaslat('mesafe'));
   const ba = $('btn-olcum-alan'); if (ba) ba.addEventListener('click', () => olcumBaslat('alan'));
@@ -732,10 +847,11 @@ async function baslat() {
   katmanListeleriniDoldur();
   tabanKartlariOlustur();
   oneCikanlariDoldur();
-  gundemKartlariniDoldur();
+  sonAramalariDoldur();
+  favorileriDoldur();
   olaylariBagla();
   await katmanlariYukle();
 }
 if (typeof require !== 'undefined') { baslat(); } else { window.addEventListener('load', baslat); }
 
-Object.assign(window, { aramaYap, aramaSec, konumBul, baglantiPaylas, tabanSec, sayfaGoster, kesifTuruBaslat, kesifTuruDurdur, yakindakiler, olcumBaslat, olcumTemizle, gunesAyarla, temayiUygula, oneCikanlariDoldur, gundemKartlariniDoldur });
+Object.assign(window, { aramaYap, aramaSec, adresGit, konumBul, baglantiPaylas, tabanSec, sayfaGoster, kesifTuruBaslat, kesifTuruDurdur, yakindakiler, olcumBaslat, olcumTemizle, gunesAyarla, temayiUygula, oneCikanlariDoldur, sonAramalariDoldur, favorileriDoldur, favoriDegistir, sonGorunumeDon, gorunumuKaydet });
