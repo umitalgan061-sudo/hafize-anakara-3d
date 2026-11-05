@@ -1,6 +1,7 @@
 require([
   "esri/views/SceneView",
   "esri/WebScene",
+  "esri/core/reactiveUtils",
   "esri/layers/SceneLayer",
   "esri/layers/FeatureLayer",
   "esri/layers/GraphicsLayer",
@@ -14,7 +15,7 @@ require([
   "esri/symbols/edges/SolidEdges3D",
   "esri/geometry/Point"
 ], function(
-  SceneView, WebScene, SceneLayer, FeatureLayer, GraphicsLayer,
+  SceneView, WebScene, reactiveUtils, SceneLayer, FeatureLayer, GraphicsLayer,
   Graphic, PointSymbol3D, IconSymbol3DLayer, LabelSymbol3D, TextSymbol3DLayer,
   SimpleRenderer, MeshSymbol3D, SolidEdges3D, Point
 ) {
@@ -55,7 +56,6 @@ require([
 
   const yapiEtiketi = {
     labelExpressionInfo: { expression: "IIf(IsEmpty($feature.ad), $feature.zeminustukatsayisi + ' kat', $feature.ad)" },
-    labelPlacement: "above-center",
     symbol: new LabelSymbol3D({
       symbolLayers: [new TextSymbol3DLayer({
         material: { color: [20, 20, 20, 1] },
@@ -92,12 +92,11 @@ require([
 
   const numaratajLayer = new FeatureLayer({
     url: MAKS_URL + "/0",
-    title: "Numarataj",
+    title: "Numarataj (MAKS)",
     visible: true,
     outFields: ["kapino", "ad", "tip"],
     labelingInfo: [{
       labelExpressionInfo: { expression: "$feature.kapino" },
-      labelPlacement: "above-center",
       symbol: new LabelSymbol3D({
         symbolLayers: [new TextSymbol3DLayer({
           material: { color: [20, 20, 20, 1] },
@@ -123,9 +122,9 @@ require([
     url: MAKS_URL + "/3",
     title: "Mahalleler",
     visible: false,
-    outFields: ["mahalle_adi"],
+    outFields: ["ad"],
     labelingInfo: [{
-      labelExpressionInfo: { expression: "$feature.mahalle_adi" },
+      labelExpressionInfo: { expression: "$feature.ad" },
       labelPlacement: "center-center",
       symbol: new LabelSymbol3D({
         symbolLayers: [new TextSymbol3DLayer({
@@ -139,8 +138,8 @@ require([
     }],
     labelsVisible: true,
     popupTemplate: {
-      title: "{mahalle_adi}",
-      content: [{ type: "fields", fieldInfos: [{ fieldName: "mahalle_adi", label: "Mahalle" }] }]
+      title: "{ad}",
+      content: [{ type: "fields", fieldInfos: [{ fieldName: "ad", label: "Mahalle" }] }]
     }
   });
 
@@ -160,7 +159,6 @@ require([
     container: "viewDiv",
     map: new WebScene({
       basemap: "hybrid",
-      ground: "world-elevation",
       layers: [binalarLayer, yapilarLayer, numaratajLayer, mahallelerLayer, yollarLayer, konumLayer]
     }),
     camera: {
@@ -191,7 +189,7 @@ require([
   setTimeout(yukleniyoruKapat, 9000);
 
   [binalarLayer, yapilarLayer, numaratajLayer, mahallelerLayer, yollarLayer].forEach(lyr => {
-    lyr.watch("loadStatus", status => {
+    reactiveUtils.watch(() => lyr.loadStatus, status => {
       if (status === "failed") {
         gosterBildirim("Bazı katmanlar yüklenemedi");
         console.error(lyr.title, "yükleme hatası:", lyr.loadError);
@@ -338,11 +336,9 @@ require([
   document.getElementById("btn-anitkabir").addEventListener("click", () => {
     titresim();
     view.goTo({
-      camera: {
-        position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
-        heading: 355,
-        tilt: 70
-      }
+      position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
+      heading: 355,
+      tilt: 70
     }, { duration: 1000 });
   });
 
@@ -352,7 +348,7 @@ require([
     titresim();
     view.goTo({ heading: 0 }, { duration: 600 });
   });
-  view.watch("camera.heading", h => {
+  reactiveUtils.watch(() => view.camera.heading, h => {
     if (kuzeySimge) kuzeySimge.style.transform = "rotate(" + (-h) + "deg)";
   });
 
