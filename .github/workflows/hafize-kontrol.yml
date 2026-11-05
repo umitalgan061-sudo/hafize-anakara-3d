@@ -1,10 +1,12 @@
 name: Hafize kontrol
-# hafize-kontrol v4: opens the site in a real browser on every Hafize branch and fails when using it shows a
+# hafize-kontrol v6: opens the site in a real browser on every Hafize branch and fails when using it shows a
 # JavaScript error main does not.
 on:
   push:
-    branches: ['hafize/**']
+    branches: ['hafize/**', 'main']
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   kontrol:
     runs-on: ubuntu-latest
@@ -16,5 +18,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm i --no-save --no-package-lock playwright@1.48.2 && npx playwright install --with-deps chromium
+      - run: npm i --prefix /tmp/pw --no-save --no-package-lock playwright@1.48.2 && /tmp/pw/node_modules/.bin/playwright install --with-deps chromium
+        if: github.ref_name != 'main'
       - run: node .github/hafize-kontrol.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright/index.js

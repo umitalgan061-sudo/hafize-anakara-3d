@@ -1,12 +1,11 @@
-// hafize-kontrol v4: serves this branch and main over http (so sites of several files and modules work), opens
+// hafize-kontrol v6: serves this branch and main over http (so sites of several files and modules work), opens
 // index.html of each in Chromium, uses the page like a person would (types into text boxes and presses Enter, clicks
 // every button) and compares the uncaught errors with main's. Every error is also written as a GitHub annotation,
 // so Hafize's next round knows what is broken. Written by Hafize.
 import { execFileSync } from 'node:child_process';
-import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
-import { chromium } from 'playwright';
 
 const PAGE = process.env.HAFIZE_SAYFA || 'index.html';
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8', '.md': 'text/plain; charset=utf-8' };
@@ -14,6 +13,42 @@ mkdirSync('.kontrol', { recursive: true });
 let hasMain = false;
 try { execFileSync('git', ['worktree', 'add', '--detach', '.kontrol/main', 'origin/main'], { stdio: 'ignore' }); } catch { /* no main yet, or already there */ }
 hasMain = existsSync('.kontrol/main/' + PAGE);
+let rules = {};
+try { rules = JSON.parse(readFileSync('.github/hafize-kontrol.json', 'utf8')); } catch { /* no rules */ }
+// A project with a build (package.json with a "build" script, e.g. Vite or React) is built first; what is checked and
+// what goes on the site is the built output. Hafize's rounds write the source, the check builds it.
+function siteRoot(dir) {
+  let pkg = null;
+  try { pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')); } catch { return dir; }
+  if (!pkg || !pkg.scripts || !pkg.scripts.build) return dir;
+  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  execFileSync(npm, [existsSync(join(dir, 'package-lock.json')) ? 'ci' : 'install', '--no-audit', '--no-fund'], { cwd: dir, stdio: 'inherit', shell: process.platform === 'win32' });
+  execFileSync(npm, ['run', 'build'], { cwd: dir, stdio: 'inherit', shell: process.platform === 'win32' });
+  const out = rules.cikti ? join(dir, rules.cikti) : ['dist', 'build', 'out'].map((name) => join(dir, name)).find((path) => existsSync(join(path, PAGE)));
+  if (!out || !existsSync(join(out, PAGE))) throw new Error('derleme çıktısında ' + PAGE + ' yok');
+  return out;
+}
+// The built site goes to the branch yayin/<branch>; the worker publishes it from there after the merge.
+function pushOutput(dir, branch) {
+  const token = process.env.GITHUB_TOKEN;
+  const repo = process.env.GITHUB_REPOSITORY;
+  if (!token || !repo || resolve(dir) === resolve('.')) return;
+  const git = (...args) => execFileSync('git', args, { cwd: dir, stdio: 'inherit' });
+  git('init', '-q');
+  git('checkout', '-q', '-b', 'yayin');
+  git('add', '-A');
+  git('-c', 'user.name=hafize', '-c', 'user.email=hafize@users.noreply.github.com', 'commit', '-q', '-m', 'Derlenmiş site ' + String(process.env.GITHUB_SHA || '').slice(0, 7));
+  git('push', '-q', '-f', 'https://x-access-token:' + token + '@github.com/' + repo + '.git', 'yayin:refs/heads/yayin/' + branch);
+  console.log('Derlenmiş site gönderildi: yayin/' + branch);
+}
+const branchName = process.env.GITHUB_REF_NAME || 'yerel';
+let mineRoot = '.';
+try { mineRoot = siteRoot('.'); } catch (error) { console.log('::error title=Derleme hatası::' + String(error.message || error).split('\n')[0].slice(0, 300)); process.exit(1); }
+if (branchName === 'main') { pushOutput(mineRoot, 'main'); process.exit(0); }
+let mainRoot = '.kontrol/main';
+if (hasMain) { try { mainRoot = siteRoot('.kontrol/main'); } catch { hasMain = false; } }
+const playwright = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const chromium = playwright.chromium || playwright.default.chromium;
 
 function serve(root) {
   const base = resolve(root);
@@ -60,8 +95,40 @@ async function errorsOf(root) {
   site.close();
   return { errors: [...new Set(errors)], used: [...new Set(used)], nodes, body };
 }
-const mine = await errorsOf('.');
-const base = hasMain ? await errorsOf('.kontrol/main') : { errors: [], used: [], nodes: 0 };
+const mine = await errorsOf(mineRoot);
+const base = hasMain ? await errorsOf(mainRoot) : { errors: [], used: [], nodes: 0 };
+// Usability: what a visitor actually sees on opening the site, on a desktop and on a phone, measured point by point
+// (a map behind a full-screen panel is not seen however big its box is). The project's own rules say what must be seen.
+const usability = [];
+async function seenShare(root, viewport, selector) {
+  const site = await serve(root);
+  const phone = viewport.width < 600;
+  const context = await browser.newContext({ viewport, isMobile: phone, hasTouch: phone });
+  const page = await context.newPage();
+  page.on('dialog', (dialog) => dialog.dismiss().catch(() => {}));
+  await page.goto(site.url, { waitUntil: 'load', timeout: 60_000 }).catch(() => {});
+  await page.waitForTimeout(8000);
+  const result = await page.evaluate((target) => {
+    const goal = target ? document.querySelector(target) : null;
+    let hits = 0; let total = 0;
+    for (let y = 0.5; y < 24; y += 1) for (let x = 0.5; x < 12; x += 1) {
+      total += 1;
+      const element = document.elementFromPoint(innerWidth * x / 12, innerHeight * y / 24);
+      if (goal && element && (element === goal || goal.contains(element))) hits += 1;
+    }
+    return { share: Math.round(hits * 100 / total), found: Boolean(goal), overflow: document.documentElement.scrollWidth > innerWidth + 2 };
+  }, selector || '').catch(() => ({ share: 0, found: false, overflow: false }));
+  await context.close();
+  site.close();
+  return result;
+}
+for (const [name, viewport, least] of [['masaüstü', { width: 1280, height: 800 }, rules.masaustu_en_az], ['telefon', { width: 390, height: 844 }, rules.telefon_en_az]]) {
+  const seen = await seenShare(mineRoot, viewport, rules.ana_oge);
+  console.log('Kullanılabilirlik', name, JSON.stringify(seen));
+  if (rules.ana_oge && !seen.found) usability.push(rules.ana_oge + ' sayfada yok');
+  else if (rules.ana_oge && typeof least === 'number' && seen.share < least) usability.push(name + ' açılışında ' + rules.ana_oge + ' ekranın yalnızca yüzde ' + seen.share + ' kadarında görünüyor, en az yüzde ' + least + ' olmalı: üstünü kaplayan panel, kart ya da başlık var');
+  if (name === 'telefon' && seen.overflow) usability.push('telefonda sayfa yana taşıyor, yatay kaydırma çıkıyor');
+}
 await browser.close();
 const oneLine = (text) => String(text).replace(/[\r\n%]/g, ' ');
 // A one- or two-letter message comes from the test browser's software WebGL, not from the page; it shows up at load or
@@ -75,6 +142,9 @@ for (const error of mine.errors) console.log(`::${fresh.includes(error) ? 'error
 for (const error of mine.used) console.log(`::${freshUse.includes(error) ? 'error' : 'warning'} title=Kullanım hatası${freshUse.includes(error) ? '' : ' (main de var)'}::${oneLine(error)}`);
 console.log('Bu dal:', JSON.stringify(mine));
 console.log('main:', JSON.stringify(base));
+for (const line of usability) console.log('::error title=Kullanılabilirlik hatası::' + oneLine(line));
 if (mine.nodes < 3) { console.log('::error title=Açılış hatası::Sayfa boş görünüyor'); process.exit(1); }
+if (usability.length) { console.error('Kullanılabilirlik:', usability.join(' | ')); process.exit(1); }
 if (fresh.length || freshUse.length) { console.error('Yeni hata:', [...fresh, ...freshUse].join(' | ')); process.exit(1); }
+pushOutput(mineRoot, branchName);
 console.log('Temiz: main\'de olmayan bir hata yok.');
