@@ -10,23 +10,18 @@ require([
   "esri/symbols/LabelSymbol3D",
   "esri/symbols/TextSymbol3DLayer",
   "esri/renderers/SimpleRenderer",
-  "esri/renderers/UniqueValueRenderer",
   "esri/symbols/MeshSymbol3D",
   "esri/symbols/edges/SolidEdges3D",
   "esri/geometry/Point",
-  "esri/geometry/support/webMercatorUtils",
-  "esri/popup/content/FieldsContent",
-  "esri/widgets/BasemapToggle",
   "dojo/domReady!"
 ], function(
   SceneView, WebScene, SceneLayer, FeatureLayer, GraphicsLayer,
   Graphic, PointSymbol3D, IconSymbol3DLayer, LabelSymbol3D, TextSymbol3DLayer,
-  SimpleRenderer, UniqueValueRenderer, MeshSymbol3D, SolidEdges3D,
-  Point, webMercatorUtils, FieldsContent, BasemapToggle
+  SimpleRenderer, MeshSymbol3D, SolidEdges3D, Point
 ) {
   "use strict";
 
-  // ---------- Yardımcı: bildirim ----------
+  // ---------- Yardımcılar ----------
   function gosterBildirim(metin) {
     const el = document.getElementById("bildirim");
     if (!el) return;
@@ -36,53 +31,49 @@ require([
     el._timer = setTimeout(() => { el.hidden = true; }, 3000);
   }
 
+  function titresim() { if (navigator.vibrate) navigator.vibrate(8); }
+
   // ---------- Katmanlar ----------
-  // 3B Binalar (Esri) — opak buz grisi
+  // 3B Binalar (Esri SceneServer) — opak buz grisi
+  const buildingsUrl = "https://basemaps3d.arcgis.com/arcgis/rest/services/Esri3D_Buildings_v1/SceneServer";
   const binalarLayer = new SceneLayer({
-    portalItem: { id: "Esri3D_Buildings_v1" },
+    url: buildingsUrl,
     title: "3B Binalar",
     visible: true,
     renderer: new SimpleRenderer({
       symbol: new MeshSymbol3D({
         symbolLayers: [{
           type: "fill",
-          material: {
-            color: [221, 230, 236, 1],
-            colorMixMode: "replace"
-          },
-          edges: new SolidEdges3D({
-            color: [120, 135, 150, 0.55],
-            size: 0.5
-          })
+          material: { color: [221, 230, 236, 1], colorMixMode: "replace" },
+          edges: new SolidEdges3D({ color: [120, 135, 150, 0.55], size: 0.5 })
         }]
       })
     }),
     opacity: 1
   });
 
-  // MAKS servisleri
   const MAKS_URL = "https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer";
+
+  const yapiEtiketi = {
+    labelExpressionInfo: { expression: "IIf(IsEmpty($feature.ad), $feature.zeminustukatsayisi + ' kat', $feature.ad)" },
+    labelPlacement: "above-center",
+    symbol: new LabelSymbol3D({
+      symbolLayers: [new TextSymbol3DLayer({
+        material: { color: [20, 20, 20, 1] },
+        halo: { color: [255, 255, 255, 0.9], size: 1 },
+        size: 11,
+        font: { family: "system-ui", weight: "bold" }
+      })]
+    }),
+    minScale: 5000
+  };
 
   const yapilarLayer = new FeatureLayer({
     url: MAKS_URL + "/2",
     title: "Yapılar",
     visible: true,
     outFields: ["ad", "zeminustukatsayisi", "zeminaltikatsayisi", "postakodu", "siteveyakooperatifadi", "bagimsizbolumsayi"],
-    labelingInfo: [{
-      labelExpressionInfo: { expression: "IIf(IsEmpty($feature.ad), $feature.zeminustukatsayisi + ' kat', $feature.ad)" },
-      labelPlacement: "above-center",
-      symbol: new LabelSymbol3D({
-        symbolLayers: [new TextSymbol3DLayer({
-          material: { color: [20, 20, 20, 1] },
-          halo: { color: [255, 255, 255, 0.9], size: 1 },
-          size: 11,
-          font: { family: "system-ui", weight: "bold" }
-        })],
-        verticalOffset: { screenLength: 12, maxWorldLength: 50, minWorldLength: 10 }
-      }),
-      minScale: 5000,
-      where: "1=1"
-    }],
+    labelingInfo: [yapiEtiketi],
     labelsVisible: true,
     popupTemplate: {
       title: "{ad}",
@@ -96,15 +87,7 @@ require([
           { fieldName: "postakodu", label: "Posta kodu" },
           { fieldName: "siteveyakooperatifadi", label: "Site/Kooperatif" }
         ]
-      }],
-      fieldInfos: [
-        { fieldName: "ad", visible: true },
-        { fieldName: "zeminustukatsayisi", visible: true },
-        { fieldName: "zeminaltikatsayisi", visible: true },
-        { fieldName: "bagimsizbolumsayi", visible: true },
-        { fieldName: "postakodu", visible: true },
-        { fieldName: "siteveyakooperatifadi", visible: true }
-      ]
+      }]
     }
   });
 
@@ -122,23 +105,18 @@ require([
           halo: { color: [255, 255, 255, 0.9], size: 1 },
           size: 10,
           font: { family: "system-ui", weight: "bold" }
-        })],
-        verticalOffset: { screenLength: 10, maxWorldLength: 30, minWorldLength: 5 }
+        })]
       }),
-      minScale: 1500,
-      where: "1=1"
+      minScale: 1500
     }],
     labelsVisible: true,
     popupTemplate: {
       title: "No {kapino}",
-      content: [{
-        type: "fields",
-        fieldInfos: [
-          { fieldName: "kapino", label: "Kapı No" },
-          { fieldName: "ad", label: "Adres" },
-          { fieldName: "tip", label: "Tip" }
-        ]
-      }]
+      content: [{ type: "fields", fieldInfos: [
+        { fieldName: "kapino", label: "Kapı No" },
+        { fieldName: "ad", label: "Adres" },
+        { fieldName: "tip", label: "Tip" }
+      ] }]
     }
   });
 
@@ -156,11 +134,9 @@ require([
           halo: { color: [255, 255, 255, 0.9], size: 1 },
           size: 12,
           font: { family: "system-ui", weight: "bold" }
-        })],
-        verticalOffset: { screenLength: 20, maxWorldLength: 200, minWorldLength: 30 }
+        })]
       }),
-      minScale: 20000,
-      where: "1=1"
+      minScale: 20000
     }],
     labelsVisible: true,
     popupTemplate: {
@@ -177,10 +153,10 @@ require([
     popupTemplate: { title: "{ad}", content: [{ type: "fields", fieldInfos: [{ fieldName: "ad", label: "Yol" }] }] }
   });
 
-  // Konum işareti için grafik katmanı
   const konumLayer = new GraphicsLayer({ title: "Konum" });
 
   // ---------- SceneView ----------
+  const telefon = window.matchMedia("(max-width: 720px)").matches;
   const view = new SceneView({
     container: "viewDiv",
     map: new WebScene({
@@ -193,12 +169,22 @@ require([
       heading: 355,
       tilt: 70
     },
-    environment: { atmosphere: { quality: "high" } },
+    environment: {
+      lighting: { type: "virtual", directShadowsEnabled: true },
+      atmosphereEnabled: true,
+      starsEnabled: false
+    },
+    qualityProfile: telefon ? "medium" : "high",
     ui: { components: ["attribution"] },
     constraints: { altitude: { min: 10, max: 20000 } }
   });
+  window.view = view;
 
-  // ---------- Katman yükleme hataları ----------
+  view.when(() => {
+    const yukleniyor = document.getElementById("yukleniyor");
+    if (yukleniyor) yukleniyor.remove();
+  });
+
   [binalarLayer, yapilarLayer, numaratajLayer, mahallelerLayer, yollarLayer].forEach(lyr => {
     lyr.watch("loadStatus", status => {
       if (status === "failed") {
@@ -208,12 +194,30 @@ require([
     });
   });
 
+  // ---------- İşaret (arama / konum) ----------
+  let seciliIsaret = null;
+  function isaretKoy(pt, renk, baslik, icerik) {
+    if (seciliIsaret) konumLayer.remove(seciliIsaret);
+    seciliIsaret = new Graphic({
+      geometry: pt,
+      symbol: new PointSymbol3D({
+        symbolLayers: [new IconSymbol3DLayer({
+          resource: { primitive: "circle" },
+          material: { color: renk },
+          size: 20,
+          outline: { color: [255, 255, 255, 1], width: 2 }
+        })]
+      }),
+      popupTemplate: { title: baslik, content: icerik }
+    });
+    konumLayer.add(seciliIsaret);
+  }
+
   // ---------- Arama ----------
   const aramaGirdi = document.getElementById("arama-girdi");
   const aramaTemizle = document.getElementById("arama-temizle");
   const aramaSonuclari = document.getElementById("arama-sonuclari");
   let aramaTimer = null;
-  let seciliIsaret = null;
 
   function temizleArama() {
     aramaGirdi.value = "";
@@ -238,34 +242,21 @@ require([
       .then(veri => {
         aramaSonuclari.innerHTML = "";
         if (!veri.candidates || veri.candidates.length === 0) {
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "arama-sonuc arama-sonuc--bos";
-          btn.textContent = "Sonuç yok";
-          aramaSonuclari.appendChild(btn);
+          const bos = document.createElement("button");
+          bos.type = "button";
+          bos.className = "arama-sonuc arama-sonuc--bos";
+          bos.textContent = "Sonuç yok";
+          aramaSonuclari.appendChild(bos);
         } else {
           veri.candidates.forEach(c => {
+            const adres = c.address || (c.attributes && c.attributes.Match_addr) || "İsimsiz";
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "arama-sonuc";
-            btn.textContent = c.address || c.attributes?.Match_addr || "İsimsiz";
+            btn.textContent = adres;
             btn.addEventListener("click", () => {
-              const pt = new Point({ x: c.location.x, y: c.location.y, spatialReference: { wkid: 4326 } });
-              if (seciliIsaret) konumLayer.remove(seciliIsaret);
-              seciliIsaret = new Graphic({
-                geometry: pt,
-                symbol: new PointSymbol3D({
-                  symbolLayers: [new IconSymbol3DLayer({
-                    resource: { primitive: "circle" },
-                    material: { color: [200, 30, 30, 1] },
-                    size: 20,
-                    outline: { color: [255, 255, 255, 1], width: 2 }
-                  })],
-                  verticalOffset: { screenLength: 40, maxWorldLength: 100, minWorldLength: 20 }
-                }),
-                popupTemplate: { title: "Arama sonucu", content: c.address }
-              });
-              konumLayer.add(seciliIsaret);
+              const pt = new Point({ longitude: c.location.x, latitude: c.location.y });
+              isaretKoy(pt, [200, 30, 30, 1], "Arama sonucu", adres);
               view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: 800 });
               aramaSonuclari.hidden = true;
             });
@@ -303,40 +294,35 @@ require([
   aramaTemizle.addEventListener("click", temizleArama);
 
   document.addEventListener("click", e => {
-    if (!e.target.closest(".arama-kutu")) {
-      aramaSonuclari.hidden = true;
-    }
+    if (!e.target.closest(".arama-kutu")) aramaSonuclari.hidden = true;
   });
 
-  // ---------- Konumumu bul ----------
-  document.getElementById("btn-konum").addEventListener("click", () => {
-    if (!navigator.geolocation) {
-      gosterBildirim("Konum alınamadı");
+  // ---------- Konumumu bul + canlı takip ----------
+  const btnKonum = document.getElementById("btn-konum");
+  let watchId = null;
+  function konumaGit(pt) {
+    isaretKoy(pt, [30, 100, 200, 1], "Konumunuz", "");
+    view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: 800 });
+  }
+  btnKonum.addEventListener("click", () => {
+    titresim();
+    if (!navigator.geolocation) { gosterBildirim("Konum alınamadı"); return; }
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+      btnKonum.classList.remove("takipte");
+      gosterBildirim("Konum takibi kapandı");
       return;
     }
     navigator.geolocation.getCurrentPosition(
       pos => {
-        const pt = new Point({
-          longitude: pos.coords.longitude,
-          latitude: pos.coords.latitude,
-          spatialReference: { wkid: 4326 }
-        });
-        if (seciliIsaret) konumLayer.remove(seciliIsaret);
-        seciliIsaret = new Graphic({
-          geometry: pt,
-          symbol: new PointSymbol3D({
-            symbolLayers: [new IconSymbol3DLayer({
-              resource: { primitive: "circle" },
-              material: { color: [30, 100, 200, 1] },
-              size: 20,
-              outline: { color: [255, 255, 255, 1], width: 2 }
-            })],
-            verticalOffset: { screenLength: 40, maxWorldLength: 100, minWorldLength: 20 }
-          }),
-          popupTemplate: { title: "Konumunuz", content: `Doğruluk: ~${Math.round(pos.coords.accuracy)} m` }
-        });
-        konumLayer.add(seciliIsaret);
-        view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: 800 });
+        konumaGit(new Point({ longitude: pos.coords.longitude, latitude: pos.coords.latitude }));
+        watchId = navigator.geolocation.watchPosition(
+          p => konumaGit(new Point({ longitude: p.coords.longitude, latitude: p.coords.latitude })),
+          () => {},
+          { enableHighAccuracy: true }
+        );
+        btnKonum.classList.add("takipte");
       },
       () => gosterBildirim("Konum alınamadı"),
       { enableHighAccuracy: true, timeout: 10000 }
@@ -345,6 +331,7 @@ require([
 
   // ---------- Anıtkabir'e dön ----------
   document.getElementById("btn-anitkabir").addEventListener("click", () => {
+    titresim();
     view.goTo({
       camera: {
         position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
@@ -357,10 +344,11 @@ require([
   // ---------- Kuzeye çevir ----------
   const kuzeySimge = document.getElementById("kuzey-simge");
   document.getElementById("btn-kuzey").addEventListener("click", () => {
+    titresim();
     view.goTo({ heading: 0 }, { duration: 600 });
   });
   view.watch("camera.heading", h => {
-    if (kuzeySimge) kuzeySimge.style.transform = `rotate(${-h}deg)`;
+    if (kuzeySimge) kuzeySimge.style.transform = "rotate(" + (-h) + "deg)";
   });
 
   // ---------- Katman kartı ----------
@@ -375,9 +363,10 @@ require([
   const tabanHarita = document.getElementById("taban-harita");
 
   btnKatmanlar.addEventListener("click", () => {
-    const acik = katmanKarti.hidden;
-    katmanKarti.hidden = !acik;
-    btnKatmanlar.setAttribute("aria-expanded", acik);
+    titresim();
+    const acilacak = katmanKarti.hidden;
+    katmanKarti.hidden = !acilacak;
+    btnKatmanlar.setAttribute("aria-expanded", String(acilacak));
   });
 
   document.addEventListener("click", e => {
@@ -395,12 +384,18 @@ require([
 
   function tabanSec(taban) {
     view.map.basemap = taban;
-    tabanUydu.setAttribute("aria-pressed", taban === "hybrid");
-    tabanHarita.setAttribute("aria-pressed", taban === "streets-vector");
+    tabanUydu.setAttribute("aria-pressed", String(taban === "hybrid"));
+    tabanHarita.setAttribute("aria-pressed", String(taban === "streets-vector"));
   }
   tabanUydu.addEventListener("click", () => tabanSec("hybrid"));
   tabanHarita.addEventListener("click", () => tabanSec("streets-vector"));
 
-  // ---------- Kapanış ----------
+  // ---------- PWA service worker ----------
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    });
+  }
+
   console.log("Ankara 3D hazır.");
 });

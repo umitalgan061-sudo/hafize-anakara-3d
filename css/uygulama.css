@@ -203,6 +203,28 @@ body {
   text-overflow: ellipsis;
 }
 
+/* Yükleniyor göstergesi */
+.yukleniyor {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+.yukleniyor__logo { height: 48px; width: auto; }
+.yukleniyor__halka {
+  position: absolute;
+  width: 72px; height: 72px;
+  border: 3px solid rgba(179, 38, 30, 0.15);
+  border-top-color: var(--vurgu);
+  border-radius: 50%;
+  animation: don 0.9s linear infinite;
+}
+@keyframes don { to { transform: rotate(360deg); } }
+.kontrol-dugme.takipte { color: var(--vurgu); background: #f6e3e2; }
+
 /* ArcGIS popup görünümü */
 .esri-popup__main-container { border-radius: var(--yaricap) !important; box-shadow: var(--golge) !important; }
 
