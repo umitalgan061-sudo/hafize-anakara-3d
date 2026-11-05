@@ -559,6 +559,53 @@ require([
     });
   }
 
+  // ---------- PWA kurulum düğmesi (beforeinstallprompt, tek seferlik) ----------
+  const btnKurulum = document.getElementById("btn-kurulum");
+  let kurulumIstemi = null;
+  const kuruluMu = () => {
+    // Uygulama zaten ana ekrandan (kurulu) açılıyorsa düğme hiç gösterilmez
+    if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
+    if (window.matchMedia && window.matchMedia("(display-mode: fullscreen)").matches) return true;
+    if (navigator.standalone === true) return true;
+    try { return localStorage.getItem("ankara3d-kurulu") === "1"; } catch (_) { return false; }
+  };
+  function kurulumDugmesiniGizle() {
+    if (btnKurulum) btnKurulum.hidden = true;
+    kurulumIstemi = null;
+  }
+  if (btnKurulum && !kuruluMu()) {
+    window.addEventListener("beforeinstallprompt", e => {
+      e.preventDefault();
+      kurulumIstemi = e;
+      btnKurulum.hidden = false;
+      duyur("Uygulama kurulabilir, üstteki Kur düğmesine dokunun");
+    });
+    window.addEventListener("appinstalled", () => {
+      try { localStorage.setItem("ankara3d-kurulu", "1"); } catch (_) {}
+      kurulumDugmesiniGizle();
+      gosterBildirim("Ankara 3D kuruldu");
+      duyur("Ankara 3D ana ekrana eklendi");
+    });
+    btnKurulum.addEventListener("click", async () => {
+      if (!kurulumIstemi) return;
+      titresim();
+      try {
+        kurulumIstemi.prompt();
+        const secim = await kurulumIstemi.userChoice;
+        if (secim && secim.outcome === "accepted") {
+          try { localStorage.setItem("ankara3d-kurulu", "1"); } catch (_) {}
+          kurulumDugmesiniGizle();
+          gosterBildirim("Ankara 3D kuruldu");
+        }
+      } catch (err) {
+        console.error("Kurulum istemi hatası:", err);
+      }
+      kurulumIstemi = null;
+    });
+  } else if (btnKurulum) {
+    btnKurulum.hidden = true;
+  }
+
   console.log("Ankara 3D hazır.");
 });
 // Sayfa hazırlığı: script body sonunda yüklendiği için DOM zaten hazır;

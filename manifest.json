@@ -2,13 +2,19 @@
   "name": "Ankara 3D",
   "short_name": "Ankara 3D",
   "lang": "tr",
+  "dir": "ltr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
+  "description": "Ankara 3D",
   "icons": [
+    { "src": "ikon/atakule-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
     { "src": "ikon/atakule-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "ikon/atakule-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    { "src": "ikon/atakule-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "ikon/atakule-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "ikon/atakule-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

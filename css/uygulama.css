@@ -203,6 +203,32 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 }
 .taban-dugme[aria-pressed="true"] { border-color: var(--vurgu); color: var(--vurgu); font-weight: 600; }
 
+/* PWA kurulum düğmesi (üst bant, sağda) */
+.kurulum-dugme {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--vurgu);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.kurulum-dugme:hover { background: #9c1f18; }
+.kurulum-dugme svg { width: 18px; height: 18px; }
+@media (max-width: 600px) {
+  .kurulum-dugme { min-height: 36px; padding: 4px 10px; font-size: 0.8rem; }
+  .kurulum-dugme span { display: none; }
+  .kurulum-dugme svg { width: 20px; height: 20px; }
+}
+
 /* Bildirim */
 .bildirim {
   position: fixed;
@@ -270,11 +296,18 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 }
 
 @media (max-width: 600px) {
-  .ust-bant { top: 8px; left: 8px; right: 8px; padding: 6px 10px; gap: 8px; }
+  .ust-bant { top: 6px; left: 8px; right: 8px; padding: 4px 8px; gap: 6px; max-height: 48px; }
   .ust-bant__baslik { display: none; }
-  .alt-cubuk { bottom: calc(10px + env(safe-area-inset-bottom)); padding: 5px; gap: 2px; }
-  .kontrol-dugme { width: 56px; min-height: 56px; }
-  .katman-karti { bottom: calc(78px + env(safe-area-inset-bottom)); }
+  .ust-bant__logo svg { height: 28px; }
+  .arama-kutu { min-width: 0; }
+  #arama-girdi { height: 36px; font-size: 0.9rem; padding: 0 32px 0 10px; }
+  #arama-temizle { width: 26px; height: 26px; right: 4px; }
+  .alt-cubuk { bottom: calc(8px + env(safe-area-inset-bottom)); padding: 4px; gap: 2px; }
+  .kontrol-dugme { width: 54px; min-height: 52px; padding: 2px 4px; }
+  .kontrol-dugme svg { width: 22px; height: 22px; }
+  .kontrol-dugme span { font-size: 10px; }
+  .katman-karti { bottom: calc(70px + env(safe-area-inset-bottom)); }
+  .bildirim { bottom: calc(70px + env(safe-area-inset-bottom)); }
 }
 
 /* Klavye kullanıcıları için atla bağlantısı: odakta görünür */
