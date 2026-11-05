@@ -3,7 +3,7 @@
 
 let map = null;
 let view = null;
-let katmanlar = {};
+let katlanar = {};
 const TABAN_SIRA = ['hybrid', 'satellite', 'streets', 'gray'];
 let tabanIndex = 0;
 let aramaAdaylar = [];
@@ -11,6 +11,9 @@ let footerRaf = null;
 let sonKoordinat = null;
 let sonZoom = null;
 let oncekiAktifElement = null;
+let surukleBaslangicY = 0;
+let surukleMevcutY = 0;
+let surukleAktif = false;
 
 // ==================== YARDIMCI FONKSIYONLAR ====================
 function $(id) { return document.getElementById(id); }
@@ -29,7 +32,7 @@ function temayiUygula(koyu) {
   document.documentElement.setAttribute('data-tema', koyu ? 'koyu' : 'acik');
   localStorage.setItem('tema', koyu ? 'koyu' : 'acik');
   const btn = $('btn-tema');
-  if (btn) btn.setAttribute('aria-pressed', koyu ? 'false' : 'true');
+  if (btn) btn.setAttribute('aria-pressed', koyu ? 'true' : 'false');
 }
 
 function temayiBaslat() {
@@ -37,6 +40,56 @@ function temayiBaslat() {
   const sistemKoyu = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const koyu = kayitli ? kayitli === 'koyu' : sistemKoyu;
   temayiUygula(koyu);
+}
+
+// --- URL Paylaşım ---
+function urlOku() {
+  const hash = window.location.hash.slice(1);
+  const params = new URLSearchParams(hash);
+  return {
+    taban: params.get('taban') || 'hybrid',
+    lat: parseFloat(params.get('lat')),
+    lon: parseFloat(params.get('lon')),
+    zoom: parseInt(params.get('zoom'), 10),
+    tilt: parseInt(params.get('tilt'), 10),
+    adres: params.get('adres') || ''
+  };
+}
+
+function urlYaz(state) {
+  const params = new URLSearchParams();
+  if (state.taban) params.set('taban', state.taban);
+  if (!isNaN(state.lat)) params.set('lat', state.lat.toFixed(6));
+  if (!isNaN(state.lon)) params.set('lon', state.lon.toFixed(6));
+  if (!isNaN(state.zoom)) params.set('zoom', state.zoom);
+  if (!isNaN(state.tilt)) params.set('tilt', state.tilt);
+  if (state.adres) params.set('adres', state.adres);
+  const yeniHash = params.toString();
+  if (window.location.hash !== '#' + yeniHash) {
+    history.replaceState(null, '', '#' + yeniHash);
+  }
+}
+
+function parametreleriUygula() {
+  const p = urlOku();
+  // Tabanı uygula (harita yüklendikten sonra)
+  if (p.taban && map) {
+    map.basemap = p.taban;
+    tabanIndex = TABAN_SIRA.indexOf(p.taban);
+    document.querySelectorAll('.taban-btn').forEach(b => b.classList.toggle('aktif', b.dataset.taban === p.taban));
+  }
+  // Kamera pozisyonu varsa git
+  if (!isNaN(p.lat) && !isNaN(p.lon) && view) {
+    const opts = { target: { latitude: p.lat, longitude: p.lon } };
+    if (!isNaN(p.zoom)) opts.zoom = p.zoom;
+    if (!isNaN(p.tilt)) opts.tilt = p.tilt;
+    view.goTo(opts).catch(() => {});
+  }
+  // Arama kutusuna adresi yaz
+  if (p.adres) {
+    const girdi = $('arama-girdi');
+    if (girdi) girdi.value = decodeURIComponent(p.adres);
+  }
 }
 
 // ==================== KATMAN YÖNETİMİ ====================
@@ -120,8 +173,8 @@ function katmanlariYukle() {
         ]))
       });
 
-      katmanlar = { binalar, mahalle, yol, yapi, ilce };
-      map.addMany(Object.values(katmanlar));
+      katlanar = { binalar, mahalle, yol, yapi, ilce };
+      map.addMany(Object.values(katlanar));
 
       view = new SceneView({
         container: 'viewDiv',
@@ -149,7 +202,7 @@ function katmanlariYukle() {
           });
         });
 
-        // Checkbox senkronizasyonu
+        // Checkbox senkronizasyonu (iki yönlü)
         const cbEslestirme = {
           cb_binalar: binalar,
           cb_mahalle: mahalle,
@@ -160,22 +213,31 @@ function katmanlariYukle() {
         Object.entries(cbEslestirme).forEach(([id, layer]) => {
           layer.watch('visible', (vis) => { const cb = $(id); if (cb) cb.checked = vis; });
           const cb = $(id);
-          if (cb) cb.addEventListener('change', () => { layer.visible = cb.checked; });
-          if (cb) cb.checked = layer.visible;
+          if (cb) {
+            cb.addEventListener('change', () => { layer.visible = cb.checked; });
+            cb.checked = layer.visible;
+          }
         });
 
         // Footer koordinat/zoom - throttling ile
         view.watch('scale', (s) => {
-          sonZoom = Math.round(s);
-          footerGuncellePlanla();
+          if (s && isFinite(s)) {
+            sonZoom = Math.round(s);
+            footerGuncellePlanla();
+          }
+          urlGuncelleKamera();
         });
         view.on('target-change', () => {
           const c = view.center;
-          if (c) {
+          if (c && isFinite(c.latitude) && isFinite(c.longitude)) {
             sonKoordinat = `${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}`;
             footerGuncellePlanla();
           }
+          urlGuncelleKamera();
         });
+
+        // URL'den parametreleri uygula
+        parametreleriUygula();
 
         console.log('Harita ve katmanlar hazır.');
         resolve();
@@ -195,6 +257,19 @@ function footerGuncellePlanla() {
   });
 }
 
+function urlGuncelleKamera() {
+  if (!view) return;
+  const c = view.center;
+  const state = {
+    taban: map?.basemap?.id || 'hybrid',
+    lat: c?.latitude,
+    lon: c?.longitude,
+    zoom: view.zoom,
+    tilt: view.camera?.tilt
+  };
+  urlYaz(state);
+}
+
 // ==================== ARAYÜZ OLAYLARI ====================
 function arayuzOlaylariniBagla() {
   // Arama formu
@@ -211,7 +286,16 @@ function arayuzOlaylariniBagla() {
     baslik.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); kart.classList.toggle('katlanmis'); } });
   }
 
-  // Mobil bottom sheet aç/kapa (overlay tıklama ile kapanır)
+  // Mobil bottom sheet sürükleme (pointer events)
+  const kartEl = $('katman-karti');
+  if (kartEl) {
+    const handle = kartEl.querySelector('.surukle-cubuk');
+    if (handle) {
+      handle.addEventListener('pointerdown', surukleBaslat);
+    }
+  }
+
+  // Mobil overlay tıklama ile kapanır
   const overlay = $('katman-overlay');
   if (overlay) overlay.addEventListener('click', () => katmanKapat());
 
@@ -229,7 +313,7 @@ function arayuzOlaylariniBagla() {
   const tabanListesi = $('taban-listesi');
   if (tabanListesi) {
     tabanListesi.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-taban]');
+      const btn = e.target.closest('.taban-btn');
       if (btn) tabanSec(btn.dataset.taban);
     });
   }
@@ -241,6 +325,45 @@ function arayuzOlaylariniBagla() {
       if (kart && kart.classList.contains('acik')) katmanKapat();
     }
   });
+}
+
+// --- Sürükleme mantığı ---
+function surukleBaslat(e) {
+  const kart = $('katman-karti');
+  if (!kart || !kart.classList.contains('acik')) return;
+  surukleAktif = true;
+  surukleBaslangicY = e.clientY;
+  surukleMevcutY = 0;
+  kart.style.transition = 'none';
+  document.addEventListener('pointermove', surukleDevam);
+  document.addEventListener('pointerup', surukleBitir);
+  document.addEventListener('pointercancel', surukleBitir);
+}
+
+function surukleDevam(e) {
+  if (!surukleAktif) return;
+  const kart = $('katman-karti');
+  if (!kart) return;
+  surukleMevcutY = e.clientY - surukleBaslangicY;
+  if (surukleMevcutY > 0) {
+    kart.style.transform = `translateY(${surukleMevcutY}px)`;
+  }
+}
+
+function surukleBitir(e) {
+  if (!surukleAktif) return;
+  surukleAktif = false;
+  const kart = $('katman-karti');
+  if (!kart) return;
+  kart.style.transition = '';
+  if (surukleMevcutY > 100) {
+    katmanKapat();
+  } else {
+    kart.style.transform = '';
+  }
+  document.removeEventListener('pointermove', surukleDevam);
+  document.removeEventListener('pointerup', surukleBitir);
+  document.removeEventListener('pointercancel', surukleBitir);
 }
 
 // ==================== İŞLEVLER ====================
@@ -261,31 +384,53 @@ async function aramaYap() {
       const pt = { type: 'point', longitude: c.location.x, latitude: c.location.y };
       view.popup.open({ location: pt, title: 'Arama Sonucu', content: c.address });
       view.goTo({ target: pt, zoom: 16, tilt: 65 });
+      urlYaz({ ...urlOku(), lat: c.location.y, lon: c.location.x, zoom: 16, tilt: 65, adres: c.address });
       toastGoster('Adres bulundu', 'basari');
       return;
     }
 
-    // Çoklu sonuç: popup içine liste bas
+    // Çoklu sonuç: popup içine document.createElement ile liste bas
     aramaAdaylar = adaylar;
     const ilk = adaylar[0];
     const pt = { type: 'point', longitude: ilk.location.x, latitude: ilk.location.y };
-    const listeHtml = adaylar.map((c, i) => `
-      <label class="arama-sonuc-satiri">
-        <input type="radio" name="aramaSonuc" value="${i}" ${i === 0 ? 'checked' : ''}>
-        <strong>${c.address}</strong>
-      </label>
-    `).join('');
+    
+    const container = document.createElement('div');
+    container.className = 'arama-sonuc-listesi';
+    
+    adaylar.forEach((c, i) => {
+      const label = document.createElement('label');
+      label.className = 'arama-sonuc-satiri';
+      
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'aramaSonuc';
+      radio.value = String(i);
+      if (i === 0) radio.checked = true;
+      
+      const strong = document.createElement('strong');
+      strong.textContent = c.address;
+      
+      label.appendChild(radio);
+      label.appendChild(strong);
+      container.appendChild(label);
+      
+      label.addEventListener('click', () => { radio.checked = true; });
+    });
+
+    const btn = document.createElement('button');
+    btn.id = 'arama-sec-btn';
+    btn.className = 'arama-sec-btn';
+    btn.textContent = 'Seç ve Git';
+    btn.addEventListener('click', aramaSec);
+
     view.popup.open({
       location: pt,
       title: `${adaylar.length} sonuç bulundu`,
-      content: `<div class="arama-sonuc-listesi">${listeHtml}</div>
-        <button id="arama-sec-btn" class="arama-sec-btn">Seç ve Git</button>`
+      content: container
     });
-    // Buton olayı (popup açıldıktan sonra bağla)
-    setTimeout(() => {
-      const b = document.getElementById('arama-sec-btn');
-      if (b) b.addEventListener('click', aramaSec);
-    }, 0);
+    // butonu popup content'ine ekle
+    if (view.popup.content) view.popup.content.appendChild(btn);
+
     toastGoster(`${adaylar.length} sonuç listelendi`, 'bilgi');
   } catch (err) {
     console.error(err);
@@ -298,11 +443,13 @@ function aramaSec() {
   if (!secili || !aramaAdaylar.length) return;
   const c = aramaAdaylar[parseInt(secili.value, 10)];
   const pt = { type: 'point', longitude: c.location.x, latitude: c.location.y };
-  // Mevcut popup'ı güncelle, tekrar açma
+  // Popup'ı güncelle (kapatmadan)
   view.popup.location = pt;
   view.popup.title = 'Arama Sonucu';
   view.popup.content = c.address;
+  // Haritayı animasyonlu git
   view.goTo({ target: pt, zoom: 16, tilt: 65 });
+  urlYaz({ ...urlOku(), lat: c.location.y, lon: c.location.x, zoom: 16, tilt: 65, adres: c.address });
   toastGoster('Adres seçildi', 'basari');
 }
 
@@ -322,8 +469,9 @@ function tabanDegistir() {
 function tabanSec(ad) {
   if (map) map.basemap = ad;
   tabanIndex = TABAN_SIRA.indexOf(ad);
-  document.querySelectorAll('button[data-taban]').forEach(b => b.classList.toggle('aktif', b.dataset.taban === ad));
+  document.querySelectorAll('.taban-btn').forEach(b => b.classList.toggle('aktif', b.dataset.taban === ad));
   toastGoster(`Harita tabanı: ${ad}`, 'bilgi');
+  urlGuncelleKamera();
 }
 
 function konumBul() {
@@ -339,6 +487,7 @@ function konumBul() {
       }));
     });
     toastGoster('Konum bulundu', 'basari');
+    urlGuncelleKamera();
   }, (err) => toastGoster('Konum erişimi reddedildi: ' + err.message, 'uyari'));
 }
 
@@ -352,14 +501,11 @@ function katmanAc() {
   if (btn) btn.classList.toggle('aktif', acik);
   
   if (acik) {
-    // Focus trap: ilk odaklanabilir elementi kaydet ve odağı ver
     oncekiAktifElement = document.activeElement;
     const focusable = kart.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
     if (focusable) focusable.focus();
-    // Body scroll engelle
     document.body.style.overflow = 'hidden';
   } else {
-    // Odağı önceki elemente geri ver
     if (oncekiAktifElement) oncekiAktifElement.focus();
     document.body.style.overflow = '';
   }
