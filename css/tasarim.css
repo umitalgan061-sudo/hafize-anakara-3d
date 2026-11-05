@@ -45,7 +45,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; width: 100%; overflow: hidden; font-family: var(--font-sans); background: var(--renk-bg); color: var(--renk-metin); line-height: 1.6; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
-#viewDiv { position: fixed; inset: var(--ust-bant-yukseklik) 0 0 0; z-index: 0; background: #e8e0d0; }
+#viewDiv { position: fixed; inset: 0; z-index: 0; background: #e8e0d0; }
 
 /* Üst Bant — Ankara Silüeti */
 .ust-bant {
@@ -112,7 +112,7 @@ html, body { height: 100%; width: 100%; overflow: hidden; font-family: var(--fon
 .sol-panel__sekme.aktif { color: var(--renk-vurgu); border-bottom-color: var(--renk-vurgu); }
 .sol-panel__sekme:focus-visible { outline: none; box-shadow: inset 0 -3px 0 var(--renk-vurgu); }
 
-.sol-panel__icerik { flex: 1; overflow-y: auto; padding: 24px; }
+.sol-panel__icerik { flex: 1; min-height: 0; overflow-y: auto; padding: 24px; }
 .sol-panel__sayfa { display: none; animation: sayfaGiris 0.3s var(--gecis); }
 .sol-panel__sayfa.aktif { display: block; }
 @keyframes sayfaGiris { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
