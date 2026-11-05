@@ -14,10 +14,10 @@ body {
   background: #fff;
 }
 
-#viewDiv { position: fixed; inset: 0; z-index: 0; }
+#viewDiv { position: fixed; inset: 0; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; z-index: 0; }
 
 /* Üst çubuk */
-.ust-cubuk {
+.ust-bant {
   position: fixed;
   top: 12px; left: 12px; right: 12px;
   z-index: 10;
@@ -31,15 +31,15 @@ body {
   box-shadow: var(--golge);
   backdrop-filter: blur(8px);
 }
-.ust-cubuk__logo {
+.ust-bant__logo {
   display: flex;
   align-items: center;
   gap: 8px;
   text-decoration: none;
   flex-shrink: 0;
 }
-.ust-cubuk__logo svg { height: 28px; width: auto; display: block; }
-.ust-cubuk__baslik { font-weight: 600; font-size: 1rem; color: var(--metin); white-space: nowrap; }
+.ust-bant__logo svg { height: 28px; width: auto; display: block; }
+.ust-bant__baslik { font-weight: 600; font-size: 1rem; color: var(--metin); white-space: nowrap; }
 
 /* Arama */
 .arama-kutu { position: relative; flex: 1; display: flex; align-items: center; min-width: 0; }
@@ -97,33 +97,44 @@ body {
 .arama-sonuc:hover, .arama-sonuc:focus-visible { background: #f2f2f2; }
 .arama-sonuc--bos { color: #777; cursor: default; }
 
-/* Sağ alt düğme grubu */
-.dugme-grubu {
+/* Alt araç çubuğu: ortada yatay hap */
+.alt-cubuk {
   position: fixed;
-  right: 12px;
-  bottom: 24px;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
   z-index: 10;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: stretch;
+  gap: 4px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 28px;
+  box-shadow: var(--golge);
+  backdrop-filter: blur(16px);
+  max-width: calc(100vw - 16px);
 }
 .kontrol-dugme {
-  width: 48px; height: 48px;
+  width: 56px;
+  min-height: 56px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  gap: 2px;
+  background: transparent;
   border: none;
-  border-radius: var(--yaricap);
-  box-shadow: var(--golge);
+  border-radius: 22px;
   color: var(--metin);
   cursor: pointer;
   transition: background 0.15s;
+  padding: 4px 6px;
 }
 .kontrol-dugme:hover { background: #f2f2f2; }
 .kontrol-dugme:active { background: #e5e5e5; }
-.kontrol-dugme[aria-expanded="true"] { color: var(--vurgu); }
+.kontrol-dugme[aria-expanded="true"] { color: var(--vurgu); background: #f6e3e2; }
 .kontrol-dugme svg { width: 24px; height: 24px; }
+.kontrol-dugme span { font-size: 11px; line-height: 1; white-space: nowrap; }
 .kontrol-dugme:focus-visible, .taban-dugme:focus-visible, .arama-sonuc:focus-visible, #arama-girdi:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.4);
@@ -132,10 +143,11 @@ body {
 /* Katman kartı */
 .katman-karti {
   position: fixed;
-  right: 12px;
-  bottom: 212px;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(84px + env(safe-area-inset-bottom));
   z-index: 10;
-  width: 200px;
+  width: 220px;
   max-width: calc(100vw - 24px);
   padding: 12px;
   background: #fff;
@@ -176,7 +188,7 @@ body {
 .bildirim {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  bottom: calc(84px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 30;
   max-width: calc(100vw - 24px);
@@ -193,12 +205,15 @@ body {
 
 /* ArcGIS popup görünümü */
 .esri-popup__main-container { border-radius: var(--yaricap) !important; box-shadow: var(--golge) !important; }
-.esri-popup__header { border-radius: var(--yaricap) var(--yaricap) 0 0 !important; }
-.esri-popup__main-container { border-radius: var(--yaricap) !important; }
 
 @media (max-width: 600px) {
-  .ust-cubuk { top: 8px; left: 8px; right: 8px; padding: 6px 10px; gap: 8px; }
-  .ust-cubuk__baslik { display: none; }
-  .dugme-grubu { right: 8px; bottom: 16px; }
-  .katman-karti { right: 8px; bottom: 200px; }
+  .ust-bant { top: 8px; left: 8px; right: 8px; padding: 6px 10px; gap: 8px; }
+  .ust-bant__baslik { display: none; }
+  .alt-cubuk { bottom: calc(10px + env(safe-area-inset-bottom)); padding: 5px; gap: 2px; }
+  .kontrol-dugme { width: 56px; min-height: 56px; }
+  .katman-karti { bottom: calc(78px + env(safe-area-inset-bottom)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
 }
