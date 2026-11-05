@@ -7,13 +7,24 @@ Ankara için tarayıcıda çalışan 3B harita: Esri 3B binalar ve Ankara Büyü
 - onclick ile çağrılan her fonksiyon window'a atanır.
 - Arayüz Türkçedir.
 
+# Kullanılabilirlik kuralları
+- Bu bir harita sitesi: açılışta harita masaüstünde en az yüzde 55, telefonda en az yüzde 60 görünür. Hiçbir panel, kart ya da başlık haritanın üstünü kaplamaz.
+- Telefonda harita tam ekrandır. Arama kutusu haritanın üstünde, en üstte ince bir şerit olarak yüzer. Diğer her şey alttan açılan bir çekmecedir: kapalıyken yalnızca tutamak ve bir satır sekme (yaklaşık 64 px), yarı açık ekranın en fazla yüzde 45'i, tam açık en fazla yüzde 85'i. Çekmece varsayılan olarak KAPALI açılır.
+- Tek gezinme: aynı sekmeler hem üstte hem altta olmaz. Telefonda alttaki sabit sekme çubuğu kaldırılır, sekmeler çekmecenin içindedir.
+- Masaüstünde sol panel en fazla 360 px genişliktedir ve daraltılabilir; harita geri kalan alanın tamamıdır.
+- Kocaman tanıtım kartı (hero) yoktur; en fazla tek satırlık kısa bir açıklama olur. "Hızlı Erişim" düğmeleri tek satırda, yan yana, simge + kısa yazı biçiminde küçük düğmelerdir (yükseklik en fazla 48 px).
+- Bildirimler tek bir özet bildirimde toplanır ("5 katman yüklenemedi") ve 4 saniyede kendiliğinden kapanır.
+- Hiçbir şey yana taşmaz; dokunma hedefleri en az 44 px'tir.
+- Yeni bir özellik bu kurallardan birini bozuyorsa eklenmez.
+
 # Öncelikler
-1. Kent rehberi katmanları: herkese açık ve anahtarsız şu servisleri Katmanlar sekmesinde gruplu aç-kapa ile ve her birine Türkçe popup şablonu ver: https://baskentcbs.ankara.bel.tr/server/rest/services/kentrehberi/ego_kent_Rehberi/MapServer (1 kart dolum, 2 elektrikli bisiklet istasyonları, 4 metro hattı, 5 Ankaray, 6 Başkentray, 7 teleferik, 8 otobüs durakları) ve https://baskentcbs.ankara.bel.tr/server/rest/services/kentrehberi/abb_kent_rehberi/MapServer (5 parklar, 6 kültür ve sanat, 7 spor tesisleri).
-2. Araçlar sekmesi: ArcGIS 4.32'nin kendi bileşenleriyle 3B mesafe ve alan ölçümü (DirectLineMeasurement3D, AreaMeasurement3D) ve gün/saat seçilebilen gölge ve güneş ışığı analizi (Daylight, ShadowCast) — arayüz hazır, bileşenlerin canlı doğrulanıp ince ayarlanması.
-3. Mahalle sekmesi: haritada bir mahalleye tıklayınca (adres MapServer/3) o mahallenin adı, ilçesi ve sınırı içindeki otobüs durağı, park ve kültür tesisi sayısı (sorgu ile) bir bilgi kartında gösterilsin.
-4. Yakınımdakiler: konum ya da arama sonucuna göre en yakın 5 otobüs durağı, metro istasyonu ve parkı mesafeleriyle listele; tıklayınca haritada oraya git.
-5. Keşif turları: Kızılay, Ulus, Anıtkabir, Kocatepe, Atakule arasında kamera animasyonlu, anlatı metinli otomatik tur; oynat/durdur düğmeleriyle.
-6. Uygulamaya dönüştür: manifest.json ve service worker ile ana ekrana eklenebilir, çevrimdışıyken arayüzü açabilen bir PWA.
+1. KULLANILABİLİRLİK ONARIMI (bir sonraki turun tek hedefi, yeni özellik ekleme yok): "Kullanılabilirlik kuralları"nı eksiksiz uygula. Telefonda harita tam ekran ve çekmece kapalı açılsın; üstteki tekrar eden sekmeleri ya da alttaki sabit çubuğu kaldır; hero kartını kaldır; Hızlı Erişim'i küçük düğme satırına çevir; masaüstünde paneli 360 px'e indir; bildirimleri tek özete topla; Keşfet'teki yer ve Gündem kartlarındaki "view.popup.open is not a function" hatasını view.openPopup ile düzelt. Kabul: tarayıcı kontrolündeki kullanılabilirlik ölçümü geçer.
+2. Kent rehberi katmanları: herkese açık ve anahtarsız şu servisleri Katmanlar sekmesinde gruplu aç-kapa ile ve her birine Türkçe popup şablonu ver: https://baskentcbs.ankara.bel.tr/server/rest/services/kentrehberi/ego_kent_Rehberi/MapServer (1 kart dolum, 2 elektrikli bisiklet istasyonları, 4 metro hattı, 5 Ankaray, 6 Başkentray, 7 teleferik, 8 otobüs durakları) ve https://baskentcbs.ankara.bel.tr/server/rest/services/kentrehberi/abb_kent_rehberi/MapServer (5 parklar, 6 kültür ve sanat, 7 spor tesisleri).
+3. Araçlar sekmesi: ArcGIS 4.32'nin kendi bileşenleriyle 3B mesafe ve alan ölçümü (DirectLineMeasurement3D, AreaMeasurement3D) ve gün/saat seçilebilen gölge ve güneş ışığı analizi (Daylight, ShadowCast) — arayüz hazır, bileşenlerin canlı doğrulanıp ince ayarlanması.
+4. Mahalle sekmesi: haritada bir mahalleye tıklayınca (adres MapServer/3) o mahallenin adı, ilçesi ve sınırı içindeki otobüs durağı, park ve kültür tesisi sayısı (sorgu ile) bir bilgi kartında gösterilsin.
+5. Yakınımdakiler: konum ya da arama sonucuna göre en yakın 5 otobüs durağı, metro istasyonu ve parkı mesafeleriyle listele; tıklayınca haritada oraya git.
+6. Keşif turları: Kızılay, Ulus, Anıtkabir, Kocatepe, Atakule arasında kamera animasyonlu, anlatı metinli otomatik tur; oynat/durdur düğmeleriyle.
+7. Uygulamaya dönüştür: manifest.json ve service worker ile ana ekrana eklenebilir, çevrimdışıyken arayüzü açabilen bir PWA.
 
 # Tamamlananlar
 Editoryal (dergi tarzı) tasarım tamamlandı (5 Kasım 2026): krem zemin (#f7f1e6), Ankara kırmızısı vurgu, Fraunces serif başlıklar + Inter gövde, üst bantta Ankara silüeti (Anıtkabir, Atakule, Kocatepe SVG), masaüstünde 420px sol anlatı paneli + sağ harita, sekmeler (Keşfet/Katmanlar/Mahalle/Araçlar), mobilde 5 sekmeli alt çubuk + tam ekran sayfalar, Keşfet'te hero, Öne Çıkan Yerler ve Gündem kartları.
