@@ -302,7 +302,7 @@ function katmanlariYukle() {
       const p0 = urlOku();
       const acilisKamera = (!isNaN(p0.lat) && !isNaN(p0.lon))
         ? { position: { x: p0.lon, y: p0.lat, z: 1600 }, heading: 355, tilt: isNaN(p0.tilt) ? 62 : p0.tilt }
-        : { position: { longitude: 32.8387, latitude: 39.9090, z: 650 }, heading: 355, tilt: 70 };
+        : { position: { longitude: 32.8369, latitude: 39.9250, z: 650 }, heading: 355, tilt: 70 };
       view = new SceneView({
         container: 'viewDiv', map: map,
         camera: acilisKamera,
@@ -341,9 +341,6 @@ function katmanlariYukle() {
           if (!isNaN(p.zoom)) o.zoom = p.zoom;
           if (!isNaN(p.tilt)) o.tilt = p.tilt;
           view.goTo(o).catch(() => {});
-        } else {
-          // Açılışta ekranın ortası tam Anıtkabir (39.9250, 32.8369) olsun
-          view.goTo({ target: { latitude: 39.9250, longitude: 32.8369 } }).catch(() => {});
         }
         if (p.adres) { const g = $('arama-girdi'); if (g) g.value = p.adres; }
         sayfaGoster('kesfet');
