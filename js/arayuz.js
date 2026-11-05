@@ -3,7 +3,7 @@
 
 let map = null;
 let view = null;
-let katmanlar = {};
+let katlanar = {};
 const TABAN_SIRA = ['hybrid', 'satellite', 'streets', 'gray'];
 let tabanIndex = 0;
 let aramaAdaylar = [];
@@ -173,8 +173,8 @@ function katmanlariYukle() {
         ]))
       });
 
-      katmanlar = { binalar, mahalle, yol, yapi, ilce };
-      map.addMany(Object.values(katmanlar));
+      katlanar = { binalar, mahalle, yol, yapi, ilce };
+      map.addMany(Object.values(katlanar));
 
       view = new SceneView({
         container: 'viewDiv',
@@ -484,7 +484,7 @@ function konumBul() {
       view.graphics.add(new Graphic({
         geometry: { type: 'point', longitude, latitude },
         symbol: { type: 'simple-marker', color: [6, 182, 212], size: 14, outline: { color: [255,255,255,0.9], width: 2 } }
-      ));
+      }));
     });
     toastGoster('Konum bulundu', 'basari');
     urlGuncelleKamera();
