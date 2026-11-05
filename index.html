@@ -62,15 +62,8 @@
     <div class="sol-panel__icerik">
       <!-- KEŞFET -->
       <section class="sol-panel__sayfa aktif" id="sayfa-kesfet" role="tabpanel" aria-labelledby="sekme-kesfet">
-        <h1 class="sayfa-baslik">Ankara'yı Keşfet</h1>
-        <p class="sayfa-alt-baslik">Başkent'in 3B binaları, adres verileri ve kent rehberi katmanlarıyla dolu haritasında gezin. Arama kutusundan bir adres yazıp Enter'a basın ya da kategorilerden birini seçin.</p>
+        <h1 class="sayfa-baslik">Keşfet</h1>
 
-        <div class="hero-editoryal">
-          <span class="hero-editoryal__kicker">Başkent'ten Bir Bakış</span>
-          <h2 class="hero-editoryal__baslik">Ankara'yı 3 boyutta okuyun</h2>
-          <p class="hero-editoryal__metin">Tarihi yapıları, kent rehberi katmanlarını ve 3B bina dokusunu tek haritada keşfedin.</p>
-        </div>
-        
         <div class="kart-editoryal">
           <form id="arama-form" class="arama-kutu" role="search" aria-label="Adres arama">
             <input type="text" id="arama-girdi" class="arama-kutu__girdi" placeholder="Adres, cadde, mahalle, ilçe..." autocomplete="off" aria-label="Arama terimi" />
@@ -78,6 +71,14 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             </button>
           </form>
+        </div>
+
+        <div class="kart-editoryal">
+          <button class="mini-btn" id="btn-son-gorunum" type="button">Son görünümüm</button>
+          <h2 class="grup-baslik">Son Aramalar</h2>
+          <div id="son-aramalar" class="mini-liste"></div>
+          <h2 class="grup-baslik">Favoriler</h2>
+          <div id="favoriler" class="mini-liste"></div>
         </div>
 
         <div class="kart-editoryal">
@@ -107,16 +108,11 @@
           <div class="one-cikan-liste" id="one-cikan-yerler" role="list" aria-label="Öne çıkan yerler"></div>
         </div>
 
-        <div class="kart-editoryal">
-          <h2 class="grup-baslik">Gündem — Bu Hafta Başkent'te</h2>
-          <div class="gundem-listesi" id="gundem-kartlari" role="list" aria-label="Gündem konuları"></div>
-        </div>
       </section>
 
       <!-- KATMANLAR -->
       <section class="sol-panel__sayfa" id="sayfa-katmanlar" role="tabpanel" aria-labelledby="sekme-katmanlar" hidden>
-        <h1 class="sayfa-baslik">Harita Katmanları</h1>
-        <p class="sayfa-alt-baslik">Görmek istediğiniz veri katmanlarını açın/kapatın. Harita tabanını değiştirmek için aşağıdaki seçenekleri kullanın.</p>
+        <h1 class="sayfa-baslik">Katmanlar</h1>
 
         <div class="kart-editoryal">
           <h2 class="grup-baslik">Adres ve Bina Katmanları</h2>
@@ -136,8 +132,7 @@
 
       <!-- MAHALLE -->
       <section class="sol-panel__sayfa" id="sayfa-mahalle" role="tabpanel" aria-labelledby="sekme-mahalle" hidden>
-        <h1 class="sayfa-baslik">Mahalle Bilgileri</h1>
-        <p class="sayfa-alt-baslik">Haritada bir mahalleye tıklayın. Seçilen mahallenin adı, ilçesi ve sınırları içindeki otobüs durağı, park ve kültür tesisi sayıları burada görünecektir.</p>
+        <h1 class="sayfa-baslik">Mahalle</h1>
 
         <div class="kart-editoryal" id="mahalle-bilgi-karti" style="display: none;">
           <h2 class="grup-baslik" id="mahalle-baslik">Mahalle Adı</h2>
@@ -152,18 +147,13 @@
         </div>
 
         <div class="kart-editoryal" id="mahalle-bos-karti">
-          <div style="text-align: center; padding: 40px 20px; color: var(--renk-metin-solgun);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 48px; height: 48px; margin: 0 auto 16px; opacity: 0.5;" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-            <p style="font-size: 1rem; margin-bottom: 8px;">Henüz bir mahalle seçilmedi</p>
-            <p style="font-size: 0.85rem;">Haritada bir mahalle bölgesine tıklayarak bilgi kartını görüntüleyin.</p>
-          </div>
+          <p style="text-align: center; padding: 24px 12px; color: var(--renk-metin-solgun); font-size: 0.9rem;">Mahalleye dokun</p>
         </div>
       </section>
 
       <!-- ARAÇLAR -->
       <section class="sol-panel__sayfa" id="sayfa-araclar" role="tabpanel" aria-labelledby="sekme-araclar" hidden>
-        <h1 class="sayfa-baslik">Harita Araçları</h1>
-        <p class="sayfa-alt-baslik">3B ölçüm, gölge/güneş analizi ve diğer profesyonel araçlar için aşağıdaki seçenekleri kullanın.</p>
+        <h1 class="sayfa-baslik">Araçlar</h1>
 
         <div class="kart-editoryal">
           <h2 class="grup-baslik">3B Ölçüm</h2>
