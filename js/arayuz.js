@@ -253,7 +253,7 @@ function katmanlariYukle() {
         labelsVisible: true,
         labelingInfo: [{
           labelExpressionInfo: { expression: "IIf(IsEmpty($feature.ad), $feature.zeminustukatsayisi + ' kat', $feature.ad)" },
-          maxScale: 5000,
+          minScale: 5000,
           symbol: { type: 'label-3d', symbolLayers: [{ type: 'text', size: 10, material: { color: [45, 38, 32, 1] }, haloColor: [255, 255, 255, 0.9], haloSize: 1.5 }] },
           labelPlacement: 'above-center'
         }],
@@ -268,7 +268,7 @@ function katmanlariYukle() {
         labelsVisible: true,
         labelingInfo: [{
           labelExpressionInfo: { expression: '$feature.kapino' },
-          maxScale: 1500,
+          minScale: 1500,
           symbol: { type: 'label-3d', symbolLayers: [{ type: 'text', size: 9, material: { color: [140, 29, 23, 1] }, haloColor: [255, 255, 255, 0.9], haloSize: 1.5 }] },
           labelPlacement: 'center-center'
         }],
