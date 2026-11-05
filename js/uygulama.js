@@ -290,7 +290,52 @@ require([
     gosterBildirim("Çevrimiçi");
     duyur("Çevrimiçi oldunuz, eksik katmanlar yeniden deneniyor");
     katmanlariYenidenDene();
+    // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir
+    guncelAlaniTazele();
   });
+
+  // Harita durunca güncel görünür alanın karoları SW'ye önbelleğe bildirilir (yalnızca eksikler çekilir)
+  let guncelAlanTimer = null;
+  function guncelAlaniGonder() {
+    if (!navigator.onLine || !("serviceWorker" in navigator)) return;
+    const denetci = navigator.serviceWorker.controller;
+    if (!denetci || !view.extent) return;
+    const ex = view.extent;
+    const z = Math.max(1, Math.round(view.zoom || 15));
+    denetci.postMessage({
+      tip: "GUNCEL_ALAN",
+      bbox: { minLon: ex.xmin, minLat: ex.ymin, maxLon: ex.xmax, maxLat: ex.ymax },
+      minZoom: Math.max(1, z - 1),
+      maxZoom: Math.min(19, z + 1)
+    });
+  }
+  function guncelAlaniTazele() {
+    if (!navigator.onLine || !("serviceWorker" in navigator)) return;
+    const denetci = navigator.serviceWorker.controller;
+    if (!denetci || !view.extent) return;
+    const ex = view.extent;
+    const z = Math.max(1, Math.round(view.zoom || 15));
+    const kanal = new MessageChannel();
+    kanal.port1.onmessage = ev => {
+      if (ev.data && ev.data.tip === "TAZELE_TAMAM" && ev.data.sayi > 0) {
+        duyur("Görünür alan tazelendi, " + ev.data.sayi + " karo güncellendi");
+      }
+    };
+    denetci.postMessage({
+      tip: "TAZELE_ALAN",
+      bbox: { minLon: ex.xmin, minLat: ex.ymin, maxLon: ex.xmax, maxLat: ex.ymax },
+      minZoom: Math.max(1, z - 1),
+      maxZoom: Math.min(19, z + 1)
+    }, [kanal.port2]);
+  }
+  // Harita her durduğunda (pan/zoom bitince) görünür alanı önbelleğe al — throttle'lu
+  reactiveUtils.watch(() => view.stationary, durdu => {
+    if (!durdu) return;
+    clearTimeout(guncelAlanTimer);
+    guncelAlanTimer = setTimeout(guncelAlaniGonder, 1200);
+  });
+  // Çevrimdışıyken rozet üzerindeki karo sayısı periyodik yenilenir
+  setInterval(() => { if (!navigator.onLine) karoSayisiAl(sayi => cevrimiGuncelle(sayi)); }, 20000);
 
   // ---------- İşaret (arama / konum) ----------
   let seciliIsaret = null;

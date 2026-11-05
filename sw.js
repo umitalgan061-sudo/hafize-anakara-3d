@@ -1,5 +1,5 @@
-const AD = "ankara3d-v13";
-const KARO_AD = "ankara3d-karolar-v11";
+const AD = "ankara3d-v14";
+const KARO_AD = "ankara3d-karolar-v12";
 const KARO_SINIRI = 600; // önbellekte tutulacak en çok girdi sayısı (LRU)
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
@@ -36,8 +36,9 @@ function lonLatToTile(lon, lat, z) {
   return { x, y };
 }
 
-// Açılış alanı karo ön-yüklemesi: Anıtkabir çevresi z15–z17 uydu karoları önbelleğe alınır
-async function alanOnbellekle(bbox, minZoom, maxZoom) {
+// Alan karo önbellekleme: minZoom–maxZoom arasındaki tüm uydu karoları önbelleğe alır.
+// sadeceEksik=true ise önbellekte zaten olan karolar ağdan yeniden çekilmez.
+async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik) {
   const c = await caches.open(KARO_AD);
   let sayac = 0;
   for (let z = minZoom; z <= maxZoom; z++) {
@@ -47,9 +48,13 @@ async function alanOnbellekle(bbox, minZoom, maxZoom) {
     for (let x = a.x; x <= b.x; x++) {
       for (let y = a.y; y <= b.y; y++) {
         const u = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/" + z + "/" + y + "/" + x;
-        istekler.push(
-          fetch(u).then(r => { if (r.ok) { sayac++; return c.put(u, r); } }).catch(() => {})
-        );
+        istekler.push((async () => {
+          if (sadeceEksik && await c.match(u)) return;
+          try {
+            const r = await fetch(u);
+            if (r.ok) { sayac++; await c.put(u, r); }
+          } catch (_) {}
+        })());
       }
     }
     await Promise.all(istekler);
@@ -101,7 +106,7 @@ self.addEventListener("message", e => {
   if (e.data && e.data.tip === "ONBELLEKLE_ALAN" && e.ports && e.ports[0]) {
     const d = e.data;
     e.waitUntil(
-      alanOnbellekle(d.bbox || {}, d.minZoom || 15, d.maxZoom || 17)
+      alanOnbellekle(d.bbox || {}, d.minZoom || 15, d.maxZoom || 17, false)
         .then(sayi => { e.ports[0].postMessage({ tip: "ONBELLEKLE_TAMAM", sayi: sayi }); })
         .catch(() => { e.ports[0].postMessage({ tip: "ONBELLEKLE_TAMAM", sayi: 0 }); })
     );
@@ -110,9 +115,19 @@ self.addEventListener("message", e => {
   if (e.data && e.data.tip === "TAZELE_ALAN" && e.ports && e.ports[0]) {
     const d = e.data;
     e.waitUntil(
-      alanOnbellekle(d.bbox || {}, d.minZoom || 15, d.maxZoom || 17)
+      alanOnbellekle(d.bbox || {}, d.minZoom || 15, d.maxZoom || 17, false)
         .then(sayi => { e.ports[0].postMessage({ tip: "TAZELE_TAMAM", sayi: sayi }); })
         .catch(() => { e.ports[0].postMessage({ tip: "TAZELE_TAMAM", sayi: 0 }); })
+    );
+  }
+  // Harita durunca güncel görünür alanın karoları arka planda önbelleğe alınır;
+  // yalnızca eksik karolar çekilir, ağ yoksa sessizce geçilir
+  if (e.data && e.data.tip === "GUNCEL_ALAN" && e.ports && e.ports[0]) {
+    const d = e.data;
+    e.waitUntil(
+      alanOnbellekle(d.bbox || {}, d.minZoom || 15, d.maxZoom || 17, true)
+        .then(sayi => { e.ports[0].postMessage({ tip: "GUNCEL_TAMAM", sayi: sayi }); })
+        .catch(() => { e.ports[0].postMessage({ tip: "GUNCEL_TAMAM", sayi: 0 }); })
     );
   }
 });
@@ -128,7 +143,7 @@ self.addEventListener("fetch", e => {
       caches.open(KARO_AD).then(async c => {
         const hit = await c.match(e.request);
         if (hit) {
-          // Çevrimiçiysem arka planda güncelle; ağ yoksa sessizce geç
+          // Çevrimiçiysek arka planda güncelle; ağ yoksa sessizce geç
           fetch(e.request)
             .then(r => {
               if (r.ok || r.type === "opaque") {
