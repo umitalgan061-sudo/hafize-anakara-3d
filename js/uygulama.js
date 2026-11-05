@@ -220,7 +220,7 @@ require([
   view.when(yukleniyoruKapat).catch(err => {
     console.error("Görünüm yüklenemedi:", err);
     yukleniyoruKapat();
-    gosterBildirim("Harita yüklenemedi");
+    gosterBildirim("Harita yüklenemedi", () => location.reload());
   });
   setTimeout(yukleniyoruKapat, 9000);
 
@@ -465,6 +465,11 @@ require([
     const acilacak = katmanKarti.hidden;
     katmanKarti.hidden = !acilacak;
     btnKatmanlar.setAttribute("aria-expanded", String(acilacak));
+    if (acilacak) {
+      const ilk = katmanKarti.querySelector("input");
+      if (ilk) ilk.focus();
+      duyur("Katmanlar paneli açıldı");
+    }
   });
 
   function katmanKartiKapat() {
@@ -479,22 +484,44 @@ require([
     }
   });
   document.addEventListener("keydown", e => {
-    if (e.key === "Escape") katmanKartiKapat();
+    if (e.key === "Escape" && !katmanKarti.hidden) { katmanKartiKapat(); return; }
+    // Kart açıkken Tab/Shift+Tab kart içinde döngüsel kalsın
+    if (e.key === "Tab" && !katmanKarti.hidden) {
+      const odaklilar = katmanKarti.querySelectorAll("input, button");
+      if (!odaklilar.length) return;
+      const ilk = odaklilar[0], son = odaklilar[odaklilar.length - 1];
+      if (e.shiftKey && document.activeElement === ilk) { e.preventDefault(); son.focus(); }
+      else if (!e.shiftKey && document.activeElement === son) { e.preventDefault(); ilk.focus(); }
+    }
   });
 
-  cbBinalar.addEventListener("change", () => { binalarLayer.visible = cbBinalar.checked; });
-  cbYapilar.addEventListener("change", () => { yapilarLayer.visible = cbYapilar.checked; });
-  cbNumarataj.addEventListener("change", () => { numaratajLayer.visible = cbNumarataj.checked; });
-  cbMahalleler.addEventListener("change", () => { mahallelerLayer.visible = cbMahalleler.checked; });
-  cbYollar.addEventListener("change", () => { yollarLayer.visible = cbYollar.checked; });
+  [
+    [cbBinalar, binalarLayer, "3B Binalar"],
+    [cbYapilar, yapilarLayer, "Yapılar"],
+    [cbNumarataj, numaratajLayer, "Numarataj"],
+    [cbMahalleler, mahallelerLayer, "Mahalleler"],
+    [cbYollar, yollarLayer, "Yollar"]
+  ].forEach(([cb, lyr, ad]) => {
+    cb.addEventListener("change", () => {
+      lyr.visible = cb.checked;
+      duyur(ad + (cb.checked ? " açıldı" : " kapatıldı"));
+    });
+  });
 
   function tabanSec(taban) {
     view.map.basemap = taban;
     tabanUydu.setAttribute("aria-pressed", String(taban === "hybrid"));
     tabanHarita.setAttribute("aria-pressed", String(taban === "streets-vector"));
+    duyur(taban === "hybrid" ? "Uydu taban seçildi" : "Harita taban seçildi");
   }
   tabanUydu.addEventListener("click", () => tabanSec("hybrid"));
   tabanHarita.addEventListener("click", () => tabanSec("streets-vector"));
+  // Taban seçiminde ok tuşlarıyla gezinme
+  document.querySelector(".taban-secimi").addEventListener("keydown", e => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    tabanSec(e.key === "ArrowRight" ? "streets-vector" : "hybrid");
+  });
 
   // ---------- Durum satırı: koordinat/zoom/eğim/yön (yalnızca masaüstünde görünür) ----------
   const durumSatiri = document.getElementById("durum-satiri");

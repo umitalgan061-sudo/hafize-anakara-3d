@@ -14,7 +14,8 @@
   <link rel="apple-touch-icon" sizes="180x180" href="ikon/atakule-180.png" />
 </head>
 <body>
-  <div id="viewDiv"></div>
+  <a class="atla-link" href="#viewDiv">Haritaya geç</a>
+  <div id="viewDiv" tabindex="-1"></div>
   <div id="yukleniyor" class="yukleniyor" aria-hidden="true">
     <svg viewBox="0 0 40 100" class="yukleniyor__logo"><g fill="#b3261e"><rect x="19" y="1" width="2" height="9"/><path d="M15 11h10l-1.5 5h-7z"/><path fill-rule="evenodd" d="M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z"/><path d="M16 34h8l2 62H14z"/><rect x="12" y="96" width="16" height="3"/></g></svg>
     <span class="yukleniyor__halka"></span>
@@ -57,7 +58,7 @@
     <label class="katman-satir"><input type="checkbox" id="cb-numarataj" checked /> Numarataj</label>
     <label class="katman-satir"><input type="checkbox" id="cb-mahalleler" /> Mahalleler</label>
     <label class="katman-satir"><input type="checkbox" id="cb-yollar" /> Yollar</label>
-    <div class="taban-secimi">
+    <div class="taban-secimi" role="group" aria-label="Harita tabanı">
       <button type="button" class="taban-dugme" id="taban-uydu" aria-pressed="true">Uydu</button>
       <button type="button" class="taban-dugme" id="taban-harita" aria-pressed="false">Harita</button>
     </div>
