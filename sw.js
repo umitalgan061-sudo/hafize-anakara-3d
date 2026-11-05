@@ -1,6 +1,29 @@
-const AD = "ankara3d-v9";
+const AD = "ankara3d-v10";
+const KARO_AD = "ankara3d-karolar-v10";
+const KARO_SINIRI = 600; // önbellekte tutulacak en çok karo sayısı (LRU)
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
+
+// Harita karo isteği mi? (yalnızca .../tile/z/y/x — SceneServer/MapServer veri istekleri değil)
+function karoIstegiMi(url) {
+  const host = url.hostname;
+  const alanOk = host === "server.arcgisonline.com" ||
+    host === "basemaps.arcgis.com" ||
+    host === "basemaps3d.arcgis.com" ||
+    host.endsWith(".arcgisonline.com") ||
+    host.endsWith(".arcgis.com");
+  return alanOk && /\/tile\/\d+\/\d+\/\d+/.test(url.pathname);
+}
+
+// Önbellek sınırını aşınca en eski karoları baştan sil (Cache API keys eklenme sırasındadır)
+async function karoSinirla() {
+  const c = await caches.open(KARO_AD);
+  const keys = await c.keys();
+  const fazlalik = keys.length - KARO_SINIRI;
+  for (let i = 0; i < fazlalik; i++) {
+    await c.delete(keys[i]);
+  }
+}
 
 self.addEventListener("install", e => {
   e.waitUntil(
@@ -14,11 +37,11 @@ self.addEventListener("install", e => {
   );
 });
 
-// Eski önbellekler temizlenir, yeni sürüm tüm istemcilere yayılır
+// Eski önbellekler (eski karo önbellekleri dahil) temizlenir, yeni sürüm tüm istemcilere yayılır
 self.addEventListener("activate", e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== AD).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== AD && k !== KARO_AD).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -30,8 +53,31 @@ self.addEventListener("message", e => {
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
-  // Harita/veri servisleri (başka origin) her zaman ağdan; ağ yoksa sessiz hata
+
+  // 1) Harita karoları: önce önbellekten, yoksa ağdan çek + önbelleğe yaz + sınırla (çevrimdışı son görünüm)
+  if (karoIstegiMi(url)) {
+    e.respondWith(
+      caches.open(KARO_AD).then(async c => {
+        const hit = await c.match(e.request);
+        if (hit) return hit;
+        try {
+          const resp = await fetch(e.request);
+          if (resp.ok || resp.type === "opaque") {
+            await c.put(e.request, resp.clone());
+            karoSinirla();
+          }
+          return resp;
+        } catch (err) {
+          return new Response("", { status: 504 });
+        }
+      })
+    );
+    return;
+  }
+
+  // 2) Harita/veri servisleri (diğer tüm origin'ler) her zaman ağdan; ağ yoksa sessiz hata
   if (url.origin !== location.origin) return;
+
   e.respondWith(
     caches.match(e.request, { ignoreSearch: e.request.mode === "navigate" }).then(hit => {
       // Navigasyon: önce önbellekten aç (çevrimdışı kurtarma), arka planda ağı önbelleğe güncelle
