@@ -210,8 +210,10 @@ function katmanlariYukle() {
     require([
       'esri/Map', 'esri/views/SceneView', 'esri/layers/SceneLayer', 'esri/layers/FeatureLayer',
       'esri/renderers/SimpleRenderer', 'esri/symbols/MeshSymbol3D', 'esri/symbols/edges/SolidEdges3D',
-      'esri/PopupTemplate', 'esri/layers/GraphicsLayer'
-    ], (Map, SceneView, SceneLayer, FeatureLayer, SimpleRenderer, MeshSymbol3D, SolidEdges3D, PopupTemplate, GraphicsLayer) => {
+      'esri/PopupTemplate', 'esri/layers/GraphicsLayer',
+      'esri/symbols/SimpleMarkerSymbol', 'esri/symbols/SimpleLineSymbol', 'esri/symbols/SimpleFillSymbol'
+    ], (Map, SceneView, SceneLayer, FeatureLayer, SimpleRenderer, MeshSymbol3D, SolidEdges3D, PopupTemplate, GraphicsLayer, SimpleMarkerSymbol, SimpleLineSymbol, SimpleFillSymbol) => {
+>>>>>>> REPLACE
       map = new Map({ basemap: 'hybrid' });
       const adresUrl = 'https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/';
       const egoUrl = 'https://baskentcbs.ankara.bel.tr/server/rest/services/kentrehberi/ego_kent_Rehberi/MapServer/';
