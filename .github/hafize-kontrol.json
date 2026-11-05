@@ -27,6 +27,14 @@
     {
       "ad": "Yapılar ve Numarataj (MAKS) katmanları açılışta görünür, etiketleri açık ve yüklenmiş olmalı",
       "ifade": "(() => { const bad = ['Yapılar', 'Numarataj (MAKS)'].map((t) => { const l = view.map.allLayers.find((x) => x.title === t); if (!l) return t + ' katmanı yok'; if (!(l.visible && l.labelsVisible && (l.labelingInfo || []).length > 0 && l.loadStatus === 'loaded')) return t + ': görünür ' + l.visible + ', etiket ' + l.labelsVisible + ', etiket tanımı ' + (l.labelingInfo || []).length + ', yükleme ' + l.loadStatus; return ''; }).filter(Boolean); return bad.length === 0 || bad.join('; '); })()"
+    },
+    {
+      "ad": "Etiketler yakın görünümde gerçekten çizilir olmalı: kapı numaraları 1:1000'de, yapı etiketleri 1:3000'de görünür ölçek aralığında (LabelClass minScale = en uzak ölçek; maxScale = en yakın ölçek, 0 = sınırsız. maxScale: 1500 etiketi yalnız 1:1500'den UZAKTA gösterir, katman orada çizilmediği için etiket hiç görünmez)",
+      "ifade": "(() => { const at = (o, s) => (!o.minScale || s <= o.minScale) && (!o.maxScale || s >= o.maxScale); const bad = [['Numarataj (MAKS)', 1000], ['Yapılar', 3000]].map(([t, s]) => { const l = view.map.allLayers.find((x) => x.title === t); if (!l) return t + ' katmanı yok'; const lc = (l.labelingInfo || []).filter((c) => at(c, s)); return at(l, s) && lc.length ? '' : t + ' 1:' + s + ' ölçeğinde: katman ' + (at(l, s) ? 'çizilir' : 'çizilmez (minScale ' + l.minScale + ', maxScale ' + l.maxScale + ')') + ', etiket ' + (lc.length ? 'çizilir' : 'çizilmez (' + (l.labelingInfo || []).map((c) => 'minScale ' + c.minScale + ', maxScale ' + c.maxScale).join('; ') + ')'); }).filter(Boolean); return bad.length === 0 || bad.join('; '); })()"
+    },
+    {
+      "ad": "Gereksiz metin olmamalı (sahibi: \"gereksiz metin ve yazıları istemiyorum, uygulamayı bir tek ben kullanacağım\"): tanıtım kartı (hero), sayfa alt başlıkları/açıklama paragrafları, \"Gündem\" kartları ve 60 karakterden uzun açıklama cümleleri ekranda olmaz; yalnız kısa başlık, düğme ve etiket kalır",
+      "ifade": "(() => { const shown = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'; const bad = []; for (const sel of ['.hero-editoryal', '.sayfa-alt-baslik', '#gundem-kartlari', '.gundem-listesi']) { const e = document.querySelector(sel); if (e) bad.push(sel + ' sayfada'); } for (const e of document.querySelectorAll('p, .aciklama, small')) { if (e.closest('.esri-popup, .esri-ui, [class*=popup]')) continue; const t = e.textContent.replace(/s+/g, ' ').trim(); if (t.length > 60 && shown(e)) bad.push('uzun metin: ' + t.slice(0, 50)); } return bad.length === 0 || bad.slice(0, 4).join('; '); })()"
     }
   ]
 }
