@@ -1,4 +1,4 @@
-// hafize-kontrol v10: serves this branch and main over http (so sites of several files and modules work), opens
+// hafize-kontrol v11: serves this branch and main over http (so sites of several files and modules work), opens
 // index.html of each in Chromium, uses the page like a person would (types into text boxes and presses Enter, clicks
 // every button) and compares the uncaught errors with main's. Every error is also written as a GitHub annotation,
 // so Hafize's next round knows what is broken. Written by Hafize.
@@ -157,13 +157,26 @@ async function acceptance(root, viewport, checks) {
     for (let i = 0; i < 90 && view.updating; i++) await new Promise((done) => setTimeout(done, 500));
   }).catch(() => {});
   const out = [];
+  // Every check has 90 seconds and says how it went as it goes (2026-11-05: one check never answered, the job ran
+  // silently into its time limit and the round's work was thrown away). A page that stops answering is not waited on
+  // check after check: the rest are reported as not measured.
+  let frozen = false;
   for (const check of checks) {
-    const verdict = await page.evaluate(async (code) => {
-      try { const value = await (0, eval)('(async () => (' + code + '))()'); return value === true ? true : typeof value === 'string' ? 'ölçülen: ' + value.slice(0, 200) : false; } catch (error) { return 'hata: ' + String((error && error.message) || error).slice(0, 120); }
-    }, check.ifade).catch((error) => 'hata: ' + String(error.message).slice(0, 120));
+    if (frozen) { out.push(check.ad + ' (ölçülemedi: sayfa yanıt vermiyor)'); continue; }
+    const started = Date.now();
+    let timer;
+    const verdict = await Promise.race([
+      page.evaluate(async (code) => {
+        try { const value = await (0, eval)('(async () => (' + code + '))()'); return value === true ? true : typeof value === 'string' ? 'ölçülen: ' + value.slice(0, 200) : false; } catch (error) { return 'hata: ' + String((error && error.message) || error).slice(0, 120); }
+      }, check.ifade).catch((error) => 'hata: ' + String(error.message).slice(0, 120)),
+      new Promise((done) => { timer = setTimeout(() => done('zaman aşımı: 90 saniyede sonuç vermedi'), 90_000); }),
+    ]);
+    clearTimeout(timer);
+    console.log('  ' + (verdict === true ? '✓' : '✗') + ' ' + Math.round((Date.now() - started) / 1000) + ' sn ' + check.ad.slice(0, 80));
+    if (typeof verdict === 'string' && verdict.startsWith('zaman aşımı')) frozen = !(await Promise.race([page.evaluate(() => true).catch(() => false), new Promise((done) => setTimeout(() => done(false), 20_000))]));
     if (verdict !== true) out.push(check.ad + (typeof verdict === 'string' ? ' (' + verdict + ')' : ''));
   }
-  await context.close();
+  await Promise.race([context.close().catch(() => {}), new Promise((done) => setTimeout(done, 15_000))]);
   site.close();
   return out;
 }
