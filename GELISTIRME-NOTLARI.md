@@ -1,5 +1,6 @@
 # Geliştirme notları
 
+- 5 Kasım 2026 06:55 — Kurtarma: tasarım turu yalnızca test tarayıcısının tek harflik "f" hatası yüzünden düşmüştü; kontrol v4 ile yeniden denetlendi ve geçti.
 - 5 Kasım 2026 06:32 — ↳ Hata düzeltmeleri + mobil 5. sekme (Mahalle) + HAFIZE güncellemesi: SceneView'da geçersiz 'scale' watch kaldırılıp 'zoom' ile değiştirildi (konsol hatasını giderir), mobil alt çubuğa 5. sekme Mahalle eklendi ve HAFIZE.md'de editoryal tasarım tamamlananlara taşındı.
 - 5 Kasım 2026 06:22 — ↳ Editoryal son rötuşlar: .eylem-btn stili, Keşfet hero + Gündem kartları, mobil ince ayarlar: Önceki adımlarda HTML'de kullanılan ama CSS'te karşılığı olmayan .eylem-btn (tema düğmesi) stili eklendi; Keşfet sayfasına dergi tarzı kicker + büyük serif hero başlık ve tıklayınca kamerayı konuma taşıyan 'Gündem' makale kartları eklendi (HTML + CSS + js/arayuz.js); mobil görünümde üst bant ve kart padding'leri iyileştirildi.
 - 5 Kasım 2026 06:19 — ↳ Sözdizimi hatasını düzelt + Keşfet sayfasına editoryal 'Öne Çıkan Yerler' bölümü ekle: js/arayuz.js içindeki 'tur Zamanlayici' değişken adındaki boşluk nedeniyle oluşan 'Unexpected identifier' sözdizimi hatası düzeltildi; Keşfet sekmesine dergi tarzı numaralı 'Öne Çıkan Yerler' kartı eklendi (HTML + CSS + JS), tıklayınca kamera o konuma animasyonla gidiyor.
