@@ -180,10 +180,16 @@ require([
   });
   window.view = view;
 
-  view.when(() => {
+  function yukleniyoruKapat() {
     const yukleniyor = document.getElementById("yukleniyor");
     if (yukleniyor) yukleniyor.remove();
+  }
+  view.when(yukleniyoruKapat).catch(err => {
+    console.error("Görünüm yüklenemedi:", err);
+    yukleniyoruKapat();
+    gosterBildirim("Harita yüklenemedi");
   });
+  setTimeout(yukleniyoruKapat, 9000);
 
   [binalarLayer, yapilarLayer, numaratajLayer, mahallelerLayer, yollarLayer].forEach(lyr => {
     lyr.watch("loadStatus", status => {
