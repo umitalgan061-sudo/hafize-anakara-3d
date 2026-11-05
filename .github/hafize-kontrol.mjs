@@ -1,9 +1,9 @@
-// hafize-kontrol v4: serves this branch and main over http (so sites of several files and modules work), opens
+// hafize-kontrol v5: serves this branch and main over http (so sites of several files and modules work), opens
 // index.html of each in Chromium, uses the page like a person would (types into text boxes and presses Enter, clicks
 // every button) and compares the uncaught errors with main's. Every error is also written as a GitHub annotation,
 // so Hafize's next round knows what is broken. Written by Hafize.
 import { execFileSync } from 'node:child_process';
-import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { chromium } from 'playwright';
@@ -62,6 +62,40 @@ async function errorsOf(root) {
 }
 const mine = await errorsOf('.');
 const base = hasMain ? await errorsOf('.kontrol/main') : { errors: [], used: [], nodes: 0 };
+// Usability: what a visitor actually sees on opening the site, on a desktop and on a phone, measured point by point
+// (a map behind a full-screen panel is not seen however big its box is). The project's own rules say what must be seen.
+const usability = [];
+let rules = {};
+try { rules = JSON.parse(readFileSync('.github/hafize-kontrol.json', 'utf8')); } catch { /* no rules */ }
+async function seenShare(root, viewport, selector) {
+  const site = await serve(root);
+  const phone = viewport.width < 600;
+  const context = await browser.newContext({ viewport, isMobile: phone, hasTouch: phone });
+  const page = await context.newPage();
+  page.on('dialog', (dialog) => dialog.dismiss().catch(() => {}));
+  await page.goto(site.url, { waitUntil: 'load', timeout: 60_000 }).catch(() => {});
+  await page.waitForTimeout(8000);
+  const result = await page.evaluate((target) => {
+    const goal = target ? document.querySelector(target) : null;
+    let hits = 0; let total = 0;
+    for (let y = 0.5; y < 24; y += 1) for (let x = 0.5; x < 12; x += 1) {
+      total += 1;
+      const element = document.elementFromPoint(innerWidth * x / 12, innerHeight * y / 24);
+      if (goal && element && (element === goal || goal.contains(element))) hits += 1;
+    }
+    return { share: Math.round(hits * 100 / total), found: Boolean(goal), overflow: document.documentElement.scrollWidth > innerWidth + 2 };
+  }, selector || '').catch(() => ({ share: 0, found: false, overflow: false }));
+  await context.close();
+  site.close();
+  return result;
+}
+for (const [name, viewport, least] of [['masaüstü', { width: 1280, height: 800 }, rules.masaustu_en_az], ['telefon', { width: 390, height: 844 }, rules.telefon_en_az]]) {
+  const seen = await seenShare('.', viewport, rules.ana_oge);
+  console.log('Kullanılabilirlik', name, JSON.stringify(seen));
+  if (rules.ana_oge && !seen.found) usability.push(rules.ana_oge + ' sayfada yok');
+  else if (rules.ana_oge && typeof least === 'number' && seen.share < least) usability.push(name + ' açılışında ' + rules.ana_oge + ' ekranın yalnızca yüzde ' + seen.share + ' kadarında görünüyor, en az yüzde ' + least + ' olmalı: üstünü kaplayan panel, kart ya da başlık var');
+  if (name === 'telefon' && seen.overflow) usability.push('telefonda sayfa yana taşıyor, yatay kaydırma çıkıyor');
+}
 await browser.close();
 const oneLine = (text) => String(text).replace(/[\r\n%]/g, ' ');
 // A one- or two-letter message comes from the test browser's software WebGL, not from the page; it shows up at load or
@@ -75,6 +109,8 @@ for (const error of mine.errors) console.log(`::${fresh.includes(error) ? 'error
 for (const error of mine.used) console.log(`::${freshUse.includes(error) ? 'error' : 'warning'} title=Kullanım hatası${freshUse.includes(error) ? '' : ' (main de var)'}::${oneLine(error)}`);
 console.log('Bu dal:', JSON.stringify(mine));
 console.log('main:', JSON.stringify(base));
+for (const line of usability) console.log('::error title=Kullanılabilirlik hatası::' + oneLine(line));
 if (mine.nodes < 3) { console.log('::error title=Açılış hatası::Sayfa boş görünüyor'); process.exit(1); }
+if (usability.length) { console.error('Kullanılabilirlik:', usability.join(' | ')); process.exit(1); }
 if (fresh.length || freshUse.length) { console.error('Yeni hata:', [...fresh, ...freshUse].join(' | ')); process.exit(1); }
 console.log('Temiz: main\'de olmayan bir hata yok.');
