@@ -39,7 +39,8 @@
       'esri/core/reactiveUtils'
     ], function (Map, SceneView, SceneLayer, FeatureLayer, GraphicsLayer, SimpleRenderer, MeshSymbol3D, SolidEdges3D, PopupTemplate, Graphic, reactiveUtils) {
 
-      map = new Map({ basemap: 'hybrid' });
+      // Kontrol bulgusu 1: arazi yüksekliği YOK — world-elevation zemini kapalı, z = yerden yükseklik
+      map = new Map({ basemap: 'hybrid', ground: 'ellipsoid' });
 
       // 3B Binalar — opak buz grisi
       var binalar = new SceneLayer({ url: BINALAR_URL, title: '3D Binalar', popupEnabled: false });
