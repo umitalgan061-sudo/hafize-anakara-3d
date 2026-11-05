@@ -41,6 +41,16 @@ Ekran (telefonda ve masaüstünde aynı düzen):
 - Kalite: konsolda hata yok; her düğme gerçekten iş yapar; telefonda yatay taşma ve kaydırma yok; dokunma hedefleri en az 44 px; harita 390x844 telefonda ve masaüstünde ekranın en az yüzde 85'inde görünür.
 KALDIRILACAKLAR (hiçbiri geri gelmez): Keşfet/Katmanlar/Mahalle/Araçlar sekmeleri ve sayfaları, alt sekme çubuğu, Hızlı Erişim, Öne Çıkan Yerler, Gündem, keşif turu, yakınımdakiler, paylaş, son aramalar, favoriler, son görünümüm, tema düğmesi, ölçüm ve gölge araçları, kent rehberi (EGO/ABB) katmanları, alt bilgi satırı, tanıtım ve açıklama yazıları (masaüstündeki küçük durum satırı kalabilir). Eski css/tasarim.css, js/arayuz.js ve js/kentrehberi.js silinir.
 
+- KONTROL BULGULARI (5 Kasım 18:20, kod incelemesi ve tarayıcıda ölçüldü):
+  1. Haritada arazi yüksekliği OLMAZ: WebScene'de ground: "world-elevation" verme. Ankara zemini ~900 m; arazi açıkken kameranın z 650'si yerin altında kalıyor, ArcGIS kamerayı 925 m'ye kaldırıp aşağı bakan yanlış bir görüntü veriyor (açılış Anıtkabir değil). ground kaldırılınca açılış ölçütü geçiyor (denendi).
+  2. Numarataj katmanının title'ı tam olarak "Numarataj (MAKS)" olmalı (katman kartında kısa "Numarataj" yazabilir).
+  3. Yapılar etiketinde labelPlacement: "above-center" 3B'de çokgenler için DESTEKLENMEZ (konsolda yüzlerce uyarı, etiket çizilmiyor): labelPlacement verme.
+  4. Mahalle (MapServer/3) ve Yol (MapServer/1) katmanlarında ad alanı "ad"dır; "mahalle_adi" YOKTUR (konsol: Invalid field mahalle_adi). Popup ve outFields "ad" kullanır.
+  5. layer.watch / view.watch 4.32'de eskidi; reactiveUtils.watch kullan (cila).
+  6. "Anıtkabir'e dön" çalışmıyor: view.goTo({ camera: {...} }) geçerli bir hedef değil, hiçbir şey yapmaz. Kamerayı doğrudan ver: view.goTo({ position: { longitude: 32.8387, latitude: 39.9090, z: 650 }, heading: 355, tilt: 70 }, { duration: 1000 }).
+  7. Katman kartı hiç kapanmıyor (açılışta da açık): kart hidden ile gizleniyor ama CSS'teki display kuralı hidden'ı eziyor. css/uygulama.css'e [hidden] { display: none !important; } ekle.
+  Düğmeler, arama ve katman kartı kodda doğru bağlanmış; önceki "hiçbir şey yapmıyor" ölçümleri kontrolün animasyon bitmeden ölçmesindendi (kontrol düzeltildi). Bu yedi maddeyi düzelt, başka bir şeye dokunma.
+
 # Kabul denetimi
 .github/hafize-kontrol.json içindeki "kabul" listesi sahibin isteklerinin otomatik testidir; tarayıcı kontrolü her adımda ve canlı sitede 2 saatte bir bunları çalıştırır. "Kabul hatası" çıkan tur main'e giremez. Bu listeyi değiştirme ya da gevşetme; kodu ona uydur. Tutmayan ölçüt ne ölçtüğünü yazar: ona göre düzelt.
 
