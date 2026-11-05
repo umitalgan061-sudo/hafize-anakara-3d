@@ -1,4 +1,4 @@
-// hafize-kontrol v7: serves this branch and main over http (so sites of several files and modules work), opens
+// hafize-kontrol v8: serves this branch and main over http (so sites of several files and modules work), opens
 // index.html of each in Chromium, uses the page like a person would (types into text boxes and presses Enter, clicks
 // every button) and compares the uncaught errors with main's. Every error is also written as a GitHub annotation,
 // so Hafize's next round knows what is broken. Written by Hafize.
@@ -140,10 +140,18 @@ async function acceptance(root, viewport, checks) {
   page.on('dialog', (dialog) => dialog.dismiss().catch(() => {}));
   await page.goto(site.url, { waitUntil: 'load', timeout: 60_000 }).catch(() => {});
   await page.waitForTimeout(Number(rules.kabul_bekle) || 15000);
+  // A map page is measured once its view is ready and done loading (GitHub's machine is slower than a desk computer).
+  await page.evaluate(async () => {
+    // A top-level let is not a property of the window: the name itself is looked up.
+    const view = (() => { try { return eval('view'); } catch { return undefined; } })();
+    if (!view || typeof view.when !== 'function') return;
+    await Promise.race([view.when(), new Promise((done) => setTimeout(done, 45000))]).catch(() => {});
+    for (let i = 0; i < 90 && view.updating; i++) await new Promise((done) => setTimeout(done, 500));
+  }).catch(() => {});
   const out = [];
   for (const check of checks) {
     const verdict = await page.evaluate(async (code) => {
-      try { return (await (0, eval)('(async () => (' + code + '))()')) === true; } catch (error) { return 'hata: ' + String((error && error.message) || error).slice(0, 120); }
+      try { const value = await (0, eval)('(async () => (' + code + '))()'); return value === true ? true : typeof value === 'string' ? 'ölçülen: ' + value.slice(0, 200) : false; } catch (error) { return 'hata: ' + String((error && error.message) || error).slice(0, 120); }
     }, check.ifade).catch((error) => 'hata: ' + String(error.message).slice(0, 120));
     if (verdict !== true) out.push(check.ad + (typeof verdict === 'string' ? ' (' + verdict + ')' : ''));
   }

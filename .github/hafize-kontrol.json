@@ -4,29 +4,11 @@
   "telefon_en_az": 60,
   "kabul_bekle": 15000,
   "kabul": [
-    {
-      "ad": "Sekme başlığı ve üst banttaki ad \"Ankara 3D\" olmalı",
-      "ifade": "document.title.trim() === 'Ankara 3D' && (document.querySelector('.ust-bant__baslik') || {}).textContent.trim() === 'Ankara 3D'"
-    },
-    {
-      "ad": "Logo Atakule görseli olmalı (üst bantta, en az 28 px yüksekliğinde)",
-      "ifade": "(() => { const l = document.querySelector('.ust-bant__logo svg, .ust-bant__logo img'); return !!l && l.getBoundingClientRect().height >= 28 && /atakule/i.test(l.getAttribute('aria-label') || l.getAttribute('alt') || l.getAttribute('data-ad') || ''); })()"
-    },
-    {
-      "ad": "Açılıştan 15 saniye sonra Harita (Anasayfa) açık kalmalı: ekranın ortası haritadır, Keşfet ya da başka bir panel kendiliğinden açılmamalı",
-      "ifade": "(() => { const e = document.elementFromPoint(innerWidth / 2, innerHeight / 2); return !!e && !!e.closest('#viewDiv'); })()"
-    },
-    {
-      "ad": "Açılışta ekranın ortası Anıtkabir olmalı (39.9250, 32.8369)",
-      "ifade": "(() => { const p = view.toMap({ x: view.width / 2, y: view.height / 2 }); return !!p && Math.abs(p.latitude - 39.925) < 0.003 && Math.abs(p.longitude - 32.8369) < 0.004 && Math.abs(view.camera.heading - 355) < 6 && view.camera.tilt > 60; })()"
-    },
-    {
-      "ad": "3B binalar şeffaf olmamalı: opak buz grisi dolgu [221, 230, 236, 1] ve colorMixMode \"replace\" (yoksa modelin dokusuyla karışıp cam gibi şeffaf görünür)",
-      "ifade": "(() => { const l = view.map.allLayers.find((x) => x.type === 'scene'); const s = l && l.renderer && l.renderer.symbol && l.renderer.symbol.symbolLayers.getItemAt(0); const m = s && s.material; const c = m && m.color; return !!c && l.opacity === 1 && m.colorMixMode === 'replace' && c.r === 221 && c.g === 230 && c.b === 236 && c.a === 1; })()"
-    },
-    {
-      "ad": "Yapılar ve Numarataj (MAKS) katmanları açılışta görünür, etiketleri açık ve yüklenmiş olmalı",
-      "ifade": "['Yapılar', 'Numarataj (MAKS)'].every((t) => { const l = view.map.allLayers.find((x) => x.title === t); return !!l && l.visible && l.labelsVisible && (l.labelingInfo || []).length > 0 && l.loadStatus === 'loaded'; })"
-    }
+    { "ad": "Sekme başlığı ve üst banttaki ad \"Ankara 3D\" olmalı", "ifade": "(() => { const b = (document.querySelector('.ust-bant__baslik') || {}).textContent; return (document.title.trim() === 'Ankara 3D' && String(b).trim() === 'Ankara 3D') || ('sekme: ' + document.title + ', bant: ' + b); })()" },
+    { "ad": "Logo Atakule görseli olmalı (üst bantta, en az 28 px yüksekliğinde, aria-label Atakule)", "ifade": "(() => { const l = document.querySelector('.ust-bant__logo svg, .ust-bant__logo img'); if (!l) return 'üst bantta logo görseli yok'; const h = l.getBoundingClientRect().height; const ad = l.getAttribute('aria-label') || l.getAttribute('alt') || ''; return (h >= 28 && /atakule/i.test(ad)) || ('yükseklik ' + Math.round(h) + ' px, ad: ' + ad); })()" },
+    { "ad": "Açılıştan sonra Harita (Anasayfa) açık kalmalı: ekranın ortası haritadır, Keşfet ya da başka bir panel kendiliğinden açılmamalı", "ifade": "(() => { const e = document.elementFromPoint(innerWidth / 2, innerHeight / 2); return (!!e && !!e.closest('#viewDiv')) || ('ekranın ortasında ' + (e ? (e.id ? '#' + e.id : e.className || e.tagName) : 'hiçbir şey') + ' var'); })()" },
+    { "ad": "Açılışta ekranın ortası Anıtkabir olmalı (39.9250, 32.8369); kamera Anıtkabir’in 1,8 km GÜNEYİNDE durur: position { longitude: 32.8387, latitude: 39.9090, z: 650 }, heading 355, tilt 70", "ifade": "(() => { const p = view.toMap({ x: view.width / 2, y: view.height / 2 }); const c = view.camera; if (p && Math.abs(p.latitude - 39.925) < 0.003 && Math.abs(p.longitude - 32.8369) < 0.004 && Math.abs(c.heading - 355) < 6 && c.tilt > 60) return true; return 'ekranın ortası ' + (p ? p.latitude.toFixed(4) + ', ' + p.longitude.toFixed(4) : 'okunamadı') + '; kamera ' + c.position.latitude.toFixed(4) + ', ' + c.position.longitude.toFixed(4) + ', z ' + Math.round(c.position.z) + ', yön ' + Math.round(c.heading) + ', eğim ' + Math.round(c.tilt); })()" },
+    { "ad": "3B binalar şeffaf olmamalı: opak buz grisi dolgu [221, 230, 236, 1] ve colorMixMode \"replace\" (yoksa modelin dokusuyla karışıp cam gibi şeffaf görünür)", "ifade": "(() => { const l = view.map.allLayers.find((x) => x.type === 'scene'); const s = l && l.renderer && l.renderer.symbol && l.renderer.symbol.symbolLayers.getItemAt(0); const m = s && s.material; const c = m && m.color; return (!!c && l.opacity === 1 && m.colorMixMode === 'replace' && c.r === 221 && c.g === 230 && c.b === 236 && c.a === 1) || ('renk ' + (c ? c.toRgba().join(',') : 'yok') + ', colorMixMode ' + (m && m.colorMixMode) + ', opacity ' + (l && l.opacity)); })()" },
+    { "ad": "Yapılar ve Numarataj (MAKS) katmanları açılışta görünür, etiketleri açık ve yüklenmiş olmalı", "ifade": "(() => { const bad = ['Yapılar', 'Numarataj (MAKS)'].map((t) => { const l = view.map.allLayers.find((x) => x.title === t); if (!l) return t + ' katmanı yok'; if (!(l.visible && l.labelsVisible && (l.labelingInfo || []).length > 0 && l.loadStatus === 'loaded')) return t + ': görünür ' + l.visible + ', etiket ' + l.labelsVisible + ', etiket tanımı ' + (l.labelingInfo || []).length + ', yükleme ' + l.loadStatus; return ''; }).filter(Boolean); return bad.length === 0 || bad.join('; '); })()" }
   ]
 }

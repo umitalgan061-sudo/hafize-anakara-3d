@@ -298,11 +298,12 @@ function katmanlariYukle() {
       katmanlar = { cb_binalar: binalar, cb_mahalle: mahalle, cb_yol: yol, cb_yapi: yapi, cb_numarataj: numarataj, cb_ilce: ilce };
       map.addMany([...Object.values(katmanlar), ...Object.values(kentKatmanlar)]);
 
-      // Açılış kamerası: URL'de konum yoksa Anıtkabir'e bakan eğik görünüm
+      // Açılış kamerası: URL'de konum yoksa Anıtkabir'e bakan eğik görünüm. Kamera Anıtkabir'in 1,8 km GÜNEYİNDE durur ve kuzeye bakar;
+      // ekranın ortası tam Anıtkabir'e (39.9250, 32.8369) düşer (tarayıcıda view.toMap ile ölçüldü). Kamerayı Anıtkabir'in üstüne koyma.
       const p0 = urlOku();
       const acilisKamera = (!isNaN(p0.lat) && !isNaN(p0.lon))
         ? { position: { x: p0.lon, y: p0.lat, z: 1600 }, heading: 355, tilt: isNaN(p0.tilt) ? 62 : p0.tilt }
-        : { position: { longitude: 32.8369, latitude: 39.9250, z: 650 }, heading: 355, tilt: 70 };
+        : { position: { longitude: 32.8387, latitude: 39.9090, z: 650 }, heading: 355, tilt: 70 };
       view = new SceneView({
         container: 'viewDiv', map: map,
         camera: acilisKamera,
