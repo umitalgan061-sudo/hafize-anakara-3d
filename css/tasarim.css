@@ -360,3 +360,94 @@ html, body { height: 100%; width: 100%; overflow: hidden; font-family: var(--fon
 .justify-between { justify-content: space-between; }
 .gap-12 { gap: 12px; }
 .gap-8 { gap: 8px; }
+
+/* Üst Bant Eylem Düğmesi (.eylem-btn) */
+.eylem-btn {
+  width: 42px; height: 42px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--renk-bg);
+  border: 1px solid rgba(45, 38, 32, 0.12);
+  border-radius: 50%;
+  color: var(--renk-metin-solgun);
+  cursor: pointer;
+  transition: color var(--gecis-hizli), border-color var(--gecis-hizli), background var(--gecis-hizli), transform var(--gecis-hizli);
+}
+.eylem-btn:hover { color: var(--renk-vurgu); border-color: var(--renk-vurgu); background: var(--renk-yuzey-hover); transform: translateY(-1px); }
+.eylem-btn:active { transform: translateY(0); }
+.eylem-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.25); }
+.eylem-btn[aria-pressed='true'] { color: var(--renk-vurgu); border-color: var(--renk-vurgu); background: linear-gradient(135deg, rgba(179,38,30,0.08) 0%, rgba(179,38,30,0.04) 100%); }
+.eylem-btn svg { width: 20px; height: 20px; stroke: currentColor; }
+
+/* Keşfet — Editoryal Hero */
+.hero-editoryal {
+  position: relative;
+  padding: 28px 24px 24px;
+  margin-bottom: 20px;
+  background: var(--renk-vurgu-gradyan);
+  border-radius: var(--yaricap);
+  color: #fdf8f0;
+  overflow: hidden;
+  box-shadow: var(--golge);
+}
+.hero-editoryal::after {
+  content: '';
+  position: absolute; right: -30px; bottom: -40px;
+  width: 180px; height: 180px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.hero-editoryal__kicker {
+  display: inline-block;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+.hero-editoryal__baslik {
+  font-family: var(--font-serif);
+  font-size: 2rem; font-weight: 700; line-height: 1.15; letter-spacing: -0.02em;
+  margin-bottom: 10px;
+}
+.hero-editoryal__metin { font-size: 0.9rem; line-height: 1.7; opacity: 0.92; max-width: 34ch; }
+
+/* Gündem — Editoryal Makale Kartları */
+.gundem-listesi { display: flex; flex-direction: column; gap: 12px; }
+.makale-karti {
+  display: flex; gap: 14px; align-items: stretch;
+  width: 100%;
+  padding: 14px;
+  background: var(--renk-bg);
+  border: 1px solid rgba(45, 38, 32, 0.06);
+  border-radius: var(--yaricap-kucuk);
+  cursor: pointer;
+  font: inherit; font-family: var(--font-sans); color: var(--renk-metin);
+  text-align: left;
+  transition: background var(--gecis-hizli), border-color var(--gecis-hizli), transform var(--gecis-hizli), box-shadow var(--gecis-hizli);
+}
+.makale-karti:hover { background: var(--renk-yuzey-hover); border-color: var(--renk-vurgu); transform: translateX(3px); box-shadow: var(--golge-yuzey); }
+.makale-karti:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.25); }
+.makale-karti__gorsel {
+  flex: 0 0 64px; height: 64px;
+  border-radius: var(--yaricap-kucuk);
+  background: linear-gradient(135deg, rgba(179,38,30,0.14) 0%, rgba(179,38,30,0.05) 100%);
+  border: 1px solid rgba(179, 38, 30, 0.18);
+  display: flex; align-items: center; justify-content: center;
+}
+.makale-karti__gorsel svg { width: 30px; height: 30px; stroke: var(--renk-vurgu); }
+.makale-karti__govde { flex: 1; min-width: 0; }
+.makale-karti__etiket { display: block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--renk-vurgu); margin-bottom: 3px; }
+.makale-karti__baslik { display: block; font-family: var(--font-serif); font-size: 1rem; font-weight: 600; line-height: 1.3; margin-bottom: 4px; }
+.makale-karti__ozet { display: block; font-size: 0.8rem; color: var(--renk-metin-solgun); line-height: 1.5; }
+
+/* Mobil İnce Ayarlar */
+@media (max-width: 600px) {
+  .hero-editoryal { padding: 20px 18px 18px; }
+  .hero-editoryal__baslik { font-size: 1.5rem; }
+  .hero-editoryal__metin { max-width: none; }
+  .eylem-btn { width: 38px; height: 38px; }
+  .ust-bant__siluet { height: 30px; }
+  .ust-bant__siluet svg { height: 30px; }
+}

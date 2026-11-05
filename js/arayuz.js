@@ -560,6 +560,46 @@ function oneCikanlariDoldur() {
     kaps.appendChild(b);
   });
 }
+// ---------- GÜNDEM KARTLARI (Editoryal makale listesi) ----------
+const GUNDEM_KONULARI = [
+  { etiket: 'Tarih', baslik: 'Anıtkabir ve tören alanı', ozet: 'Başkent\u2019in en çok ziyaret edilen anıt kompleksi, tepeden panoramik görünüm.', ikon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>', lat: 39.9252, lon: 32.8364, zoom: 15 },
+  { etiket: 'Kent Yaşamı', baslik: 'Kızılay Meydanı çevresi', ozet: 'Başkent\u2019in kalbi; duraklar, parklar ve yaya aksı bir arada.', ikon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>', lat: 39.9208, lon: 32.8541, zoom: 15.5 },
+  { etiket: 'Mimari', baslik: 'Atakule ve Çankaya tepesi', ozet: 'Şehrin simge yapılarından biri; tepeden Ankara manzarası.', ikon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 6v12H5V9z"/><circle cx="12" cy="10" r="2"/></svg>', lat: 39.8805, lon: 32.8918, zoom: 15.5 },
+  { etiket: 'Tarih', baslik: 'Ulus ve Ankara Kalesi etekleri', ozet: 'Tarihi kent merkezinin dar sokakları ve kale surları.', ikon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V9l4-3 4 3 4-3 4 3v12M4 21h16M9 21v-5h6v5"/></svg>', lat: 39.9417, lon: 32.8530, zoom: 15.5 }
+];
+function gundemKartlariniDoldur() {
+  const kaps = $('gundem-kartlari');
+  if (!kaps) return;
+  GUNDEM_KONULARI.forEach(k => {
+    const b = document.createElement('button');
+    b.className = 'makale-karti';
+    b.type = 'button';
+    b.setAttribute('role', 'listitem');
+    const gorsel = document.createElement('span');
+    gorsel.className = 'makale-karti__gorsel';
+    gorsel.innerHTML = k.ikon;
+    const govde = document.createElement('span');
+    govde.className = 'makale-karti__govde';
+    const et = document.createElement('span');
+    et.className = 'makale-karti__etiket';
+    et.textContent = k.etiket;
+    const bas = document.createElement('span');
+    bas.className = 'makale-karti__baslik';
+    bas.textContent = k.baslik;
+    const oz = document.createElement('span');
+    oz.className = 'makale-karti__ozet';
+    oz.textContent = k.ozet;
+    govde.appendChild(et); govde.appendChild(bas); govde.appendChild(oz);
+    b.appendChild(gorsel); b.appendChild(govde);
+    b.addEventListener('click', () => {
+      if (!view) return;
+      view.goTo({ target: { latitude: k.lat, longitude: k.lon }, zoom: k.zoom, tilt: 58 }, { duration: 2200 }).catch(() => {});
+      view.popup.open({ location: { type: 'point', longitude: k.lon, latitude: k.lat }, title: k.baslik, content: k.ozet });
+      toastGoster(k.baslik + ' konumuna gidiliyor.', 'bilgi');
+    });
+    kaps.appendChild(b);
+  });
+}
 function mesafe(lat1, lon1, lat2, lon2) {
   const R = 6371000, dLat = (lat2 - lat1) * Math.PI / 180, dLon = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
@@ -613,9 +653,10 @@ async function baslat() {
   katmanListeleriniDoldur();
   tabanKartlariOlustur();
   oneCikanlariDoldur();
+  gundemKartlariniDoldur();
   olaylariBagla();
   await katmanlariYukle();
 }
 if (typeof require !== 'undefined') { baslat(); } else { window.addEventListener('load', baslat); }
 
-Object.assign(window, { aramaYap, aramaSec, konumBul, baglantiPaylas, tabanSec, sayfaGoster, kesifTuruBaslat, kesifTuruDurdur, yakindakiler, olcumBaslat, olcumTemizle, gunesAyarla, temayiUygula, oneCikanlariDoldur });
+Object.assign(window, { aramaYap, aramaSec, konumBul, baglantiPaylas, tabanSec, sayfaGoster, kesifTuruBaslat, kesifTuruDurdur, yakindakiler, olcumBaslat, olcumTemizle, gunesAyarla, temayiUygula, oneCikanlariDoldur, gundemKartlariniDoldur });
