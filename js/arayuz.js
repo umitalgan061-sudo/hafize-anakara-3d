@@ -137,17 +137,30 @@ function katmanListeleriniDoldur() {
     [['cb_binalar', '3D Binalar', 'Esri 3D bina katmanı'],
      ['cb_mahalle', 'Mahalle Sınırları', 'ABB adres katmanı'],
      ['cb_yol', 'Yollar / Caddeler', 'ABB adres katmanı'],
-     ['cb_yapi', 'Yapılar', 'ABB adres katmanı'],
+     ['cb_yapi', 'Yapılar', 'ABB adres katmanı — etiketli'],
+     ['cb_numarataj', 'Numarataj (MAKS)', 'Kapı numaraları — etiketli'],
      ['cb_ilce', 'İlçeler', 'ABB adres katmanı']
     ].forEach(([id, b, a]) => adres.appendChild(katmanSatiriOlustur(id, b, a).satir));
   }
   if (kent) {
-    [['cb_ego_durak', 'Otobüs Durakları', 'EGO kent rehberi'],
-     ['cb_ego_metro', 'Metro & Ankaray', 'EGO kent rehberi'],
-     ['cb_abb_park', 'Parklar', 'ABB kent rehberi'],
-     ['cb_abb_kultur', 'Kültür ve Sanat', 'ABB kent rehberi'],
-     ['cb_abb_spor', 'Spor Tesisleri', 'ABB kent rehberi']
-    ].forEach(([id, b, a]) => { const { satir, cb } = katmanSatiriOlustur(id, b, a); cb.checked = false; kent.appendChild(satir); });
+    const tanimlar = window.KENT_KATMAN_TANIMLARI || [];
+    const gruplar = [];
+    tanimlar.forEach(t => {
+      let g = gruplar.find(x => x.ad === t.grup);
+      if (!g) { g = { ad: t.grup, ogeler: [] }; gruplar.push(g); }
+      g.ogeler.push(t);
+    });
+    gruplar.forEach(g => {
+      const baslik = document.createElement('div');
+      baslik.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--renk-metin-solgun);margin:14px 0 8px;';
+      baslik.textContent = g.ad === 'EGO' ? 'EGO — Toplu Taşıma' : 'ABB — Kent Rehberi';
+      kent.appendChild(baslik);
+      g.ogeler.forEach(t => {
+        const { satir, cb } = katmanSatiriOlustur(t.id, t.baslik, t.alt);
+        cb.checked = false;
+        kent.appendChild(satir);
+      });
+    });
   }
 }
 function katmanSenkronizeEt(id, layer) {
@@ -208,9 +221,10 @@ function katmanlariYukle() {
   return new Promise(resolve => {
     require([
       'esri/Map', 'esri/views/SceneView', 'esri/layers/SceneLayer', 'esri/layers/FeatureLayer',
-      'esri/renderers/SimpleRenderer', 'esri/symbols/MeshSymbol3D', 'esri/symbols/edges/SketchEdges3D',
-      'esri/PopupTemplate', 'esri/layers/GraphicsLayer'
-    ], (Map, SceneView, SceneLayer, FeatureLayer, SimpleRenderer, MeshSymbol3D, SketchEdges3D, PopupTemplate, GraphicsLayer) => {
+      'esri/renderers/SimpleRenderer', 'esri/symbols/MeshSymbol3D', 'esri/symbols/edges/SolidEdges3D',
+      'esri/PopupTemplate', 'esri/layers/GraphicsLayer',
+      'esri/symbols/SimpleMarkerSymbol', 'esri/symbols/SimpleLineSymbol', 'esri/symbols/SimpleFillSymbol'
+    ], (Map, SceneView, SceneLayer, FeatureLayer, SimpleRenderer, MeshSymbol3D, SolidEdges3D, PopupTemplate, GraphicsLayer, SimpleMarkerSymbol, SimpleLineSymbol, SimpleFillSymbol) => {
       map = new Map({ basemap: 'hybrid' });
       const adresUrl = 'https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/';
       const egoUrl = 'https://baskentcbs.ankara.bel.tr/server/rest/services/kentrehberi/ego_kent_Rehberi/MapServer/';
@@ -220,28 +234,79 @@ function katmanlariYukle() {
         url: 'https://basemaps3d.arcgis.com/arcgis/rest/services/Esri3D_Buildings_v1/SceneServer',
         title: '3D Binalar', popupEnabled: false
       });
+      // Sahibin isteği: opak buz grisi dolgulu, ince SolidEdges3D kenarlı 3D binalar
       binalar.renderer = new SimpleRenderer({
-        symbol: new MeshSymbol3D({ symbolLayers: [{ type: 'fill', material: { color: [255, 255, 255, 0] }, edges: new SketchEdges3D({ color: [120, 90, 60, 1], size: 1.5 }) }] })
+        symbol: new MeshSymbol3D({
+          symbolLayers: [{
+            type: 'fill',
+            material: { color: [221, 230, 236, 1], colorMixMode: 'replace' },
+            edges: new SolidEdges3D({ color: [120, 135, 150, 0.55], size: 0.5 })
+          }]
+        })
       });
 
       const mahalle = new FeatureLayer({ url: adresUrl + '3', title: 'Mahalle', outFields: ['*'], visible: true, popupTemplate: new PopupTemplate(popupSablon('MAHALLE_ADI', [{ etiket: 'Mahalle', alan: 'MAHALLE_ADI' }, { etiket: 'İlçe', alan: 'ILCE_ADI' }])) });
       const yol = new FeatureLayer({ url: adresUrl + '1', title: 'Yollar', outFields: ['*'], visible: false, popupTemplate: new PopupTemplate(popupSablon('CADDE_ADI', [{ etiket: 'Cadde/Sokak', alan: 'CADDE_ADI' }, { etiket: 'Mahalle', alan: 'MAHALLE_ADI' }])) });
-      const yapi = new FeatureLayer({ url: adresUrl + '2', title: 'Yapılar', outFields: ['*'], visible: false, popupTemplate: new PopupTemplate(popupSablon('YAPI_ADI', [{ etiket: 'Yapı', alan: 'YAPI_ADI' }, { etiket: 'Mahalle', alan: 'MAHALLE_ADI' }])) });
+      // Yapılar: açılışta görünür ve etiketli ($feature.ad; boşsa kat sayısı), gerçek alanlarla popup
+      const yapi = new FeatureLayer({
+        url: adresUrl + '2', title: 'Yapılar', outFields: ['*'], visible: true,
+        labelsVisible: true,
+        labelingInfo: [{
+          labelExpressionInfo: { expression: "IIf(IsEmpty($feature.ad), $feature.zeminustukatsayisi + ' kat', $feature.ad)" },
+          maxScale: 5000,
+          symbol: { type: 'label-3d', symbolLayers: [{ type: 'text', size: 10, material: { color: [45, 38, 32, 1] }, haloColor: [255, 255, 255, 0.9], haloSize: 1.5 }] },
+          labelPlacement: 'above-center'
+        }],
+        popupTemplate: new PopupTemplate({
+          title: '{ad}',
+          content: '<b>Kat sayısı:</b> {zeminustukatsayisi}<br><b>Alt kat:</b> {zeminaltikatsayisi}<br><b>Posta kodu:</b> {postakodu}<br><b>Site/Koop.:</b> {siteveyakooperatifadi}<br><b>Bağımsız bölüm:</b> {bagimsizbolumsayi}<br><b>Yükseklik:</b> {toplamyukseklik} m'
+        })
+      });
+      // Numarataj (MAKS): açılışta görünür ve etiketli ($feature.kapino)
+      const numarataj = new FeatureLayer({
+        url: adresUrl + '0', title: 'Numarataj (MAKS)', outFields: ['*'], visible: true,
+        labelsVisible: true,
+        labelingInfo: [{
+          labelExpressionInfo: { expression: '$feature.kapino' },
+          maxScale: 1500,
+          symbol: { type: 'label-3d', symbolLayers: [{ type: 'text', size: 9, material: { color: [140, 29, 23, 1] }, haloColor: [255, 255, 255, 0.9], haloSize: 1.5 }] },
+          labelPlacement: 'center-center'
+        }],
+        popupTemplate: new PopupTemplate({
+          title: 'No: {kapino}',
+          content: '<b>Kapı No:</b> {kapino}<br><b>Adres:</b> {ad}<br><b>Tip:</b> {tip}'
+        })
+      });
       const ilce = new FeatureLayer({ url: adresUrl + '4', title: 'İlçeler', outFields: ['*'], visible: false, popupTemplate: new PopupTemplate(popupSablon('ILCE_ADI', [{ etiket: 'İlçe', alan: 'ILCE_ADI' }])) });
 
-      const durak = new FeatureLayer({ url: egoUrl + '8', title: 'Otobüs Durakları', outFields: ['*'], visible: false });
-      const metro = new FeatureLayer({ url: egoUrl + '4', title: 'Metro Hattı', outFields: ['*'], visible: false });
-      const park = new FeatureLayer({ url: abbUrl + '5', title: 'Parklar', outFields: ['*'], visible: false });
-      const kultur = new FeatureLayer({ url: abbUrl + '6', title: 'Kültür ve Sanat', outFields: ['*'], visible: false });
-      const spor = new FeatureLayer({ url: abbUrl + '7', title: 'Spor Tesisleri', outFields: ['*'], visible: false });
+      // Kent rehberi katmanları: tek tanım dosyasından (js/kentrehberi.js) tümü yüklenir
+      kentKatmanlar = {};
+      (window.KENT_KATMAN_TANIMLARI || []).forEach(t => {
+        const servis = t.grup === 'EGO' ? egoUrl : abbUrl;
+        const layer = new FeatureLayer({
+          url: servis + t.katman, title: t.baslik, outFields: ['*'], visible: false
+        });
+        let sembol;
+        if (t.geometri === 'line') sembol = new SimpleLineSymbol({ color: t.renk, width: 3 });
+        else if (t.geometri === 'polygon') sembol = new SimpleFillSymbol({ color: [t.renk[0], t.renk[1], t.renk[2], 0.45], outline: { color: t.renk, width: 1.5 } });
+        else sembol = new SimpleMarkerSymbol({ color: t.renk, size: 9, outline: { color: [255, 255, 255], width: 1.5 } });
+        layer.renderer = new SimpleRenderer({ symbol: sembol });
+        window.KentRehberi.popupAyarla(layer);
+        kentKatmanlar[t.id] = layer;
+      });
 
-      katmanlar = { cb_binalar: binalar, cb_mahalle: mahalle, cb_yol: yol, cb_yapi: yapi, cb_ilce: ilce };
-      kentKatmanlar = { cb_ego_durak: durak, cb_ego_metro: metro, cb_abb_park: park, cb_abb_kultur: kultur, cb_abb_spor: spor };
+      katmanlar = { cb_binalar: binalar, cb_mahalle: mahalle, cb_yol: yol, cb_yapi: yapi, cb_numarataj: numarataj, cb_ilce: ilce };
       map.addMany([...Object.values(katmanlar), ...Object.values(kentKatmanlar)]);
 
+      // Açılış kamerası: URL'de konum yoksa Anıtkabir'e bakan eğik görünüm. Kamera Anıtkabir'in 1,8 km GÜNEYİNDE durur ve kuzeye bakar;
+      // ekranın ortası tam Anıtkabir'e (39.9250, 32.8369) düşer (tarayıcıda view.toMap ile ölçüldü). Kamerayı Anıtkabir'in üstüne koyma.
+      const p0 = urlOku();
+      const acilisKamera = (!isNaN(p0.lat) && !isNaN(p0.lon))
+        ? { position: { x: p0.lon, y: p0.lat, z: 1600 }, heading: 355, tilt: isNaN(p0.tilt) ? 62 : p0.tilt }
+        : { position: { longitude: 32.8387, latitude: 39.9090, z: 650 }, heading: 355, tilt: 70 };
       view = new SceneView({
         container: 'viewDiv', map: map,
-        camera: { position: { x: 32.8597, y: 39.9334, z: 5200 }, tilt: 62 },
+        camera: acilisKamera,
         ui: { components: ['attribution'] },
         popup: { dockEnabled: true, dockOptions: { buttonEnabled: false, breakpoint: false }, collapseEnabled: false }
       });
@@ -250,7 +315,7 @@ function katmanlariYukle() {
         Object.entries(katmanlar).forEach(([id, l]) => katmanSenkronizeEt(id, l));
         Object.entries(kentKatmanlar).forEach(([id, l]) => katmanSenkronizeEt(id, l));
 
-        view.watch('scale', s => { if (s && isFinite(s)) { sonZoom = Math.round(s); footerPlanla(); } urlGuncelleKamera(); });
+        view.watch('zoom', z => { if (z && isFinite(z)) { sonZoom = Math.round(z); footerPlanla(); } urlGuncelleKamera(); });
         view.watch('stationary', st => {
           if (!st) return;
           const c = view.center;
@@ -280,6 +345,16 @@ function katmanlariYukle() {
         }
         if (p.adres) { const g = $('arama-girdi'); if (g) g.value = p.adres; }
         sayfaGoster('kesfet');
+        // Mobil açılış: panel kapalı, harita tam ekran, 'Harita' sekmesi aktif
+        if (window.innerWidth <= 1024) {
+          const p = $('sol-panel');
+          if (p) p.classList.add('gizli');
+          document.querySelectorAll('.mobil-sekme-cubugu__btn').forEach(b => {
+            const aktif = b.dataset.panel === 'harita';
+            b.classList.toggle('aktif', aktif);
+            b.setAttribute('aria-selected', aktif ? 'true' : 'false');
+          });
+        }
         console.log('Harita hazır.');
         resolve();
       });
@@ -355,7 +430,7 @@ async function aramaYap() {
     btn.textContent = 'Seç ve Git';
     btn.addEventListener('click', aramaSec);
     liste.appendChild(btn);
-    view.popup.open({ location: pt, title: adaylar.length + ' sonuç bulundu', content: liste });
+    view.openPopup({ location: pt, title: adaylar.length + ' sonuç bulundu', content: liste });
     toastGoster(adaylar.length + ' sonuç listelendi.', 'bilgi');
   } catch (err) {
     toastGoster('Arama hatası: ' + err.message, 'uyari');
@@ -368,7 +443,7 @@ function aramaSec() {
 }
 function adresGit(c) {
   const pt = { type: 'point', longitude: c.location.x, latitude: c.location.y };
-  view.popup.open({ location: pt, title: 'Arama Sonucu', content: c.address });
+  view.openPopup({ location: pt, title: 'Arama Sonucu', content: c.address });
   view.goTo({ target: pt, zoom: 16, tilt: 62 }).catch(() => {});
   urlYaz({ ...urlOku(), lat: c.location.y, lon: c.location.x, zoom: 16, tilt: 62, adres: c.address });
   toastGoster('Adres bulundu.', 'basari');
@@ -504,7 +579,7 @@ async function yakindakiler() {
         satir.innerHTML = '<span style="flex:1"><span style="font-size:0.85rem;font-weight:500">' + (f.attributes[kat.alan] || kat.ad) + '</span><span class="katman-alt-baslik">' + Math.round(d) + ' m</span></span>';
         satir.addEventListener('click', () => {
           view.goTo({ target: f.geometry, zoom: 17, tilt: 55 }).catch(() => {});
-          view.popup.open({ location: f.geometry, title: f.attributes[kat.alan] || kat.ad, content: Math.round(d) + ' m mesafede' });
+          view.openPopup({ location: f.geometry, title: f.attributes[kat.alan] || kat.ad, content: Math.round(d) + ' m mesafede' });
         });
         kaps.appendChild(satir);
       });
@@ -554,7 +629,7 @@ function oneCikanlariDoldur() {
     b.addEventListener('click', () => {
       if (!view) return;
       view.goTo({ target: { latitude: y.lat, longitude: y.lon }, zoom: y.zoom, tilt: 58 }, { duration: 2200 }).catch(() => {});
-      view.popup.open({ location: { type: 'point', longitude: y.lon, latitude: y.lat }, title: y.ad, content: y.aciklama });
+      view.openPopup({ location: { type: 'point', longitude: y.lon, latitude: y.lat }, title: y.ad, content: y.aciklama });
       toastGoster(y.ad + ' konumuna gidiliyor.', 'bilgi');
     });
     kaps.appendChild(b);
@@ -594,7 +669,7 @@ function gundemKartlariniDoldur() {
     b.addEventListener('click', () => {
       if (!view) return;
       view.goTo({ target: { latitude: k.lat, longitude: k.lon }, zoom: k.zoom, tilt: 58 }, { duration: 2200 }).catch(() => {});
-      view.popup.open({ location: { type: 'point', longitude: k.lon, latitude: k.lat }, title: k.baslik, content: k.ozet });
+      view.openPopup({ location: { type: 'point', longitude: k.lon, latitude: k.lat }, title: k.baslik, content: k.ozet });
       toastGoster(k.baslik + ' konumuna gidiliyor.', 'bilgi');
     });
     kaps.appendChild(b);
@@ -650,6 +725,10 @@ function olaylariBagla() {
 // ---------- BAŞLAT ----------
 async function baslat() {
   temayiBaslat();
+  if (window.innerWidth <= 1024) {
+    const p0 = $('sol-panel');
+    if (p0) p0.classList.add('gizli');
+  }
   katmanListeleriniDoldur();
   tabanKartlariOlustur();
   oneCikanlariDoldur();
