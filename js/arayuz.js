@@ -13,7 +13,6 @@ let turAktif = false, turZamanlayici = null, turAdim = 0;
 let sonMerkez = null;
 let cekmeceDurum = 'kapali';
 let katmanHataSayisi = 0;
->>>>>>>YENİ
 
 const TUR_NOKTALARI = [
   { ad: 'Kızılay', lat: 39.9208, lon: 32.8541, zoom: 15.5 },
@@ -160,9 +159,15 @@ function katmanSenkronizeEt(id, layer) {
   cb.addEventListener('change', () => { layer.visible = cb.checked; });
   cb.checked = layer.visible;
   layer.when(null, () => {
-    cb.disabled = true;
+n    cb.disabled = true;
     cb.closest('.katman-satiri-editoryal').classList.add('devre-disi');
-    toastGoster('Katman yüklenemedi: ' + layer.title, 'uyari');
+    katmanHataSayisi++;
+    setTimeout(() => {
+      if (katmanHataSayisi > 0) {
+        toastGoster(katmanHataSayisi + ' katman yüklenemedi.', 'uyari');
+        katmanHataSayisi = 0;
+      }
+    }, 1500);
   });
 }
 
@@ -253,7 +258,7 @@ function katmanlariYukle() {
         Object.entries(katmanlar).forEach(([id, l]) => katmanSenkronizeEt(id, l));
         Object.entries(kentKatmanlar).forEach(([id, l]) => katmanSenkronizeEt(id, l));
 
-        view.watch('scale', s => { if (s && isFinite(s)) { sonZoom = Math.round(s); footerPlanla(); } urlGuncelleKamera(); });
+        view.watch('zoom', z => { if (z && isFinite(z)) { sonZoom = Math.round(z); footerPlanla(); } urlGuncelleKamera(); });
         view.watch('stationary', st => {
           if (!st) return;
           const c = view.center;
@@ -358,7 +363,7 @@ async function aramaYap() {
     btn.textContent = 'Seç ve Git';
     btn.addEventListener('click', aramaSec);
     liste.appendChild(btn);
-    view.popup.open({ location: pt, title: adaylar.length + ' sonuç bulundu', content: liste });
+    view.openPopup({ location: pt, title: adaylar.length + ' sonuç bulundu', content: liste });
     toastGoster(adaylar.length + ' sonuç listelendi.', 'bilgi');
   } catch (err) {
     toastGoster('Arama hatası: ' + err.message, 'uyari');
@@ -371,7 +376,7 @@ function aramaSec() {
 }
 function adresGit(c) {
   const pt = { type: 'point', longitude: c.location.x, latitude: c.location.y };
-  view.popup.open({ location: pt, title: 'Arama Sonucu', content: c.address });
+  view.openPopup({ location: pt, title: 'Arama Sonucu', content: c.address });
   view.goTo({ target: pt, zoom: 16, tilt: 62 }).catch(() => {});
   urlYaz({ ...urlOku(), lat: c.location.y, lon: c.location.x, zoom: 16, tilt: 62, adres: c.address });
   toastGoster('Adres bulundu.', 'basari');
@@ -507,7 +512,7 @@ async function yakindakiler() {
         satir.innerHTML = '<span style="flex:1"><span style="font-size:0.85rem;font-weight:500">' + (f.attributes[kat.alan] || kat.ad) + '</span><span class="katman-alt-baslik">' + Math.round(d) + ' m</span></span>';
         satir.addEventListener('click', () => {
           view.goTo({ target: f.geometry, zoom: 17, tilt: 55 }).catch(() => {});
-          view.popup.open({ location: f.geometry, title: f.attributes[kat.alan] || kat.ad, content: Math.round(d) + ' m mesafede' });
+          view.openPopup({ location: f.geometry, title: f.attributes[kat.alan] || kat.ad, content: Math.round(d) + ' m mesafede' });
         });
         kaps.appendChild(satir);
       });
@@ -557,7 +562,7 @@ function oneCikanlariDoldur() {
     b.addEventListener('click', () => {
       if (!view) return;
       view.goTo({ target: { latitude: y.lat, longitude: y.lon }, zoom: y.zoom, tilt: 58 }, { duration: 2200 }).catch(() => {});
-      view.popup.open({ location: { type: 'point', longitude: y.lon, latitude: y.lat }, title: y.ad, content: y.aciklama });
+      view.openPopup({ location: { type: 'point', longitude: y.lon, latitude: y.lat }, title: y.ad, content: y.aciklama });
       toastGoster(y.ad + ' konumuna gidiliyor.', 'bilgi');
     });
     kaps.appendChild(b);
@@ -597,7 +602,7 @@ function gundemKartlariniDoldur() {
     b.addEventListener('click', () => {
       if (!view) return;
       view.goTo({ target: { latitude: k.lat, longitude: k.lon }, zoom: k.zoom, tilt: 58 }, { duration: 2200 }).catch(() => {});
-      view.popup.open({ location: { type: 'point', longitude: k.lon, latitude: k.lat }, title: k.baslik, content: k.ozet });
+      view.openPopup({ location: { type: 'point', longitude: k.lon, latitude: k.lat }, title: k.baslik, content: k.ozet });
       toastGoster(k.baslik + ' konumuna gidiliyor.', 'bilgi');
     });
     kaps.appendChild(b);
