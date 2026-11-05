@@ -32,7 +32,7 @@ function temayiUygula(koyu) {
   document.documentElement.setAttribute('data-tema', koyu ? 'koyu' : 'acik');
   localStorage.setItem('tema', koyu ? 'koyu' : 'acik');
   const btn = $('btn-tema');
-  if (btn) btn.setAttribute('aria-pressed', koyu ? 'false' : 'true');
+  if (btn) btn.setAttribute('aria-pressed', koyu ? 'true' : 'false');
 }
 
 function temayiBaslat() {
@@ -83,7 +83,7 @@ function parametreleriUygula() {
     const opts = { target: { latitude: p.lat, longitude: p.lon } };
     if (!isNaN(p.zoom)) opts.zoom = p.zoom;
     if (!isNaN(p.tilt)) opts.tilt = p.tilt;
-    view.goTo(opts);
+    view.goTo(opts).catch(() => {});
   }
   // Arama kutusuna adresi yaz
   if (p.adres) {
@@ -202,7 +202,7 @@ function katmanlariYukle() {
           });
         });
 
-        // Checkbox senkronizasyonu
+        // Checkbox senkronizasyonu (iki yönlü)
         const cbEslestirme = {
           cb_binalar: binalar,
           cb_mahalle: mahalle,
@@ -213,23 +213,27 @@ function katmanlariYukle() {
         Object.entries(cbEslestirme).forEach(([id, layer]) => {
           layer.watch('visible', (vis) => { const cb = $(id); if (cb) cb.checked = vis; });
           const cb = $(id);
-          if (cb) cb.addEventListener('change', () => { layer.visible = cb.checked; });
-          if (cb) cb.checked = layer.visible;
+          if (cb) {
+            cb.addEventListener('change', () => { layer.visible = cb.checked; });
+            cb.checked = layer.visible;
+          }
         });
 
         // Footer koordinat/zoom - throttling ile
         view.watch('scale', (s) => {
-          sonZoom = Math.round(s);
-          footerGuncellePlanla();
+          if (s && isFinite(s)) {
+            sonZoom = Math.round(s);
+            footerGuncellePlanla();
+          }
           urlGuncelleKamera();
         });
         view.on('target-change', () => {
           const c = view.center;
-          if (c) {
+          if (c && isFinite(c.latitude) && isFinite(c.longitude)) {
             sonKoordinat = `${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}`;
             footerGuncellePlanla();
-            urlGuncelleKamera();
           }
+          urlGuncelleKamera();
         });
 
         // URL'den parametreleri uygula
@@ -424,7 +428,8 @@ async function aramaYap() {
       title: `${adaylar.length} sonuç bulundu`,
       content: container
     });
-    view.popup.content.appendChild(btn);
+    // butonu popup content'ine ekle
+    if (view.popup.content) view.popup.content.appendChild(btn);
 
     toastGoster(`${adaylar.length} sonuç listelendi`, 'bilgi');
   } catch (err) {
@@ -438,9 +443,11 @@ function aramaSec() {
   if (!secili || !aramaAdaylar.length) return;
   const c = aramaAdaylar[parseInt(secili.value, 10)];
   const pt = { type: 'point', longitude: c.location.x, latitude: c.location.y };
+  // Popup'ı güncelle (kapatmadan)
   view.popup.location = pt;
   view.popup.title = 'Arama Sonucu';
   view.popup.content = c.address;
+  // Haritayı animasyonlu git
   view.goTo({ target: pt, zoom: 16, tilt: 65 });
   urlYaz({ ...urlOku(), lat: c.location.y, lon: c.location.x, zoom: 16, tilt: 65, adres: c.address });
   toastGoster('Adres seçildi', 'basari');
@@ -477,7 +484,7 @@ function konumBul() {
       view.graphics.add(new Graphic({
         geometry: { type: 'point', longitude, latitude },
         symbol: { type: 'simple-marker', color: [6, 182, 212], size: 14, outline: { color: [255,255,255,0.9], width: 2 } }
-      ));
+      }));
     });
     toastGoster('Konum bulundu', 'basari');
     urlGuncelleKamera();
