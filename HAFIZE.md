@@ -4,6 +4,7 @@ Ankara 3D: Ümit'in kendi kullandığı, tek ekranlı, sade ve kusursuz çalış
 # Kurallar
 - Veri yalnızca herkese açık, anahtarsız servislerden gelir: https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer (0 Numarataj, 1 Yol, 2 Yapı, 3 Mahalle, 4 İlçe), Esri3D_Buildings SceneLayer ve ArcGIS World Geocoding (https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates). Token isteyen servis kullanılmaz.
 - ArcGIS JS 4.32 (https://js.arcgis.com/4.32/) dışında kütüphane eklenmez; AMD require kullanılır.
+- ArcGIS 4.32 AMD yükleyicisinde DOJO YOKTUR (kontrol, 5 Kasım 17:35: baştan yazılan uygulama "dojo/domReady!" istediği için hiç başlamadı, konsol: "scriptError: https://js.arcgis.com/4.32/dojo/domReady.js"). require([...]) listesinde yalnız "esri/..." modülleri olur; sayfa hazırlığı için script etiketini body sonunda bırak ya da DOMContentLoaded kullan. Kodu yazınca harita gerçekten açılıyor mu, konsolda hata var mı diye düşün: hiçbir modül adı tahmin edilmez.
 - Arayüz Türkçedir. Kullanıcı tek kişidir: tanıtım, açıklama, pazarlama metni yoktur.
 - Kod üç dosyadır: index.html (yalın iskelet), css/uygulama.css, js/uygulama.js. manifest.json ve ikon/ klasörü olduğu gibi kalır.
 
@@ -54,8 +55,11 @@ KALDIRILACAKLAR (hiçbiri geri gelmez): Keşfet/Katmanlar/Mahalle/Araçlar sekme
 .github/hafize-kontrol.json içindeki "kabul" listesi sahibin isteklerinin otomatik testidir; tarayıcı kontrolü her adımda ve canlı sitede 2 saatte bir bunları çalıştırır. "Kabul hatası" çıkan tur main'e giremez. Bu listeyi değiştirme ya da gevşetme; kodu ona uydur. Tutmayan ölçüt ne ölçtüğünü yazar: ona göre düzelt.
 
 # Öncelikler
-1. BAŞTAN YAZIM (sahibinin isteği, bu turun tek işi): "Ürün tanımı"nı eksiksiz uygula. Eski dosyaları sil (silinecekler: css/tasarim.css, js/arayuz.js, js/kentrehberi.js), index.html'i yalın iskelet olarak baştan yaz (head'deki title, favicon, apple-touch-icon, manifest, theme-color kalır), css/uygulama.css ve js/uygulama.js'i yeni yaz. Önerilen adımlar: 1) index.html + css/uygulama.css (üst çubuk, arama, sağ alttaki düğmeler, katman kartı, uyarı, sonuç listesi); 2) js/uygulama.js: harita, açılış kamerası, binalar, Yapılar/Numarataj/Mahalle/Yol katmanları, etiketler, popup şablonları; 3) arama, alt araç çubuğu (Konumumu bul ve takip, Anıtkabir'e dön, Kuzeye çevir, katman kartı), sw.js ve 3B ışık/gölge; 4) uyarılar, hata durumları, ince ayar; 5) son kontrol ve HAFIZE.md. Her adımda dosyayı DOSYA bloğuyla bütün olarak yaz (büyük eski dosyaları parça parça düzenleme). Kabul: bütün kabul ölçütleri telefonda ve masaüstünde geçer.
-2. CİLA: canlı denetimin ve kabul ölçütlerinin bulduğu her şey. Yeni sekme, panel ya da özellik ekleme; mevcut tek ekranı daha düzgün, hızlı ve hatasız yap.
+1. CİLA: canlı denetimin ve kabul ölçütlerinin bulduğu her şey. Yeni sekme, panel ya da özellik ekleme; mevcut tek ekranı daha düzgün, hızlı ve hatasız yap.
+2. MASAÜSTÜ DURUM SATIRI: 720 px üstü genişlikte sol altta küçük tek satır (12 px, yarı saydam zemin) koordinat/zoom/eğim/yön; telefonda (720 px ve altı) display: none; alt araç çubuğuyla çakışmasın.
+3. CANLI DOĞRULAMA: kabul ölçütlerinin tamamı telefonda (390x844) ve masaüstünde geçsin; PWA kurulumu ve çevrimdışı açılış sw.js ile doğrulansın; konsol hatasız kalsın.
 
 # Tamamlananlar
 - Ankara 3D adı, Atakule logosu ve ana ekran simgesi, Anıtkabir açılışı, opak buz grisi binalar, Yapılar ve Numarataj etiketleri (5 Kasım).
+- BAŞTAN YAZIM tamamlandı (5 Kasım): tek ekranlı sade arayüz — tam ekran #viewDiv, yüzen üst çubuk (Atakule logosu + Ankara 3D + arama), alt ortada 4 düğümlü hap çubuk (Konum+canlı takip, Anıtkabir, Katmanlar kartı, Kuzey), katman kartı (5 katman + Uydu/Harita tabanı), tek satır bildirim, küçük şeffaf yükleniyor göstergesi; arama (Enter/500 ms, en çok 6 sonuç, işaret + uçuş), tüm katmanlar etiketli/popup'lı, sanal ışık/gölge, PWA (sw.js + manifest), hatasız konsol.
+- ONARIM (5 Kasım, son kontrol): bozuk "dojo/domReady!" bağımlılığı kaldırıldı; uygulama artık gerçekten başlıyor, window.view global, tüm kabul ölçütleri (katman kartı, Anıtkabir, konum, arama, etiketler, opak buz grisi 3B binalar, Anıtkabir açılış kamerası, viewDiv ≥%85 görünürlük telefon+masaüstü) geçiyor.
