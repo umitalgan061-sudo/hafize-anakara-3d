@@ -250,14 +250,37 @@ require([
     });
   });
 
-  // Ağ durumu: çevrimdışı / çevrimiçi tek satır uyarı + kurtarma
+  // Ağ durumu + çevrimdışı rozeti + önbellek kurtarma akışı
+  const cevrimoGosterge = document.getElementById("cevrimo-gosterge");
+  function cevrimiGuncelle() {
+    if (!cevrimoGosterge) return;
+    const cevrimdasi = !navigator.onLine;
+    cevrimoGosterge.hidden = !cevrimdasi;
+    if (cevrimdasi) cevrimoGosterge.textContent = "Çevrimdışı";
+  }
+  function karoSayisiDuyur() {
+    if (!("serviceWorker" in navigator)) return;
+    const denetci = navigator.serviceWorker.controller;
+    if (!denetci) return;
+    const kanal = new MessageChannel();
+    kanal.port1.onmessage = ev => {
+      if (ev.data && ev.data.tip === "KARO_SAYISI") {
+        duyur("Önbellekte " + ev.data.sayi + " harita karosu var");
+      }
+    };
+    denetci.postMessage({ tip: "KARO_SAYISI" }, [kanal.port2]);
+  }
+  cevrimiGuncelle();
   window.addEventListener("offline", () => {
+    cevrimiGuncelle();
+    karoSayisiDuyur();
     gosterBildirim("Çevrimdışı — önbellekten çalışıyor");
-    duyur("Çevrimdışı oldunuz, uygulama önbellekten çalışıyor");
+    duyur("Çevrimdışı oldunuz, son görüntülenen alan önbellekten açılır");
   });
   window.addEventListener("online", () => {
+    cevrimiGuncelle();
     gosterBildirim("Çevrimiçi");
-    duyur("Çevrimiçi oldunuz");
+    duyur("Çevrimiçi oldunuz, eksik katmanlar yeniden deneniyor");
     katmanlariYenidenDene();
   });
 

@@ -47,7 +47,14 @@ self.addEventListener("activate", e => {
 });
 
 self.addEventListener("message", e => {
-  if (e.data === "SKIP_WAITING") self.skipWaiting();
+  if (e.data === "SKIP_WAITING") { self.skipWaiting(); return; }
+  if (e.data && e.data.tip === "KARO_SAYISI" && e.ports && e.ports[0]) {
+    e.waitUntil(
+      caches.open(KARO_AD)
+        .then(c => c.keys())
+        .then(keys => { e.ports[0].postMessage({ tip: "KARO_SAYISI", sayi: keys.length }); })
+    );
+  }
 });
 
 self.addEventListener("fetch", e => {
