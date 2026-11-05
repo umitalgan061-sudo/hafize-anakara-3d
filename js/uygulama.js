@@ -183,6 +183,7 @@ require([
   const altCubuk = document.querySelector(".alt-cubuk");
   reactiveUtils.watch(() => view.popup.visible, gorunur => {
     if (altCubuk) altCubuk.style.visibility = gorunur ? "hidden" : "visible";
+    if (gorunur) katmanKartiKapat();
   });
 
   function yukleniyoruKapat() {
