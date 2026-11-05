@@ -21,8 +21,8 @@
       "ifade": "(() => { const p = view.toMap({ x: view.width / 2, y: view.height / 2 }); return !!p && Math.abs(p.latitude - 39.925) < 0.003 && Math.abs(p.longitude - 32.8369) < 0.004 && Math.abs(view.camera.heading - 355) < 6 && view.camera.tilt > 60; })()"
     },
     {
-      "ad": "3B binalar opak buz grisi olmalı (dolgu [221, 230, 236, 1])",
-      "ifade": "(() => { const l = view.map.allLayers.find((x) => x.type === 'scene'); const s = l && l.renderer && l.renderer.symbol && l.renderer.symbol.symbolLayers.getItemAt(0); const c = s && s.material && s.material.color; return !!c && c.r === 221 && c.g === 230 && c.b === 236 && c.a === 1; })()"
+      "ad": "3B binalar şeffaf olmamalı: opak buz grisi dolgu [221, 230, 236, 1] ve colorMixMode \"replace\" (yoksa modelin dokusuyla karışıp cam gibi şeffaf görünür)",
+      "ifade": "(() => { const l = view.map.allLayers.find((x) => x.type === 'scene'); const s = l && l.renderer && l.renderer.symbol && l.renderer.symbol.symbolLayers.getItemAt(0); const m = s && s.material; const c = m && m.color; return !!c && l.opacity === 1 && m.colorMixMode === 'replace' && c.r === 221 && c.g === 230 && c.b === 236 && c.a === 1; })()"
     },
     {
       "ad": "Yapılar ve Numarataj (MAKS) katmanları açılışta görünür, etiketleri açık ve yüklenmiş olmalı",
