@@ -374,11 +374,17 @@ require([
     btnKatmanlar.setAttribute("aria-expanded", String(acilacak));
   });
 
+  function katmanKartiKapat() {
+    katmanKarti.hidden = true;
+    btnKatmanlar.setAttribute("aria-expanded", "false");
+  }
   document.addEventListener("click", e => {
     if (!e.target.closest(".katman-karti") && !e.target.closest("#btn-katmanlar")) {
-      katmanKarti.hidden = true;
-      btnKatmanlar.setAttribute("aria-expanded", "false");
+      katmanKartiKapat();
     }
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") katmanKartiKapat();
   });
 
   cbBinalar.addEventListener("change", () => { binalarLayer.visible = cbBinalar.checked; });
