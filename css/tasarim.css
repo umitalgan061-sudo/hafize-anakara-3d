@@ -339,6 +339,15 @@ html, body { height: 100%; width: 100%; overflow: hidden; font-family: var(--fon
 /* Odak Halkası */
 :focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.35); border-radius: 4px; }
 
+/* Öne Çıkan Yerler (Editoryal numaralı liste) */
+.one-cikan-liste { display: flex; flex-direction: column; gap: 8px; }
+.one-cikan-satir { display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 14px; background: var(--renk-bg); border: 1px solid rgba(45, 38, 32, 0.06); border-radius: var(--yaricap-kucuk); cursor: pointer; font: inherit; font-family: var(--font-sans); color: var(--renk-metin); text-align: left; transition: background var(--gecis-hizli), border-color var(--gecis-hizli), transform var(--gecis-hizli); }
+.one-cikan-satir:hover { background: var(--renk-yuzey-hover); border-color: var(--renk-vurgu); transform: translateX(3px); }
+.one-cikan-satir:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.25); }
+.one-cikan-satir__num { font-family: var(--font-serif); font-size: 1.15rem; font-weight: 600; color: var(--renk-vurgu); min-width: 30px; }
+.one-cikan-satir__ad { font-weight: 500; font-size: 0.9rem; display: block; }
+.one-cikan-satir__aciklama { display: block; font-size: 0.78rem; color: var(--renk-metin-solgun); margin-top: 2px; }
+
 .gizli { display: none !important; }
 .devre-disi { opacity: 0.4; pointer-events: none; }
 

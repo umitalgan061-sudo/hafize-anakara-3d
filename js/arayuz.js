@@ -9,7 +9,7 @@ let sonKoordinat = null, sonZoom = null;
 let footerRaf = null;
 let olcumAktif = null;
 let daylightWidget = null;
-let turAktif = false, tur Zamanlayici = null, turAdim = 0;
+let turAktif = false, turZamanlayici = null, turAdim = 0;
 let sonMerkez = null;
 
 const TUR_NOKTALARI = [
@@ -521,6 +521,45 @@ async function yakindakiler() {
   if (kesfet) { kesfet.appendChild(kaps); kaps.scrollIntoView({ behavior: 'smooth' }); }
   sayfaGoster('kesfet');
 }
+// ---------- ÖNE ÇIKAN YERLER (Editoryal liste) ----------
+const ONE_CIKAN_YERLER = [
+  { ad: 'Kızılay Meydanı', aciklama: 'Başkent\u2019in kalbi, buluşma noktası', lat: 39.9208, lon: 32.8541, zoom: 16 },
+  { ad: 'Anıtkabir', aciklama: 'Atatürk\u2019ün anıt mezarı ve tören alanı', lat: 39.9252, lon: 32.8364, zoom: 15.5 },
+  { ad: 'Ulus / Anafartalar', aciklama: 'Tarihi kent merkezi, kale etekleri', lat: 39.9417, lon: 32.8530, zoom: 16 },
+  { ad: 'Kocatepe Camii', aciklama: 'Kızılay\u2019ın simge camisi', lat: 39.9176, lon: 32.8590, zoom: 16 },
+  { ad: 'Atakule', aciklama: 'Çankaya\u2019n tepesindeki simge yapı', lat: 39.8805, lon: 32.8918, zoom: 16 }
+];
+function oneCikanlariDoldur() {
+  const kaps = $('one-cikan-yerler');
+  if (!kaps) return;
+  ONE_CIKAN_YERLER.forEach((y, i) => {
+    const b = document.createElement('button');
+    b.className = 'one-cikan-satir';
+    b.type = 'button';
+    const num = document.createElement('span');
+    num.className = 'one-cikan-satir__num';
+    num.textContent = String(i + 1).padStart(2, '0');
+    const govde = document.createElement('span');
+    govde.style.flex = '1';
+    const ad = document.createElement('span');
+    ad.className = 'one-cikan-satir__ad';
+    ad.textContent = y.ad;
+    const acik = document.createElement('span');
+    acik.className = 'one-cikan-satir__aciklama';
+    acik.textContent = y.aciklama;
+    govde.appendChild(ad);
+    govde.appendChild(acik);
+    b.appendChild(num);
+    b.appendChild(govde);
+    b.addEventListener('click', () => {
+      if (!view) return;
+      view.goTo({ target: { latitude: y.lat, longitude: y.lon }, zoom: y.zoom, tilt: 58 }, { duration: 2200 }).catch(() => {});
+      view.popup.open({ location: { type: 'point', longitude: y.lon, latitude: y.lat }, title: y.ad, content: y.aciklama });
+      toastGoster(y.ad + ' konumuna gidiliyor.', 'bilgi');
+    });
+    kaps.appendChild(b);
+  });
+}
 function mesafe(lat1, lon1, lat2, lon2) {
   const R = 6371000, dLat = (lat2 - lat1) * Math.PI / 180, dLon = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
@@ -573,9 +612,10 @@ async function baslat() {
   temayiBaslat();
   katmanListeleriniDoldur();
   tabanKartlariOlustur();
+  oneCikanlariDoldur();
   olaylariBagla();
   await katmanlariYukle();
 }
 if (typeof require !== 'undefined') { baslat(); } else { window.addEventListener('load', baslat); }
 
-Object.assign(window, { aramaYap, aramaSec, konumBul, baglantiPaylas, tabanSec, sayfaGoster, kesifTuruBaslat, kesifTuruDurdur, yakindakiler, olcumBaslat, olcumTemizle, gunesAyarla, temayiUygula });
+Object.assign(window, { aramaYap, aramaSec, konumBul, baglantiPaylas, tabanSec, sayfaGoster, kesifTuruBaslat, kesifTuruDurdur, yakindakiler, olcumBaslat, olcumTemizle, gunesAyarla, temayiUygula, oneCikanlariDoldur });
