@@ -484,7 +484,7 @@ function konumBul() {
       view.graphics.add(new Graphic({
         geometry: { type: 'point', longitude, latitude },
         symbol: { type: 'simple-marker', color: [6, 182, 212], size: 14, outline: { color: [255,255,255,0.9], width: 2 } }
-      }));
+      ));
     });
     toastGoster('Konum bulundu', 'basari');
     urlGuncelleKamera();
