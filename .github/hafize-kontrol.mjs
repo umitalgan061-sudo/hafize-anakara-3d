@@ -1,4 +1,4 @@
-// hafize-kontrol v6: serves this branch and main over http (so sites of several files and modules work), opens
+// hafize-kontrol v7: serves this branch and main over http (so sites of several files and modules work), opens
 // index.html of each in Chromium, uses the page like a person would (types into text boxes and presses Enter, clicks
 // every button) and compares the uncaught errors with main's. Every error is also written as a GitHub annotation,
 // so Hafize's next round knows what is broken. Written by Hafize.
@@ -129,6 +129,36 @@ for (const [name, viewport, least] of [['masaüstü', { width: 1280, height: 800
   else if (rules.ana_oge && typeof least === 'number' && seen.share < least) usability.push(name + ' açılışında ' + rules.ana_oge + ' ekranın yalnızca yüzde ' + seen.share + ' kadarında görünüyor, en az yüzde ' + least + ' olmalı: üstünü kaplayan panel, kart ya da başlık var');
   if (name === 'telefon' && seen.overflow) usability.push('telefonda sayfa yana taşıyor, yatay kaydırma çıkıyor');
 }
+// The owner's acceptance checks (.github/hafize-kontrol.json "kabul": [{"ad", "ifade", "cihaz"}]): each is a JavaScript
+// expression run inside the opened page once it has settled. Anything but true fails the check in the owner's own words.
+const accepted = [];
+async function acceptance(root, viewport, checks) {
+  const site = await serve(root);
+  const phone = viewport.width < 600;
+  const context = await browser.newContext({ viewport, isMobile: phone, hasTouch: phone });
+  const page = await context.newPage();
+  page.on('dialog', (dialog) => dialog.dismiss().catch(() => {}));
+  await page.goto(site.url, { waitUntil: 'load', timeout: 60_000 }).catch(() => {});
+  await page.waitForTimeout(Number(rules.kabul_bekle) || 15000);
+  const out = [];
+  for (const check of checks) {
+    const verdict = await page.evaluate(async (code) => {
+      try { return (await (0, eval)('(async () => (' + code + '))()')) === true; } catch (error) { return 'hata: ' + String((error && error.message) || error).slice(0, 120); }
+    }, check.ifade).catch((error) => 'hata: ' + String(error.message).slice(0, 120));
+    if (verdict !== true) out.push(check.ad + (typeof verdict === 'string' ? ' (' + verdict + ')' : ''));
+  }
+  await context.close();
+  site.close();
+  return out;
+}
+const checks = Array.isArray(rules.kabul) ? rules.kabul.filter((check) => check && check.ad && check.ifade) : [];
+for (const [name, viewport, key] of [['masaüstü', { width: 1280, height: 800 }, 'masaustu'], ['telefon', { width: 390, height: 844 }, 'telefon']]) {
+  const own = checks.filter((check) => !check.cihaz || check.cihaz === key);
+  if (!own.length) continue;
+  const failed = await acceptance(mineRoot, viewport, own);
+  console.log('Kabul', name, JSON.stringify({ denenen: own.length, tutmayan: failed }));
+  for (const line of failed) accepted.push(name + ': ' + line);
+}
 await browser.close();
 const oneLine = (text) => String(text).replace(/[\r\n%]/g, ' ');
 // A one- or two-letter message comes from the test browser's software WebGL, not from the page; it shows up at load or
@@ -143,8 +173,10 @@ for (const error of mine.used) console.log(`::${freshUse.includes(error) ? 'erro
 console.log('Bu dal:', JSON.stringify(mine));
 console.log('main:', JSON.stringify(base));
 for (const line of usability) console.log('::error title=Kullanılabilirlik hatası::' + oneLine(line));
+for (const line of accepted) console.log('::error title=Kabul hatası::' + oneLine(line));
 if (mine.nodes < 3) { console.log('::error title=Açılış hatası::Sayfa boş görünüyor'); process.exit(1); }
 if (usability.length) { console.error('Kullanılabilirlik:', usability.join(' | ')); process.exit(1); }
+if (accepted.length) { console.error('Kabul:', accepted.join(' | ')); process.exit(1); }
 if (fresh.length || freshUse.length) { console.error('Yeni hata:', [...fresh, ...freshUse].join(' | ')); process.exit(1); }
 pushOutput(mineRoot, branchName);
 console.log('Temiz: main\'de olmayan bir hata yok.');

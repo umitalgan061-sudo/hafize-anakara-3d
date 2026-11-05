@@ -1,5 +1,5 @@
 name: Hafize kontrol
-# hafize-kontrol v6: opens the site in a real browser on every Hafize branch and fails when using it shows a
+# hafize-kontrol v7: opens the site in a real browser on every Hafize branch and fails when using it shows a
 # JavaScript error main does not.
 on:
   push:
