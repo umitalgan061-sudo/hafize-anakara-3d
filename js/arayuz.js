@@ -11,6 +11,9 @@ let olcumAktif = null;
 let daylightWidget = null;
 let turAktif = false, turZamanlayici = null, turAdim = 0;
 let sonMerkez = null;
+let cekmeceDurum = 'kapali';
+let katmanHataSayisi = 0;
+>>>>>>>YENİ
 
 const TUR_NOKTALARI = [
   { ad: 'Kızılay', lat: 39.9208, lon: 32.8541, zoom: 15.5 },

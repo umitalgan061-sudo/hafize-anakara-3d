@@ -271,39 +271,107 @@ html, body { height: 100%; width: 100%; overflow: hidden; font-family: var(--fon
 .mobil-sekme-cubugu__btn.aktif { color: var(--renk-vurgu); }
 .mobil-sekme-cubugu__btn svg { width: 22px; height: 22px; stroke: currentColor; }
 
-/* Mobilde sol panel tam ekran sayfa */
+/* Çekmece Tutamacı — yalnızca mobilde görünür */
+.cekmece-tutamac { display: none; }
+
+/* Hızlı Erişim — tek satırlık küçük düğmeler */
+.hizli-satir { display: flex; gap: 8px; }
+.hizli-btn {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  height: 44px;
+  padding: 0 8px;
+  border-radius: var(--yaricap-kucuk);
+  background: var(--renk-bg);
+  border: 1px solid rgba(45, 38, 32, 0.1);
+  color: var(--renk-metin);
+  font: inherit; font-size: 0.78rem; font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--gecis-hizli), background var(--gecis-hizli);
+}
+.hizli-btn:hover { border-color: var(--renk-vurgu); background: var(--renk-yuzey-hover); }
+.hizli-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.25); }
+.hizli-btn.aktif { border-color: var(--renk-vurgu); color: var(--renk-vurgu); }
+.hizli-btn svg { width: 18px; height: 18px; stroke: var(--renk-metin-solgun); flex-shrink: 0; }
+.hizli-btn.aktif svg, .hizli-btn:hover svg { stroke: var(--renk-vurgu); }
+
+/* Mobil: harita üstüne yüzen arama şeridi */
+.yuzan-arama { display: none; }
+
+/* Mobil: harita TAM EKRAN + alttan açılan çekmece (bottom sheet) */
 @media (max-width: 1024px) {
-  #viewDiv { inset: var(--ust-bant-yukseklik) 0 64px 0; }
-  .sol-panel {
-    position: fixed;
-    top: var(--ust-bant-yukseklik);
-    left: 0; right: 0; bottom: 64px;
-    width: 100%;
-    max-height: calc(100vh - var(--ust-bant-yukseklik) - 64px);
-    border-right: none;
-    border-bottom: 1px solid rgba(45, 38, 32, 0.08);
-    z-index: 80;
-    transform: translateX(0);
+  #viewDiv { inset: 0; }
+  .alt-bilgi { display: none; }
+  .ust-bant { height: 56px; padding: 0 16px; }
+  .ust-bant__baslik { font-size: 1rem; }
+  .cekmece-tutamac {
+    display: flex;
+    align-items: center; justify-content: center;
+    height: 28px;
+    flex: 0 0 auto;
+    cursor: pointer;
+    background: var(--renk-bg);
+    border-bottom: 1px solid rgba(45, 38, 32, 0.06);
+    touch-action: none;
   }
-  .sol-panel.gizli { transform: translateX(100%); }
-  .alt-bilgi { left: 0; bottom: 64px; }
-  .mobil-sekme-cubugu { display: flex; }
-  .sol-panel__sekme-listesi { position: sticky; top: 0; z-index: 10; }
+  .cekmece-tutamac__cizik { width: 44px; height: 5px; border-radius: 3px; background: var(--renk-metin-solgun); opacity: 0.6; }
+  .sol-panel {
+    top: auto; left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 85%;
+    border-right: none;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -8px 40px rgba(45, 38, 32, 0.18);
+    z-index: 80;
+    transform: translateY(calc(100% - 72px));
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+  }
+  .sol-panel.yari { transform: translateY(55%); }
+  .sol-panel.acik { transform: translateY(0); }
+  .sol-panel__sekme-listesi { position: sticky; top: 0; z-index: 10; flex: 0 0 auto; }
+  .sol-panel__icerik { padding: 16px; }
   .eylem-izgara { grid-template-columns: 1fr; }
   .taban-kartlari { grid-template-columns: repeat(4, 1fr); }
+  .yuzan-arama {
+    display: flex;
+    position: fixed;
+    top: 64px; left: 12px; right: 12px;
+    z-index: 90;
+  }
+  .yuzan-arama__btn {
+    width: 100%;
+    display: flex; align-items: center; gap: 10px;
+    height: 44px;
+    padding: 0 16px;
+    background: var(--renk-bg-elevated);
+    border: 1px solid rgba(45, 38, 32, 0.12);
+    border-radius: 999px;
+    box-shadow: var(--golge-guclu);
+    color: var(--renk-metin-solgun);
+    font: inherit; font-size: 0.9rem;
+    cursor: pointer;
+    text-align: left;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+  .yuzan-arama__btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .yuzan-arama__btn:active { transform: scale(0.98); }
 }
+>>>YENİ
 
 @media (max-width: 600px) {
-  .ust-bant { padding: 0 16px; }
-  .ust-bant__baslik { font-size: 1rem; }
-  .sol-panel__icerik { padding: 16px; }
   .sayfa-baslik { font-size: 1.25rem; }
   .taban-kartlari { grid-template-columns: repeat(2, 1fr); }
   .taban-kart { padding: 12px 8px; font-size: 0.7rem; }
   .taban-kart svg { width: 22px; height: 22px; }
-  .alt-bilgi { padding: 0 16px; font-size: 0.75rem; }
-  .alt-bilgi__sol { gap: 16px; }
+  .hizli-btn { font-size: 0.7rem; gap: 4px; padding: 0 4px; }
+  .hizli-btn svg { width: 16px; height: 16px; }
+  .yuzan-arama { top: 60px; left: 10px; right: 10px; }
+  .sol-panel { border-radius: 16px 16px 0 0; }
 }
+>>>YENİ
 
 /* ArcGIS Popup Override */
 .esri-popup { --calcite-ui-background: var(--renk-bg-elevated); --calcite-ui-text-color: var(--renk-metin); --calcite-ui-border-color: rgba(45, 38, 32, 0.1); --calcite-ui-brand: var(--renk-vurgu); --calcite-ui-brand-hover: var(--renk-vurgu-koyu); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); }
