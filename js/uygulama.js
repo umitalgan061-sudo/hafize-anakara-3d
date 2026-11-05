@@ -307,11 +307,15 @@ require([
       .finally(() => clearTimeout(zamanlayici))
       .then(veri => {
         aramaSonuclari.innerHTML = "";
+        aramaSonuclari.setAttribute("role", "listbox");
+        aramaSonuclari.setAttribute("aria-label", "Arama sonuçları");
         if (!veri.candidates || veri.candidates.length === 0) {
           const bos = document.createElement("button");
           bos.type = "button";
           bos.className = "arama-sonuc arama-sonuc--bos";
           bos.textContent = "Sonuç yok";
+          bos.setAttribute("role", "option");
+          bos.setAttribute("aria-disabled", "true");
           aramaSonuclari.appendChild(bos);
         } else {
           veri.candidates.forEach(c => {
@@ -319,6 +323,7 @@ require([
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "arama-sonuc";
+            btn.setAttribute("role", "option");
             btn.textContent = adres;
             btn.addEventListener("click", () => {
               const pt = new Point({ longitude: c.location.x, latitude: c.location.y });
@@ -442,6 +447,7 @@ require([
   // ---------- Katman kartı ----------
   const katmanKarti = document.getElementById("katman-karti");
   const btnKatmanlar = document.getElementById("btn-katmanlar");
+  btnKatmanlar.setAttribute("aria-controls", "katman-karti");
   const cbBinalar = document.getElementById("cb-binalar");
   const cbYapilar = document.getElementById("cb-yapilar");
   const cbNumarataj = document.getElementById("cb-numarataj");
@@ -458,8 +464,10 @@ require([
   });
 
   function katmanKartiKapat() {
+    const odakKartta = katmanKarti.contains(document.activeElement);
     katmanKarti.hidden = true;
     btnKatmanlar.setAttribute("aria-expanded", "false");
+    if (odakKartta) btnKatmanlar.focus();
   }
   document.addEventListener("click", e => {
     if (!e.target.closest(".katman-karti") && !e.target.closest("#btn-katmanlar")) {
