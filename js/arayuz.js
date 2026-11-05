@@ -137,7 +137,8 @@ function katmanListeleriniDoldur() {
     [['cb_binalar', '3D Binalar', 'Esri 3D bina katmanı'],
      ['cb_mahalle', 'Mahalle Sınırları', 'ABB adres katmanı'],
      ['cb_yol', 'Yollar / Caddeler', 'ABB adres katmanı'],
-     ['cb_yapi', 'Yapılar', 'ABB adres katmanı'],
+     ['cb_yapi', 'Yapılar', 'ABB adres katmanı — etiketli'],
+     ['cb_numarataj', 'Numarataj (MAKS)', 'Kapı numaraları — etiketli'],
      ['cb_ilce', 'İlçeler', 'ABB adres katmanı']
     ].forEach(([id, b, a]) => adres.appendChild(katmanSatiriOlustur(id, b, a).satir));
   }
@@ -208,9 +209,9 @@ function katmanlariYukle() {
   return new Promise(resolve => {
     require([
       'esri/Map', 'esri/views/SceneView', 'esri/layers/SceneLayer', 'esri/layers/FeatureLayer',
-      'esri/renderers/SimpleRenderer', 'esri/symbols/MeshSymbol3D', 'esri/symbols/edges/SketchEdges3D',
+      'esri/renderers/SimpleRenderer', 'esri/symbols/MeshSymbol3D', 'esri/symbols/edges/SolidEdges3D',
       'esri/PopupTemplate', 'esri/layers/GraphicsLayer'
-    ], (Map, SceneView, SceneLayer, FeatureLayer, SimpleRenderer, MeshSymbol3D, SketchEdges3D, PopupTemplate, GraphicsLayer) => {
+    ], (Map, SceneView, SceneLayer, FeatureLayer, SimpleRenderer, MeshSymbol3D, SolidEdges3D, PopupTemplate, GraphicsLayer) => {
       map = new Map({ basemap: 'hybrid' });
       const adresUrl = 'https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/';
       const egoUrl = 'https://baskentcbs.ankara.bel.tr/server/rest/services/kentrehberi/ego_kent_Rehberi/MapServer/';
@@ -220,13 +221,49 @@ function katmanlariYukle() {
         url: 'https://basemaps3d.arcgis.com/arcgis/rest/services/Esri3D_Buildings_v1/SceneServer',
         title: '3D Binalar', popupEnabled: false
       });
+      // Sahibin isteği: opak buz grisi dolgulu, ince SolidEdges3D kenarlı 3D binalar
       binalar.renderer = new SimpleRenderer({
-        symbol: new MeshSymbol3D({ symbolLayers: [{ type: 'fill', material: { color: [255, 255, 255, 0] }, edges: new SketchEdges3D({ color: [120, 90, 60, 1], size: 1.5 }) }] })
+        symbol: new MeshSymbol3D({
+          symbolLayers: [{
+            type: 'fill',
+            material: { color: [221, 230, 236, 1] },
+            edges: new SolidEdges3D({ color: [120, 135, 150, 0.55], size: 0.5 })
+          }]
+        })
       });
 
       const mahalle = new FeatureLayer({ url: adresUrl + '3', title: 'Mahalle', outFields: ['*'], visible: true, popupTemplate: new PopupTemplate(popupSablon('MAHALLE_ADI', [{ etiket: 'Mahalle', alan: 'MAHALLE_ADI' }, { etiket: 'İlçe', alan: 'ILCE_ADI' }])) });
       const yol = new FeatureLayer({ url: adresUrl + '1', title: 'Yollar', outFields: ['*'], visible: false, popupTemplate: new PopupTemplate(popupSablon('CADDE_ADI', [{ etiket: 'Cadde/Sokak', alan: 'CADDE_ADI' }, { etiket: 'Mahalle', alan: 'MAHALLE_ADI' }])) });
-      const yapi = new FeatureLayer({ url: adresUrl + '2', title: 'Yapılar', outFields: ['*'], visible: false, popupTemplate: new PopupTemplate(popupSablon('YAPI_ADI', [{ etiket: 'Yapı', alan: 'YAPI_ADI' }, { etiket: 'Mahalle', alan: 'MAHALLE_ADI' }])) });
+      // Yapılar: açılışta görünür ve etiketli ($feature.ad; boşsa kat sayısı), gerçek alanlarla popup
+      const yapi = new FeatureLayer({
+        url: adresUrl + '2', title: 'Yapılar', outFields: ['*'], visible: true,
+        labelsVisible: true,
+        labelingInfo: [{
+          labelExpressionInfo: { expression: "IIf(IsEmpty($feature.ad), $feature.zeminustukatsayisi + ' kat', $feature.ad)" },
+          maxScale: 5000,
+          symbol: { type: 'label-3d', symbolLayers: [{ type: 'text', size: 10, material: { color: [45, 38, 32, 1] }, haloColor: [255, 255, 255, 0.9], haloSize: 1.5 }] },
+          labelPlacement: 'above-center'
+        }],
+        popupTemplate: new PopupTemplate({
+          title: '{ad}',
+          content: '<b>Kat sayısı:</b> {zeminustukatsayisi}<br><b>Alt kat:</b> {zeminaltikatsayisi}<br><b>Posta kodu:</b> {postakodu}<br><b>Site/Koop.:</b> {siteveyakooperatifadi}<br><b>Bağımsız bölüm:</b> {bagimsizbolumsayi}<br><b>Yükseklik:</b> {toplamyukseklik} m'
+        })
+      });
+      // Numarataj (MAKS): açılışta görünür ve etiketli ($feature.kapino)
+      const numarataj = new FeatureLayer({
+        url: adresUrl + '0', title: 'Numarataj (MAKS)', outFields: ['*'], visible: true,
+        labelsVisible: true,
+        labelingInfo: [{
+          labelExpressionInfo: { expression: '$feature.kapino' },
+          maxScale: 1500,
+          symbol: { type: 'label-3d', symbolLayers: [{ type: 'text', size: 9, material: { color: [140, 29, 23, 1] }, haloColor: [255, 255, 255, 0.9], haloSize: 1.5 }] },
+          labelPlacement: 'center-center'
+        }],
+        popupTemplate: new PopupTemplate({
+          title: 'No: {kapino}',
+          content: '<b>Kapı No:</b> {kapino}<br><b>Adres:</b> {ad}<br><b>Tip:</b> {tip}'
+        })
+      });
       const ilce = new FeatureLayer({ url: adresUrl + '4', title: 'İlçeler', outFields: ['*'], visible: false, popupTemplate: new PopupTemplate(popupSablon('ILCE_ADI', [{ etiket: 'İlçe', alan: 'ILCE_ADI' }])) });
 
       const durak = new FeatureLayer({ url: egoUrl + '8', title: 'Otobüs Durakları', outFields: ['*'], visible: false });
@@ -235,13 +272,18 @@ function katmanlariYukle() {
       const kultur = new FeatureLayer({ url: abbUrl + '6', title: 'Kültür ve Sanat', outFields: ['*'], visible: false });
       const spor = new FeatureLayer({ url: abbUrl + '7', title: 'Spor Tesisleri', outFields: ['*'], visible: false });
 
-      katmanlar = { cb_binalar: binalar, cb_mahalle: mahalle, cb_yol: yol, cb_yapi: yapi, cb_ilce: ilce };
+      katmanlar = { cb_binalar: binalar, cb_mahalle: mahalle, cb_yol: yol, cb_yapi: yapi, cb_numarataj: numarataj, cb_ilce: ilce };
       kentKatmanlar = { cb_ego_durak: durak, cb_ego_metro: metro, cb_abb_park: park, cb_abb_kultur: kultur, cb_abb_spor: spor };
       map.addMany([...Object.values(katmanlar), ...Object.values(kentKatmanlar)]);
 
+      // Açılış kamerası: URL'de konum yoksa Anıtkabir'e bakan eğik görünüm
+      const p0 = urlOku();
+      const acilisKamera = (!isNaN(p0.lat) && !isNaN(p0.lon))
+        ? { position: { x: p0.lon, y: p0.lat, z: 1600 }, heading: 355, tilt: isNaN(p0.tilt) ? 62 : p0.tilt }
+        : { position: { x: 32.8388, y: 39.9086, z: 1600 }, heading: 355, tilt: 70 };
       view = new SceneView({
         container: 'viewDiv', map: map,
-        camera: { position: { x: 32.8597, y: 39.9334, z: 5200 }, tilt: 62 },
+        camera: acilisKamera,
         ui: { components: ['attribution'] },
         popup: { dockEnabled: true, dockOptions: { buttonEnabled: false, breakpoint: false }, collapseEnabled: false }
       });
