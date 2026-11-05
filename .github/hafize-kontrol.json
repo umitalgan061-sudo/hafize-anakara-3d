@@ -35,6 +35,10 @@
     {
       "ad": "Gereksiz metin olmamalı (sahibi: \"gereksiz metin ve yazıları istemiyorum, uygulamayı bir tek ben kullanacağım\"): tanıtım kartı (hero), sayfa alt başlıkları/açıklama paragrafları, \"Gündem\" kartları ve 60 karakterden uzun açıklama cümleleri ekranda olmaz; yalnız kısa başlık, düğme ve etiket kalır",
       "ifade": "(() => { const shown = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'; const bad = []; for (const sel of ['.hero-editoryal', '.sayfa-alt-baslik', '#gundem-kartlari', '.gundem-listesi']) { const e = document.querySelector(sel); if (e) bad.push(sel + ' sayfada'); } for (const e of document.querySelectorAll('p, .aciklama, small')) { if (e.closest('.esri-popup, .esri-ui, [class*=popup]')) continue; const t = e.textContent.replace(/s+/g, ' ').trim(); if (t.length > 60 && shown(e)) bad.push('uzun metin: ' + t.slice(0, 50)); } return bad.length === 0 || bad.slice(0, 4).join('; '); })()"
+    },
+    {
+      "ad": "Uygulama simgesi Atakule olmalı: ana ekran simgesi (apple-touch-icon, ikon/atakule-180.png) ve manifest.json (Ankara 3D, 192 ve 512 Atakule simgeleri) yüklenir; bu dosyaları silme ya da yerini değiştirme",
+      "ifade": "(async () => { const l = document.querySelector('link[rel=apple-touch-icon]'); if (!l) return 'apple-touch-icon yok'; const r = await fetch(l.href, { cache: 'no-store' }); const m = document.querySelector('link[rel=manifest]'); const mr = m ? await fetch(m.href, { cache: 'no-store' }) : null; const man = mr && mr.ok ? await mr.json().catch(() => null) : null; const ok = r.ok && /png/.test(r.headers.get('content-type') || '') && !!man && man.name === 'Ankara 3D' && (man.icons || []).some((i) => /atakule/.test(i.src)); return ok || ('simge ' + r.status + ' ' + (r.headers.get('content-type') || '') + ', manifest ' + (mr ? mr.status : 'yok') + (man ? ' ad ' + man.name : '')); })()"
     }
   ],
   "canli": "https://ankara-3d-harita.web.app/"
