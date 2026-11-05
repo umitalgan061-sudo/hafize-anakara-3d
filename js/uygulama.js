@@ -335,7 +335,9 @@ require([
       })
       .catch(err => {
         console.error("Arama hatası:", err);
-        gosterBildirim("Arama başarısız oldu");
+        if (err && err.name === "AbortError") gosterBildirim("Arama zaman aşımına uğradı");
+        else if (!navigator.onLine) gosterBildirim("Çevrimdışı — arama yapılamadı");
+        else gosterBildirim("Arama başarısız oldu");
       });
   }
 
