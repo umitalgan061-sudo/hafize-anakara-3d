@@ -303,6 +303,26 @@ require([
       if (q.length >= 2) aramaYap(q);
     } else if (e.key === "Escape") {
       temizleArama();
+      aramaGirdi.focus();
+    } else if (e.key === "ArrowDown") {
+      const ilk = aramaSonuclari.querySelector(".arama-sonuc");
+      if (ilk && !aramaSonuclari.hidden) { e.preventDefault(); ilk.focus(); }
+    }
+  });
+
+  // Sonuç listesinde ok tuşlarıyla gezinme
+  aramaSonuclari.addEventListener("keydown", e => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const dugmeler = Array.from(aramaSonuclari.querySelectorAll(".arama-sonuc"));
+    const aktif = document.activeElement;
+    const sira = dugmeler.indexOf(aktif);
+    e.preventDefault();
+    if (e.key === "ArrowDown") {
+      const sonraki = dugmeler[(sira + 1) % dugmeler.length] || dugmeler[0];
+      if (sonraki) sonraki.focus();
+    } else {
+      const onceki = dugmeler[(sira - 1 + dugmeler.length) % dugmeler.length] || dugmeler[dugmeler.length - 1];
+      if (onceki) onceki.focus(); else aramaGirdi.focus();
     }
   });
 
