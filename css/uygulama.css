@@ -211,7 +211,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: transparent;
+  pointer-events: none;
 }
 .yukleniyor__logo { height: 48px; width: auto; }
 .yukleniyor__halka {
