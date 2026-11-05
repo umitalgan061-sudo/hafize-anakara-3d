@@ -1,4 +1,4 @@
-const AD = "ankara3d-v11";
+const AD = "ankara3d-v13";
 const KARO_AD = "ankara3d-karolar-v11";
 const KARO_SINIRI = 600; // önbellekte tutulacak en çok girdi sayısı (LRU)
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
@@ -104,6 +104,15 @@ self.addEventListener("message", e => {
       alanOnbellekle(d.bbox || {}, d.minZoom || 15, d.maxZoom || 17)
         .then(sayi => { e.ports[0].postMessage({ tip: "ONBELLEKLE_TAMAM", sayi: sayi }); })
         .catch(() => { e.ports[0].postMessage({ tip: "ONBELLEKLE_TAMAM", sayi: 0 }); })
+    );
+  }
+  // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir (kurtarma akışı)
+  if (e.data && e.data.tip === "TAZELE_ALAN" && e.ports && e.ports[0]) {
+    const d = e.data;
+    e.waitUntil(
+      alanOnbellekle(d.bbox || {}, d.minZoom || 15, d.maxZoom || 17)
+        .then(sayi => { e.ports[0].postMessage({ tip: "TAZELE_TAMAM", sayi: sayi }); })
+        .catch(() => { e.ports[0].postMessage({ tip: "TAZELE_TAMAM", sayi: 0 }); })
     );
   }
 });
