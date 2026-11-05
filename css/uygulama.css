@@ -230,6 +230,27 @@ body {
 /* ArcGIS popup görünümü */
 .esri-popup__main-container { border-radius: var(--yaricap) !important; box-shadow: var(--golge) !important; }
 
+/* Durum satırı: yalnızca masaüstünde (720 px üstü), telefonda gizli */
+.durum-satiri {
+  position: fixed;
+  left: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 5;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--metin);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+@media (max-width: 720px) {
+  .durum-satiri { display: none; }
+}
+
 @media (max-width: 600px) {
   .ust-bant { top: 8px; left: 8px; right: 8px; padding: 6px 10px; gap: 8px; }
   .ust-bant__baslik { display: none; }

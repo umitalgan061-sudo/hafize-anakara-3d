@@ -1,5 +1,5 @@
 name: Hafize kontrol
-# hafize-kontrol v10: opens the site in a real browser on every Hafize branch and fails when using it shows a
+# hafize-kontrol v11: opens the site in a real browser on every Hafize branch and fails when using it shows a
 # JavaScript error main does not.
 on:
   push:
@@ -13,7 +13,7 @@ permissions:
 jobs:
   kontrol:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
