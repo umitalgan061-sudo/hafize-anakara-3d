@@ -55,7 +55,7 @@ require([
   const MAKS_URL = "https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer";
 
   const yapiEtiketi = {
-    labelExpressionInfo: { expression: "IIf(IsEmpty($feature.ad), $feature.zeminustukatsayisi + ' kat', $feature.ad)" },
+    labelExpressionInfo: { expression: "$feature.ad" },
     symbol: new LabelSymbol3D({
       symbolLayers: [new TextSymbol3DLayer({
         material: { color: [20, 20, 20, 1] },
