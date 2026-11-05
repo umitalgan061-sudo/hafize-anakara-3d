@@ -56,6 +56,10 @@ require([
 
   function titresim() { if (navigator.vibrate) navigator.vibrate(8); }
 
+  // Azaltılmış hareket tercihi: kamera uçuşları anlık olur
+  const hareketAzalt = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function ucus(hedef, sure) { view.goTo(hedef, { duration: hareketAzalt ? 0 : sure }); }
+
   // ---------- Katmanlar ----------
   // 3B Binalar (Esri SceneServer) — opak buz grisi
   const buildingsUrl = "https://basemaps3d.arcgis.com/arcgis/rest/services/Esri3D_Buildings_v1/SceneServer";
