@@ -1,21 +1,34 @@
-const AD = "ankara3d-v10";
-const KARO_AD = "ankara3d-karolar-v10";
-const KARO_SINIRI = 600; // önbellekte tutulacak en çok karo sayısı (LRU)
+const AD = "ankara3d-v11";
+const KARO_AD = "ankara3d-karolar-v11";
+const KARO_SINIRI = 600; // önbellekte tutulacak en çok girdi sayısı (LRU)
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
 
-// Harita karo isteği mi? (yalnızca .../tile/z/y/x — SceneServer/MapServer veri istekleri değil)
-function karoIstegiMi(url) {
+// Esri/ArcGIS karo ve vektör-taban sunucuları (herkese açık, anahtarsız)
+function arcgisSunucusuMu(url) {
   const host = url.hostname;
-  const alanOk = host === "server.arcgisonline.com" ||
+  return host === "server.arcgisonline.com" ||
     host === "basemaps.arcgis.com" ||
     host === "basemaps3d.arcgis.com" ||
     host.endsWith(".arcgisonline.com") ||
     host.endsWith(".arcgis.com");
-  return alanOk && /\/tile\/\d+\/\d+\/\d+/.test(url.pathname);
 }
 
-// Önbellek sınırını aşınca en eski karoları baştan sil (Cache API keys eklenme sırasındadır)
+// Raster/vektör karo isteği mi? (.../tile/z/y/x — veri sorguları değil)
+function karoIstegiMi(url) {
+  return arcgisSunucusuMu(url) && /\/tile\/\d+\/\d+\/\d+/.test(url.pathname);
+}
+
+// Vektör taban kaynakları (style json, glyph, sprite, pbf) — "Harita" tabanı çevrimdışı için
+function vektorKaynagiMi(url) {
+  if (!arcgisSunucusuMu(url) || karoIstegiMi(url)) return false;
+  if (/\/(query|applyEdits|legend)/i.test(url.pathname)) return false;
+  return /VectorTileServer/i.test(url.pathname) ||
+    /\/(resources|styles|fonts|glyphs|sprites?)(\/|$)/i.test(url.pathname) ||
+    /\.(pbf|woff2?|png|json)$/i.test(url.pathname);
+}
+
+// Önbellek sınırını aşınca en eski girdileri baştan sil (Cache API keys eklenme sırasındadır)
 async function karoSinirla() {
   const c = await caches.open(KARO_AD);
   const keys = await c.keys();
@@ -61,12 +74,23 @@ self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
 
-  // 1) Harita karoları: önce önbellekten, yoksa ağdan çek + önbelleğe yaz + sınırla (çevrimdışı son görünüm)
-  if (karoIstegiMi(url)) {
+  // 1) Harita karoları + vektör taban kaynakları: önbellekten anında sun,
+  //    arka planda ağdan tazele (stale-while-revalidate); ağ yoksa eski önbellek açılır
+  if (karoIstegiMi(url) || vektorKaynagiMi(url)) {
     e.respondWith(
       caches.open(KARO_AD).then(async c => {
         const hit = await c.match(e.request);
-        if (hit) return hit;
+        if (hit) {
+          // Çevrimiçiysem arka planda güncelle; ağ yoksa sessizce geç
+          fetch(e.request)
+            .then(r => {
+              if (r.ok || r.type === "opaque") {
+                c.put(e.request, r.clone()).then(karoSinirla);
+              }
+            })
+            .catch(() => {});
+          return hit;
+        }
         try {
           const resp = await fetch(e.request);
           if (resp.ok || resp.type === "opaque") {
@@ -82,7 +106,10 @@ self.addEventListener("fetch", e => {
     return;
   }
 
-  // 2) Harita/veri servisleri (diğer tüm origin'ler) her zaman ağdan; ağ yoksa sessiz hata
+  // 2) Diğer ArcGIS istekleri (veri sorguları vb.) her zaman ağdan
+  if (arcgisSunucusuMu(url)) return;
+
+  // 3) Uygulama kabuğu (aynı origin)
   if (url.origin !== location.origin) return;
 
   e.respondWith(

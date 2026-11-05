@@ -252,13 +252,17 @@ require([
 
   // Ağ durumu + çevrimdışı rozeti + önbellek kurtarma akışı
   const cevrimoGosterge = document.getElementById("cevrimo-gosterge");
-  function cevrimiGuncelle() {
+  function cevrimiGuncelle(sayi) {
     if (!cevrimoGosterge) return;
     const cevrimdasi = !navigator.onLine;
     cevrimoGosterge.hidden = !cevrimdasi;
-    if (cevrimdasi) cevrimoGosterge.textContent = "Çevrimdışı";
+    if (cevrimdasi) {
+      cevrimoGosterge.textContent = (typeof sayi === "number")
+        ? "Çevrimdışı · " + sayi + " karo"
+        : "Çevrimdışı";
+    }
   }
-  function karoSayisiDuyur() {
+  function karoSayisiAl(geriCagri) {
     if (!("serviceWorker" in navigator)) return;
     const denetci = navigator.serviceWorker.controller;
     if (!denetci) return;
@@ -266,14 +270,18 @@ require([
     kanal.port1.onmessage = ev => {
       if (ev.data && ev.data.tip === "KARO_SAYISI") {
         duyur("Önbellekte " + ev.data.sayi + " harita karosu var");
+        if (typeof geriCagri === "function") geriCagri(ev.data.sayi);
       }
     };
     denetci.postMessage({ tip: "KARO_SAYISI" }, [kanal.port2]);
   }
   cevrimiGuncelle();
+  if (!navigator.onLine) {
+    // Sayfa zaten çevrimdışı açıldıysa rozet hemen karo sayısıyla görünsün
+    navigator.serviceWorker.ready.then(() => karoSayisiAl(sayi => cevrimiGuncelle(sayi)));
+  }
   window.addEventListener("offline", () => {
-    cevrimiGuncelle();
-    karoSayisiDuyur();
+    karoSayisiAl(sayi => cevrimiGuncelle(sayi));
     gosterBildirim("Çevrimdışı — önbellekten çalışıyor");
     duyur("Çevrimdışı oldunuz, son görüntülenen alan önbellekten açılır");
   });
