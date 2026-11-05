@@ -36,5 +36,6 @@
       "ad": "Gereksiz metin olmamalı (sahibi: \"gereksiz metin ve yazıları istemiyorum, uygulamayı bir tek ben kullanacağım\"): tanıtım kartı (hero), sayfa alt başlıkları/açıklama paragrafları, \"Gündem\" kartları ve 60 karakterden uzun açıklama cümleleri ekranda olmaz; yalnız kısa başlık, düğme ve etiket kalır",
       "ifade": "(() => { const shown = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'; const bad = []; for (const sel of ['.hero-editoryal', '.sayfa-alt-baslik', '#gundem-kartlari', '.gundem-listesi']) { const e = document.querySelector(sel); if (e) bad.push(sel + ' sayfada'); } for (const e of document.querySelectorAll('p, .aciklama, small')) { if (e.closest('.esri-popup, .esri-ui, [class*=popup]')) continue; const t = e.textContent.replace(/s+/g, ' ').trim(); if (t.length > 60 && shown(e)) bad.push('uzun metin: ' + t.slice(0, 50)); } return bad.length === 0 || bad.slice(0, 4).join('; '); })()"
     }
-  ]
+  ],
+  "canli": "https://ankara-3d-harita.web.app/"
 }

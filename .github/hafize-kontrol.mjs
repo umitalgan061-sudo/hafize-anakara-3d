@@ -1,4 +1,4 @@
-// hafize-kontrol v8: serves this branch and main over http (so sites of several files and modules work), opens
+// hafize-kontrol v9: serves this branch and main over http (so sites of several files and modules work), opens
 // index.html of each in Chromium, uses the page like a person would (types into text boxes and presses Enter, clicks
 // every button) and compares the uncaught errors with main's. Every error is also written as a GitHub annotation,
 // so Hafize's next round knows what is broken. Written by Hafize.
@@ -42,15 +42,21 @@ function pushOutput(dir, branch) {
   console.log('Derlenmiş site gönderildi: yayin/' + branch);
 }
 const branchName = process.env.GITHUB_REF_NAME || 'yerel';
+// Live audit (on schedule or when Hafize starts it after a release): the published site itself is used like a person
+// would, measured and held to the owner's acceptance checks. Its findings open the next round.
+const live = /^(schedule|workflow_dispatch)$/.test(process.env.GITHUB_EVENT_NAME || '') && /^https?:\/\//.test(rules.canli || '');
+if (live) console.log('Canlı denetim: ' + rules.canli);
 let mineRoot = '.';
-try { mineRoot = siteRoot('.'); } catch (error) { console.log('::error title=Derleme hatası::' + String(error.message || error).split('\n')[0].slice(0, 300)); process.exit(1); }
-if (branchName === 'main') { pushOutput(mineRoot, 'main'); process.exit(0); }
+if (live) mineRoot = rules.canli; else try { mineRoot = siteRoot('.'); } catch (error) { console.log('::error title=Derleme hatası::' + String(error.message || error).split('\n')[0].slice(0, 300)); process.exit(1); }
+if (!live && branchName === 'main') { pushOutput(mineRoot, 'main'); process.exit(0); }
 let mainRoot = '.kontrol/main';
+if (live) hasMain = false;
 if (hasMain) { try { mainRoot = siteRoot('.kontrol/main'); } catch { hasMain = false; } }
 const playwright = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const chromium = playwright.chromium || playwright.default.chromium;
 
 function serve(root) {
+  if (/^https?:\/\//.test(root)) return Promise.resolve({ url: root, close: () => {} });
   const base = resolve(root);
   const server = createServer((request, response) => {
     const path = normalize(decodeURIComponent(new URL(request.url, 'http://x').pathname)).replace(/^([/\\])+/, '');
@@ -186,5 +192,5 @@ if (mine.nodes < 3) { console.log('::error title=Açılış hatası::Sayfa boş 
 if (usability.length) { console.error('Kullanılabilirlik:', usability.join(' | ')); process.exit(1); }
 if (accepted.length) { console.error('Kabul:', accepted.join(' | ')); process.exit(1); }
 if (fresh.length || freshUse.length) { console.error('Yeni hata:', [...fresh, ...freshUse].join(' | ')); process.exit(1); }
-pushOutput(mineRoot, branchName);
+if (!live) pushOutput(mineRoot, branchName);
 console.log('Temiz: main\'de olmayan bir hata yok.');
