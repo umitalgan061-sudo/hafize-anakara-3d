@@ -459,14 +459,14 @@ require([
     }
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
     const dugmeler = Array.from(aramaSonuclari.querySelectorAll(".arama-sonuc"));
-    const aktif = document.activeElement;
-    const sira = dugmeler.indexOf(aktif);
+    const aktifIndeks = dugmeler.indexOf(document.activeElement);
     e.preventDefault();
+    if (dugmeler.length === 0) return;
     if (e.key === "ArrowDown") {
-      const sonraki = dugmeler[(sira + 1) % dugmeler.length] || dugmeler[0];
+      const sonraki = dugmeler[(aktifIndeks + 1) % dugmeler.length];
       if (sonraki) sonraki.focus();
     } else {
-      const onceki = dugmeler[(sira - 1 + dugmeler.length) % dugmeler.length] || dugmeler[dugmeler.length - 1];
+      const onceki = dugmeler[(aktifIndeks - 1 + dugmeler.length) % dugmeler.length];
       if (onceki) onceki.focus(); else aramaGirdi.focus();
     }
   });
