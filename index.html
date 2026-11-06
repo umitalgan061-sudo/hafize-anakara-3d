@@ -10,6 +10,13 @@
   <meta name="apple-mobile-web-app-title" content="Ankara 3D" />
   <meta name="description" content="Ankara 3D" />
   <title>Ankara 3D</title>
+  <!-- İlk açılış performansı: ana servislerin DNS/TLS el sıkışması erkenden başlasın -->
+  <link rel="preconnect" href="https://js.arcgis.com" crossorigin />
+  <link rel="preconnect" href="https://geocode.arcgis.com" crossorigin />
+  <link rel="preconnect" href="https://baskentcbs.ankara.bel.tr" crossorigin />
+  <link rel="dns-prefetch" href="https://basemaps3d.arcgis.com" />
+  <link rel="dns-prefetch" href="https://server.arcgisonline.com" />
+  <link rel="dns-prefetch" href="https://basemaps.arcgis.com" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 100'%3E%3Cg fill='%23b3261e'%3E%3Crect x='19' y='1' width='2' height='9'/%3E%3Cpath d='M15 11h10l-1.5 5h-7z'/%3E%3Cpath fill-rule='evenodd' d='M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z'/%3E%3Cpath d='M16 34h8l2 62H14z'/%3E%3Crect x='12' y='96' width='16' height='3'/%3E%3C/g%3E%3C/svg%3E" />
   <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" />
   <script src="https://js.arcgis.com/4.32/"></script>
@@ -20,7 +27,7 @@
 <body>
   <a class="atla-link" href="#viewDiv">Haritaya geç</a>
   <div id="viewDiv" tabindex="-1" aria-label="Ankara 3D harita görünümü"></div>
-  <div id="yukleniyor" class="yukleniyor" role="status">
+  <div id="yukleniyor" class="yukleniyor" role="progressbar" aria-label="Harita yükleniyor" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0">
     <span class="gorsel-gizli">Harita yükleniyor</span>
     <svg viewBox="0 0 40 100" class="yukleniyor__logo" aria-hidden="true" focusable="false"><g fill="#b3261e"><rect x="19" y="1" width="2" height="9"/><path d="M15 11h10l-1.5 5h-7z"/><path fill-rule="evenodd" d="M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z"/><path d="M16 34h8l2 62H14z"/><rect x="12" y="96" width="16" height="3"/></g></svg>
     <span class="yukleniyor__halka"></span>
@@ -32,7 +39,7 @@
       <span class="ust-bant__baslik">Ankara 3D</span>
     </a>
     <div class="arama-kutu">
-      <input type="search" id="arama-girdi" placeholder="Adres ara" aria-label="Adres ara" autocomplete="off" enterkeyhint="search" />
+      <input type="search" id="arama-girdi" placeholder="Adres ara" aria-label="Adres ara" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" />
       <button type="button" id="arama-temizle" aria-label="Aramayı temizle" title="Temizle" hidden>✕</button>
       <div id="arama-sonuclari" class="arama-sonuclari" role="listbox" aria-label="Arama sonuçları" hidden></div>
     </div>

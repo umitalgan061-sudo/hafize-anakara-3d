@@ -233,17 +233,27 @@ require([
     const sure = Math.round(performance.now() - acilisBaslangic);
     if (sure > 2000) console.warn("Açılış hedefi aşıldı: " + sure + " ms");
     else console.log("Açılış süresi: " + sure + " ms");
+    const y = document.getElementById("yukleniyor");
+    if (y) y.setAttribute("aria-valuenow", "4");
   });
 
-  // Yükleniyor göstergesi gerçek ilerlemeyle bağlanır (görsel sade kalır, ekran okuyucu duyurusu güncellenir)
-  const yukluDuyuru = document.querySelector("#yukleniyor .gorsel-gizli");
+  // Yükleniyor göstergesi gerçek ilerlemeyle bağlanır: görsel sade kalır;
+  // ekran okuyucuya hem metin duyurusu hem progressbar değeri gider (WCAG 2.1 AA)
+  const yukluEl = document.getElementById("yukleniyor");
+  const yukluDuyuru = yukluEl ? yukluEl.querySelector(".gorsel-gizli") : null;
   let yuklenenSayisi = 0;
+  const yuklemeBaslangic = performance.now();
+  function yuklemeIlerleme(ad) {
+    yuklenenSayisi++;
+    if (yukluEl) yukluEl.setAttribute("aria-valuenow", String(yuklenenSayisi));
+    if (yukluDuyuru) yukluDuyuru.textContent = "Yükleniyor — " + ad + " (" + yuklenenSayisi + "/3)";
+    duyur(ad + " yüklendi");
+  }
   [[numaratajLayer, "Numarataj"], [yapilarLayer, "Yapılar"], [binalarLayer, "3B binalar"]].forEach(([lyr, ad]) => {
     reactiveUtils.watch(() => lyr.loadStatus, s => {
       if (s === "loaded") {
-        yuklenenSayisi++;
-        if (yukluDuyuru) yukluDuyuru.textContent = "Yükleniyor — " + ad + " (" + yuklenenSayisi + "/3)";
-        duyur(ad + " yüklendi");
+        yuklemeIlerleme(ad);
+        console.log("Katman yükleme süresi: " + Math.round(performance.now() - yuklemeBaslangic) + " ms (" + ad + ")");
       }
     });
   });
