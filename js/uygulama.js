@@ -26,9 +26,20 @@ require([
 
   // prefers-reduced-motion (WCAG 2.1 AA): tüm kamera uçuş süreleri 0 yapılır;
   // CSS animasyonları zaten kapalı, kamera hareketi de anlık olur
-  const reducedMotion = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  // Bayrak canlı okunur: reduced-motion tercihi sayfa açıkken değişirse (index.html'deki
-  // __azaltilmisHareket change dinleyicisi güncellenir) kamera uçuş süreleri de anında 0 olur
+  // Bayrak canlı okunur: reduced-motion tercihi sayfa açıkken değişirse kamera uçuş
+  // süreleri de anında 0 olur. Burada da change dinleyicisi eklenir: hem yerel bayrak
+  // hem window.__azaltilmisHareket anında güncellenir; TÜM view.goTo süreleri tercihin
+  // değiştiği anda 0 olur (WCAG 2.1 AA — eksiksiz doğrulama).
+  let reducedMotion = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  try {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const reducedMotionDegisti = e => {
+      reducedMotion = !!e.matches;
+      window.__azaltilmisHareket = !!e.matches;
+    };
+    if (mq.addEventListener) mq.addEventListener("change", reducedMotionDegisti);
+    else if (mq.addListener) mq.addListener(reducedMotionDegisti);
+  } catch (_) {}
   function ucusSuresi(ms) { return (window.__azaltilmisHareket || reducedMotion) ? 0 : ms; }
 
   // ---------- Yardımcılar ----------
@@ -711,22 +722,48 @@ require([
   });
 
   aramaGirdi.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      clearTimeout(aramaTimer);
-      const q = aramaGirdi.value.trim();
-      if (q.length >= 2) aramaYap(q);
-    } else if (e.key === "Escape") {
-      temizleArama();
-      aramaGirdi.focus();
-    } else if (e.key === "ArrowDown") {
-      const ilk = aramaSonuclari.querySelector(".arama-sonuc");
-      if (ilk && !aramaSonuclari.hidden) { e.preventDefault(); ilk.focus(); }
-    }
+    try {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        clearTimeout(aramaTimer);
+        // Liste açıkken aria-activedescendant ile işaretli seçenek varsa onu seç
+        // (combobox akışı); yoksa yazılan sorguyla yeni arama yap
+        const aktifId = aramaGirdi.getAttribute("aria-activedescendant");
+        const isaretli = aktifId ? document.getElementById(aktifId) : null;
+        if (isaretli && !aramaSonuclari.hidden && isaretli.getAttribute("aria-disabled") !== "true") {
+          isaretli.click();
+          return;
+        }
+        const q = aramaGirdi.value.trim();
+        if (q.length >= 2) aramaYap(q);
+      } else if (e.key === "Escape") {
+        temizleArama();
+        aramaGirdi.focus();
+      } else if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Home" || e.key === "End") {
+        // Combobox akışı: ok tuşları/Home/End liste açıkken ilk-son seçeneklere gider
+        if (aramaSonuclari.hidden) return;
+        const dugmeler = Array.from(aramaSonuclari.querySelectorAll(".arama-sonuc"));
+        if (!dugmeler.length) return;
+        e.preventDefault();
+        let hedef;
+        if (e.key === "ArrowUp" || e.key === "End") hedef = dugmeler[dugmeler.length - 1];
+        else hedef = dugmeler[0];
+        hedef.focus();
+      }
+    } catch (_) {}
   });
 
   // Sonuç listesinde ok tuşlarıyla gezinme
   aramaSonuclari.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      // Odaktaki seçenek Enter ile seçilir (listbox/option ekran okuyucu akışı)
+      const aktif = document.activeElement;
+      if (aktif && aktif.classList && aktif.classList.contains("arama-sonuc") && aktif.getAttribute("aria-disabled") !== "true") {
+        e.preventDefault();
+        aktif.click();
+      }
+      return;
+    }
     if (e.key === "Escape") {
       aramaSonuclari.hidden = true;
       aramaGirdi.setAttribute("aria-expanded", "false");
@@ -843,6 +880,7 @@ require([
     const odakKartta = katmanKarti.contains(document.activeElement);
     katmanKarti.hidden = true;
     btnKatmanlar.setAttribute("aria-expanded", "false");
+    duyur("Katmanlar paneli kapandı");
     if (odakKartta) btnKatmanlar.focus();
   }
   document.addEventListener("click", e => {
@@ -961,7 +999,8 @@ require([
       const gonder = () => {
       const kanal = new MessageChannel();
       kanal.port1.onmessage = ev => {
-        if (ev.data && ev.data.tip === "ONBELLEKLE_TAMAM") {
+        // Başarısız önbellekleme (sayi 0) bayrağı kalıcı kurmasın: sonraki açılışta yeniden dener
+        if (ev.data && ev.data.tip === "ONBELLEKLE_TAMAM" && ev.data.sayi > 0) {
           try { localStorage.setItem("ankara3d-onbellek", "1"); } catch (_) {}
           duyur("Açılış alanı çevrimdışı için önbelleğe alındı, " + ev.data.sayi + " karo");
         }
@@ -1108,6 +1147,7 @@ require([
   function binaKartiKapat(odakDon) {
     if (!binaKarti || binaKarti.hidden) return;
     binaKarti.hidden = true;
+    duyur("Bilgi kartı kapandı");
     // Kart kapanınca bildirim üstte-binme sınıfını bırakır, normal konuma döner
     const bildirimEl = document.getElementById("bildirim");
     if (bildirimEl) bildirimEl.classList.remove("bildirim--bina-karti-ustunde");
@@ -1281,6 +1321,49 @@ require([
       binaKartiKapat(true);
     }
   });
+
+  // ---------- Atla bağlantısı (skip-link): odak her zaman haritaya (viewDiv) taşınır ----------
+  const atlaLink = document.querySelector(".atla-link");
+  if (atlaLink) {
+    atlaLink.addEventListener("click", e => {
+      const vd = document.getElementById("viewDiv");
+      if (!vd) return;
+      e.preventDefault();
+      vd.focus();
+      duyur("Harita görünümüne geçildi");
+    });
+  }
+
+  // ---------- 390x844 yatay taşma denetimi (yalnızca log — düzeltme CSS ajanında) ----------
+  function yatayTasmaKontrol() {
+    try {
+      const doc = document.documentElement;
+      if (doc && Number.isFinite(doc.scrollWidth) && doc.scrollWidth > doc.clientWidth + 1) {
+        console.warn("Yatay taşma: html scrollWidth=" + doc.scrollWidth + " > clientWidth=" + doc.clientWidth + " (CSS ajanına bırakıldı)");
+      }
+      const tumu = document.querySelectorAll("body *");
+      const sinir = Math.min(tumu.length, 400);
+      for (let i = 0; i < sinir; i++) {
+        const el = tumu[i];
+        try {
+          if (el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1) {
+            const stil = getComputedStyle(el);
+            if (stil.overflowX !== "auto" && stil.overflowX !== "scroll") {
+              const cls = (typeof el.className === "string" && el.className) ? "." + el.className.trim().split(/\\s+/)[0] : "";
+              console.warn("Yatay taşma üreten eleman: " + el.tagName.toLowerCase() + cls + " (CSS ajanına bırakıldı)");
+            }
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+  let tasmaTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(tasmaTimer);
+    tasmaTimer = setTimeout(yatayTasmaKontrol, 400);
+  });
+  if ("requestIdleCallback" in window) requestIdleCallback(yatayTasmaKontrol, { timeout: 6000 });
+  else setTimeout(yatayTasmaKontrol, 2000);
 
   // (e) Sözleşme global'lerinin varlık garantisi: biri eksikse tek satır warn;
   // konsol error kalmaz (hata-free kuralı korunur)

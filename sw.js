@@ -1,5 +1,9 @@
-const AD = "ankara3d-v28";
-const KARO_AD = "ankara3d-karolar-v25";
+// Sürüm senkronu: her dağıtımda İKİSİ BİRLİKTE bir üst sürüme çıkarılır;
+// activate'te eski AD/KARO_AD dışındaki tüm önbellekler temizlenir.
+const AD = "ankara3d-v29";
+const KARO_AD = "ankara3d-karolar-v26";
+// Vektör taban kaynakları AYRI önbellekte tutulur: karo LRU sınırı bunları asla silmez — "Harita" tabanı çevrimdışı her zaman açılır
+const VEKTOR_AD = "ankara3d-vektor-v1";
 const KARO_SINIRI = 600; // önbellekte tutulacak en çok girdi sayısı (LRU)
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
@@ -188,7 +192,7 @@ self.addEventListener("install", e => {
     // Vektör taban kaynakları AYRI önbelleğe tek tek ön-yüklenir (karo LRU sınırından
     // bağımsız): biri alınamazsa kurulum bozulmaz, "Harita" tabanı çevrimdışı açılışta
     // eksik kaynakları fetch dalındaki SWR ile karşılanır
-    .then(() => caches.open(KARO_AD).then(async c => {
+    .then(() => caches.open(VEKTOR_AD).then(async c => {
       await Promise.all(VEKTOR_ON.map(u =>
         fetch(u).then(r => { if (r.ok || r.type === "opaque") return c.put(u, r); }).catch(() => {})
       ));
@@ -202,7 +206,7 @@ self.addEventListener("install", e => {
 self.addEventListener("activate", e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== AD && k !== KARO_AD).map(k => caches.delete(k).catch(() => {}))))
+      .then(keys => Promise.all(keys.filter(k => k !== AD && k !== KARO_AD && k !== VEKTOR_AD).map(k => caches.delete(k).catch(() => {}))))
       .then(() => Promise.all([caches.open(AD), caches.open(KARO_AD)]))
       .then(([c]) => c.match("index.html").then(hit => {
         // Navigasyon kurtarma garantisi: index.html önbellekte yoksa yeniden koy
@@ -281,8 +285,10 @@ self.addEventListener("fetch", e => {
     //    - karo: boş 504 gövdesi, vektör kaynağı: boş içerik (istemci çökmez)
     if (karoIstegiMi(url) || vektorKaynagiMi(url)) {
       const vektor = vektorKaynagiMi(url);
+      // Vektör kaynakları VEKTOR_AD'de, karolar KARO_AD'de: LRU sınırı vektörleri asla silmez
+      const cacheAd = vektor ? VEKTOR_AD : KARO_AD;
       e.respondWith(
-        caches.open(KARO_AD).then(async c => {
+        caches.open(cacheAd).then(async c => {
           let hit = null;
           try { hit = await c.match(e.request, { ignoreSearch: true }); } catch (_) {}
           if (hit) {
@@ -290,7 +296,7 @@ self.addEventListener("fetch", e => {
             fetch(e.request)
               .then(r => {
                 if (r.ok || r.type === "opaque") {
-                  karoYaz(c, e.request, r.clone()).then(karoSinirla).catch(() => {});
+                  karoYaz(c, e.request, r.clone()).then(() => { if (!vektor) return karoSinirla(); }).catch(() => {});
                 }
               })
               .catch(() => {});
@@ -301,7 +307,7 @@ self.addEventListener("fetch", e => {
             if (resp.ok || resp.type === "opaque") {
               try {
                 await karoYaz(c, e.request, resp.clone());
-                karoSinirla().catch(() => {});
+                if (!vektor) karoSinirla().catch(() => {});
               } catch (_) {}
             }
             return resp;
@@ -334,9 +340,15 @@ self.addEventListener("fetch", e => {
         // Navigasyon: önce önbellekten aç (uçak modunda açılış kurtarma),
         // mümkünse arka planda ağı önbelleğe güncelle; önbellek de boşsa index.html kurtarma
         if (e.request.mode === "navigate") {
+          // Uçak modunda açılış — gerçek stale-while-revalidate: önbellekte varsa
+          // anında sunulur; arka planda ağ varsa hem gerçek navigasyon isteği hem
+          // index.html önbelleği tazelenir (eski sürüm kalıntısı kalmaz)
           fetch(e.request)
             .then(resp => {
-              if (resp.ok) caches.open(AD).then(c => c.put("index.html", resp)).catch(() => {});
+              if (resp.ok) caches.open(AD).then(c => {
+                c.put(e.request, resp.clone());
+                return c.put("index.html", resp);
+              }).catch(() => {});
             })
             .catch(() => {});
           if (hit) return hit;
