@@ -173,7 +173,6 @@ require([
         outFields: ["ad"],
         labelingInfo: [{
           labelExpressionInfo: { expression: "$feature.ad" },
-          labelPlacement: "center-center",
           symbol: new LabelSymbol3D({
             symbolLayers: [new TextSymbol3DLayer({
               material: { color: [20, 20, 20, 1] },
@@ -417,16 +416,19 @@ require([
     }).catch(() => {});
   }
   window.addEventListener("offline", () => {
+    cevrimiGuncelle();
     karoSayisiAl(sayi => cevrimiGuncelle(sayi));
-    gosterBildirim("Çevrimdışı — önbellekten çalışıyor");
+    gosterBildirim("Çevrimdışı — önbellekten çalışıyor", katmanlariYenidenDene);
     duyur("Çevrimdışı oldunuz, son görüntülenen alan önbellekten açılır");
   });
   window.addEventListener("online", () => {
     cevrimiGuncelle();
+    // Rozet/karo sayısı tazelensin (çevrimiçi dönüşünde son durum görünsün)
+    karoSayisiAl(sayi => cevrimiGuncelle(sayi));
     gosterBildirim("Çevrimiçi");
     duyur("Çevrimiçi oldunuz, eksik katmanlar yeniden deneniyor");
     katmanlariYenidenDene();
-    // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir
+    // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir (kurtarma akışı)
     guncelAlaniTazele();
   });
 
@@ -441,8 +443,12 @@ require([
     // Portlu gönderilir; sw.js yanıtını (GUNCEL_TAMAM) yalnızca port varsa yollar
     const kanal = new MessageChannel();
     kanal.port1.onmessage = ev => {
-      if (ev.data && ev.data.tip === "GUNCEL_TAMAM") {
+      if (!ev.data) return;
+      if (ev.data.tip === "GUNCEL_TAMAM") {
         console.log("GUNCEL_TAMAM: " + (ev.data.sayi || 0) + " eksik karo önbelleğe alındı");
+        if (ev.data.sayi > 0) duyur(ev.data.sayi + " karo çevrimdışı için önbelleğe alındı");
+      } else if (ev.data.tip === "BILINMEYEN") {
+        console.warn("SW bilinmeyen mesaj yanıtı (ele alındı)");
       }
     };
     denetci.postMessage({
@@ -460,8 +466,14 @@ require([
     const z = Math.max(1, Math.round(view.zoom || 15));
     const kanal = new MessageChannel();
     kanal.port1.onmessage = ev => {
-      if (ev.data && ev.data.tip === "TAZELE_TAMAM" && ev.data.sayi > 0) {
+      if (!ev.data) return;
+      if (ev.data.tip === "TAZELE_TAMAM" && ev.data.sayi > 0) {
         duyur("Görünür alan tazelendi, " + ev.data.sayi + " karo güncellendi");
+        console.log("TAZELE_TAMAM: " + ev.data.sayi + " karo ağdan güncellendi");
+      } else if (ev.data.tip === "TAZELE_TAMAM") {
+        console.log("TAZELE_TAMAM: görünür alan zaten güncel");
+      } else if (ev.data.tip === "BILINMEYEN") {
+        console.warn("SW bilinmeyen mesaj yanıtı (ele alındı)");
       }
     };
     denetci.postMessage({
@@ -584,9 +596,9 @@ require([
       })
       .catch(err => {
         console.warn("Arama hatası (ele alındı):", err);
-        if (err && err.name === "AbortError") gosterBildirim("Arama zaman aşımına uğradı");
-        else if (!navigator.onLine) gosterBildirim("Çevrimdışı — arama yapılamadı");
-        else gosterBildirim("Arama başarısız oldu");
+        if (err && err.name === "AbortError") gosterBildirim("Arama zaman aşımına uğradı", () => aramaYap(sorgu));
+        else if (!navigator.onLine) gosterBildirim("Çevrimdışı — arama yapılamadı", () => aramaYap(sorgu));
+        else gosterBildirim("Arama başarısız oldu", () => aramaYap(sorgu));
       });
   }
 

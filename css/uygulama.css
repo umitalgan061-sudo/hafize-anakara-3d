@@ -312,7 +312,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   white-space: nowrap;
 }
 .bildirim button:focus-visible { outline: 3px solid #ffb4ab; outline-offset: 1px; border-radius: 4px; }
-/* Katman kartı açıkken bildirim kartın üstünde dursun: hiçbir şey üst üste binmez */\n.bildirim--kart-ustunde { bottom: calc(84px + 320px + env(safe-area-inset-bottom)); }
+/* Katman kartı açıkken bildirim kartın üstünde dursun: hiçbir şey üst üste binmez */
+.bildirim--kart-ustunde { bottom: calc(84px + 320px + env(safe-area-inset-bottom)); }
 
 /* Yükleniyor göstergesi: açılışta anında görünür, haritayı kapatmaz (tıklanmaz, yarı saydam) */
 .yukleniyor {

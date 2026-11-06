@@ -88,6 +88,17 @@ function portYanitla(port, mesaj) {
   } catch (_) {}
 }
 
+// Boş gövdeli yanıt: vektör kaynağı önbellekte yokken ve ağ yokken 504 yerine
+// istemcinin çökmesini önleyen zararsız boş içerik döner
+function bosYanit(url) {
+  let ct = "application/octet-stream";
+  if (/\.json$/i.test(url.pathname)) ct = "application/json";
+  else if (/\.pbf$/i.test(url.pathname)) ct = "application/x-protobuf";
+  else if (/\.woff2?$/i.test(url.pathname)) ct = "font/woff2";
+  else if (/\.png$/i.test(url.pathname)) ct = "image/png";
+  return new Response("", { status: 200, headers: { "Content-Type": ct } });
+}
+
 self.addEventListener("install", e => {
   e.waitUntil(
     caches.open(AD)
@@ -113,7 +124,11 @@ self.addEventListener("message", e => {
   const port = e.ports && e.ports[0];
   const veri = e.data || {};
 
-  if (veri === "SKIP_WAITING" || veri.tip === "SKIP_WAITING") { self.skipWaiting(); return; }
+  if (veri === "SKIP_WAITING" || veri.tip === "SKIP_WAITING") {
+    portYanitla(port, { tip: "SKIP_WAITING_TAMAM" });
+    e.waitUntil(self.skipWaiting());
+    return;
+  }
 
   if (veri.tip === "KARO_SAYISI") {
     e.waitUntil(
@@ -136,7 +151,8 @@ self.addEventListener("message", e => {
     return;
   }
 
-  // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir (kurtarma akışı)
+  // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir (kurtarma akışı);
+  // ağ yoksa sessizce geçilir, tek yanıt yine de garanti edilir
   if (veri.tip === "TAZELE_ALAN") {
     e.waitUntil(
       alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false)
@@ -167,8 +183,10 @@ self.addEventListener("fetch", e => {
 
   // 1) Harita karoları + vektör taban kaynakları: önce önbellekten anında sun,
   //    varsa arka planda ağdan tazele (stale-while-revalidate); önbellekte yoksa
-  //    ağdan çek, ağ yoksa/bozuksa önbelleği son kez dene, yoksa 504
+  //    ağdan çek, ağ yoksa/bozuksa son önbellek denemesi, yoksa:
+  //    - karo: boş 504 gövdesi, vektör kaynağı: boş içerik (istemci çökmez)
   if (karoIstegiMi(url) || vektorKaynagiMi(url)) {
+    const vektor = vektorKaynagiMi(url);
     e.respondWith(
       caches.open(KARO_AD).then(async c => {
         const hit = await c.match(e.request, { ignoreSearch: true });
@@ -191,9 +209,11 @@ self.addEventListener("fetch", e => {
           }
           return resp;
         } catch (err) {
-          // Ağ yokken 504 yerine önbellek dönüşünü son kez dene
+          // Ağ yokken önbellek dönüşünü son kez dene
           const tekrar = await c.match(e.request, { ignoreSearch: true });
           if (tekrar) return tekrar;
+          // Çevrimdışı taban geçişinde eksik vektör kaynağı: 504 yerine boş içerik
+          if (vektor) return bosYanit(url);
           return new Response("", { status: 504 });
         }
       })
@@ -209,12 +229,13 @@ self.addEventListener("fetch", e => {
 
   e.respondWith(
     caches.match(e.request, { ignoreSearch: e.request.mode === "navigate" }).then(hit => {
-      // Navigasyon: önce önbellekten aç (uçak modunda açılış kurtarma), arka planda ağı önbelleğe güncelle
+      // Navigasyon: önce önbellekten aç (uçak modunda açılış kurtarma),
+      // mümkünse arka planda ağı önbelleğe güncelle; önbellek de boşsa index.html kurtarma
       if (e.request.mode === "navigate") {
         fetch(e.request)
           .then(resp => { if (resp.ok) caches.open(AD).then(c => c.put("index.html", resp)).catch(() => {}); })
           .catch(() => {});
-        return hit || fetch(e.request).catch(() => caches.match("index.html"));
+        return hit || fetch(e.request).catch(() => caches.match("index.html").then(f => f || bosYanit(url)));
       }
       if (hit) return hit;
       return fetch(e.request).then(resp => {
