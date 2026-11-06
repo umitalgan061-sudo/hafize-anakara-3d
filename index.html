@@ -74,7 +74,7 @@
       <span class="ust-bant__baslik">Ankara 3D</span>
     </a>
     <div class="arama-kutu" role="search">
-      <input type="search" id="arama-girdi" placeholder="Adres ara" aria-label="Adres ara" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" role="combobox" aria-expanded="false" aria-controls="arama-sonuclari" aria-autocomplete="list" />
+      <input type="search" id="arama-girdi" placeholder="Adres ara" aria-label="Adres ara" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="arama-sonuclari" aria-autocomplete="list" />
       <button type="button" id="arama-temizle" aria-label="Aramayı temizle" title="Temizle" hidden>✕</button>
       <div id="arama-sonuclari" class="arama-sonuclari" role="listbox" aria-label="Arama sonuçları" hidden></div>
     </div>
@@ -82,7 +82,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
       <span>Kur</span>
     </button>
-    <span id="cevrimo-gosterge" class="cevrimo-gosterge" role="status" aria-live="polite" hidden>Çevrimdışı</span>
+    <span id="cevrimo-gosterge" class="cevrimo-gosterge" role="status" aria-live="polite" aria-atomic="true" hidden>Çevrimdışı</span>
   </header>
 
   <div class="alt-cubuk" id="alt-cubuk" role="group" aria-label="Harita kontrolleri">
@@ -94,7 +94,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 21h18M5 21V10l7-6 7 6v11"/><path d="M9 21v-6h6v6"/></svg>
       <span>Anıtkabir</span>
     </button>
-    <button type="button" class="kontrol-dugme" id="btn-katmanlar" aria-label="Katmanlar" title="Katmanlar" aria-expanded="false">
+    <button type="button" class="kontrol-dugme" id="btn-katmanlar" aria-label="Katmanlar" title="Katmanlar" aria-expanded="false" aria-haspopup="dialog">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>
       <span>Katmanlar</span>
     </button>
@@ -126,8 +126,8 @@
     <button type="button" id="bina-karti-kapat" aria-label="Bilgi kartını kapat" title="Kapat">✕</button>
   </div>
 
-  <div id="bildirim" class="bildirim" role="status" aria-live="polite" hidden></div>
-  <div id="duyuru" class="gorsel-gizli" role="status" aria-live="polite"></div>
+  <div id="bildirim" class="bildirim" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+  <div id="duyuru" class="gorsel-gizli" role="status" aria-live="polite" aria-atomic="true"></div>
   <div class="durum-satiri" id="durum-satiri" aria-hidden="true"></div>
 
   <script src="js/uygulama.js" fetchpriority="high"></script>

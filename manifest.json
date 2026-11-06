@@ -10,7 +10,7 @@
   "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
-  "description": "Ankara 3D",
+  "description": "Ankara 3D — Anıtkabir görünümüyle açılan tek ekran 3B Ankara haritası; bina, adres ve mahalle katmanları.",
   "icons": [
     { "src": "ikon/atakule-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
     { "src": "ikon/atakule-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

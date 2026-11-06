@@ -933,8 +933,13 @@ require([
       navigator.serviceWorker.register("sw.js").catch(() => {});
     });
     // Açılış alanı (Anıtkabir çevresi) karo ön-yüklemesi: ilk çevrimiçi açılışta tek sefer
-    navigator.serviceWorker.ready.then(sw => {
-      if (!sw.controller || !navigator.onLine) return;
+    navigator.serviceWorker.ready.then(() => {
+      // ready, ServiceWorkerRegistration döndürür; registration'ın 'controller'
+      // özelliği YOKTUR — kontrol eden worker navigator.serviceWorker.controller'dır.
+      // Eski kod (sw.controller) her zaman undefined olduğu için Anıtkabir alanı
+      // ön-yüklemesi (uçak modunda açılış senaryosu) asla tetiklenmiyordu.
+      const denetci = navigator.serviceWorker.controller;
+      if (!denetci || !navigator.onLine) return;
       let yapildi = false;
       try { yapildi = localStorage.getItem("ankara3d-onbellek") === "1"; } catch (_) {}
       if (yapildi) return;
@@ -947,7 +952,7 @@ require([
           duyur("Açılış alanı çevrimdışı için önbelleğe alındı, " + ev.data.sayi + " karo");
         }
       };
-      sw.controller.postMessage({
+      denetci.postMessage({
         tip: "ONBELLEKLE_ALAN",
         bbox: { minLon: 32.815, minLat: 39.895, maxLon: 32.865, maxLat: 39.945 },
         minZoom: 15,

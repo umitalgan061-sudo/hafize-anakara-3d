@@ -1,8 +1,20 @@
-const AD = "ankara3d-v27";
-const KARO_AD = "ankara3d-karolar-v24";
+const AD = "ankara3d-v28";
+const KARO_AD = "ankara3d-karolar-v25";
 const KARO_SINIRI = 600; // önbellekte tutulacak en çok girdi sayısı (LRU)
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
+
+// "Harita" (streets-vector) tabanı çevrimdışı açılış için kritik vektör kaynakları:
+// stil kökü, sprite tanımı ve ilk glyph aralığı + kalın font — install'da tek tek
+// ön-yüklenir; biri alınamazsa kurulum bozulmaz (diğerleri önbelleğe girer).
+const VEKTOR_ON = [
+  "https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer?f=json",
+  "https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/styles/root.json",
+  "https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/sprites/sprite.json",
+  "https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/sprites/sprite@2x.json",
+  "https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/fonts/AdelleSans_W_Bold/0-255.pbf",
+  "https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/fonts/AdelleSans_W_Regular/0-255.pbf"
+];
 
 // Esri/ArcGIS karo ve vektör-taban sunucuları (herkese açık, anahtarsız)
 function arcgisSunucusuMu(url) {
@@ -162,8 +174,17 @@ self.addEventListener("install", e => {
       await Promise.all(IKONLAR.map(u =>
         fetch(u).then(r => { if (r.ok) return c.put(u, r); }).catch(() => {})
       ));
-    }).then(() => self.skipWaiting())
-      .catch(() => self.skipWaiting())
+    })
+    // Vektör taban kaynakları AYRI önbelleğe tek tek ön-yüklenir (karo LRU sınırından
+    // bağımsız): biri alınamazsa kurulum bozulmaz, "Harita" tabanı çevrimdışı açılışta
+    // eksik kaynakları fetch dalındaki SWR ile karşılanır
+    .then(() => caches.open(KARO_AD).then(async c => {
+      await Promise.all(VEKTOR_ON.map(u =>
+        fetch(u).then(r => { if (r.ok || r.type === "opaque") return c.put(u, r); }).catch(() => {})
+      ));
+    }).catch(() => {}))
+    .then(() => self.skipWaiting())
+    .catch(() => self.skipWaiting())
   );
 });
 

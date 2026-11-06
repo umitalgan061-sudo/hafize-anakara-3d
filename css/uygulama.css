@@ -137,6 +137,8 @@ input[type="search"]::-webkit-search-results-decoration,
   text-overflow: ellipsis;
 }
 .arama-sonuc:hover, .arama-sonuc:focus-visible { background: #f2f2f2; }
+/* Klavye gezinmesinde aria-selected=true olan seçenek de görsel olarak seçili görünsün (WCAG 2.4.7) */
+.arama-sonuc[aria-selected="true"] { background: #f2f2f2; }
 .arama-sonuc--bos { color: #595959; cursor: default; }
 
 /* Alt araç çubuğu: ortada yatay hap */
@@ -191,6 +193,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
 #arama-temizle:focus-visible { border-radius: 50%; }
 .katman-satir:focus-within { background: #f2f2f2; }
 .katman-satir:focus-within input { outline: 3px solid var(--vurgu); outline-offset: 1px; }
+/* Onay kutusu tek başına odaktayken de 3px --vurgu halkası görünsün (WCAG 2.4.7) */\n.katman-satir input:focus-visible { outline: 3px solid var(--vurgu); outline-offset: 2px; border-radius: 4px; }\n.taban-dugme:focus-visible, .kurulum-dugme:focus-visible { outline: 3px solid var(--vurgu); outline-offset: 2px; }
 
 /* Katman kartı */
 .katman-karti {
