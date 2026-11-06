@@ -27,9 +27,9 @@
   <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" media="print" onload="this.media='all'" />
   <noscript><link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" /></noscript>
   <script src="https://js.arcgis.com/4.32/" fetchpriority="high"></script>
-  <link rel="preload" href="css/uygulama.css" as="style" />
-  <link rel="preload" href="js/uygulama.js" as="script" />
-  <link rel="stylesheet" href="css/uygulama.css" />
+  <link rel="preload" href="css/uygulama.css" as="style" fetchpriority="high" />
+  <link rel="preload" href="js/uygulama.js" as="script" fetchpriority="high" />
+  <link rel="stylesheet" href="css/uygulama.css" fetchpriority="high" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" sizes="180x180" href="ikon/atakule-180.png" />
 </head>
@@ -94,6 +94,6 @@
   <div id="duyuru" class="gorsel-gizli" role="status" aria-live="polite"></div>
   <div class="durum-satiri" id="durum-satiri" aria-hidden="true"></div>
 
-  <script src="js/uygulama.js"></script>
+  <script src="js/uygulama.js" fetchpriority="high"></script>
 </body>
 </html>

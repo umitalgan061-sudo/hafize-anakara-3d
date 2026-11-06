@@ -21,6 +21,9 @@ require([
 ) {
   "use strict";
 
+  // Kalıcı açılış performans ölçümü: ArcGIS JS yükleyici başlangıcı (bu callback'in çalıştığı an)
+  const yukleyiciBaslangic = performance.now();
+
   // ---------- Yardımcılar ----------
   function gosterBildirim(metin, onRetry) {
     const el = document.getElementById("bildirim");
@@ -272,14 +275,35 @@ require([
   });
   setTimeout(yukleniyoruKapat, 9000);
 
+  // Kalıcı açılış özeti: view hazır + 3 katman yüklendi anında tek satır rapor
+  const katmanSureleri = {};
+  let viewHazirSuresi = null;
+  let ozetRaporlandi = false;
+  function acilisOzetRaporla() {
+    if (ozetRaporlandi || viewHazirSuresi === null) return;
+    if (!katmanSureleri["Numarataj"] || !katmanSureleri["Yapılar"] || !katmanSureleri["3B binalar"]) return;
+    ozetRaporlandi = true;
+    const viewMs = Math.round(viewHazirSuresi - yukleyiciBaslangic);
+    console.log(
+      "AÇILIŞ ÖZET: yükleyici→view hazır " + viewMs + " ms" +
+      " | Numarataj " + Math.round(katmanSureleri["Numarataj"]) + " ms" +
+      ", Yapılar " + Math.round(katmanSureleri["Yapılar"]) + " ms" +
+      ", 3B binalar " + Math.round(katmanSureleri["3B binalar"]) + " ms" +
+      " | hedef <2000"
+    );
+    if (viewMs > 2000) console.warn("AÇILIŞ ÖZET hedef aşıldı: " + viewMs + " ms");
+  }
+
   // İlk açılış süresi ölçümü (hedef: Anıtkabir görünümü 2 sn altında)
   const acilisBaslangic = performance.now();
   view.when(() => {
     const sure = Math.round(performance.now() - acilisBaslangic);
+    viewHazirSuresi = performance.now();
     if (sure > 2000) console.warn("Açılış hedefi aşıldı: " + sure + " ms");
     else console.log("Açılış süresi (Anıtkabir görünümü hazır): " + sure + " ms");
     const y = document.getElementById("yukleniyor");
     if (y) y.setAttribute("aria-valuenow", "3");
+    acilisOzetRaporla();
   });
 
   // Yükleniyor göstergesi gerçek ilerlemeyle bağlanır: görsel sade kalır;
@@ -290,6 +314,8 @@ require([
   const yuklemeBaslangic = performance.now();
   function yuklemeIlerleme(ad) {
     yuklenenSayisi++;
+    katmanSureleri[ad] = performance.now() - yuklemeBaslangic;
+    acilisOzetRaporla();
     if (yukluEl) {
       yukluEl.setAttribute("aria-valuenow", String(yuklenenSayisi));
       yukluEl.setAttribute("aria-valuetext", ad + " yüklendi (" + yuklenenSayisi + "/3)");
@@ -420,8 +446,13 @@ require([
     clearTimeout(guncelAlanTimer);
     guncelAlanTimer = setTimeout(guncelAlaniGonder, 1200);
   });
-  // Çevrimdışıyken rozet üzerindeki karo sayısı periyodik yenilenir
-  setInterval(() => { if (!navigator.onLine) karoSayisiAl(sayi => cevrimiGuncelle(sayi)); }, 20000);
+  // Çevrimdışıyken rozet üzerindeki karo sayısı periyodik yenilenir;
+  // döngü boş Zamana başlar, ilk açılışı yavaşlatmaz
+  function karoSayisiDongusu() {
+    setInterval(() => { if (!navigator.onLine) karoSayisiAl(sayi => cevrimiGuncelle(sayi)); }, 20000);
+  }
+  if ("requestIdleCallback" in window) requestIdleCallback(karoSayisiDongusu, { timeout: 8000 });
+  else karoSayisiDongusu();
 
   // ---------- İşaret (arama / konum) ----------
   let seciliIsaret = null;
@@ -729,6 +760,9 @@ require([
     () => [view.zoom, view.camera.tilt, view.camera.heading, view.camera.position.longitude, view.camera.position.latitude],
     () => durumGuncelle()
   );
+  // Durum satırının ilk güncellemesi boş zamana kaydırılır (ilk açılış boyamasını etkilemez)
+  if ("requestIdleCallback" in window) requestIdleCallback(() => durumGuncelle(), { timeout: 4000 });
+  else durumGuncelle();
 
   // ---------- PWA service worker ----------
   if ("serviceWorker" in navigator) {

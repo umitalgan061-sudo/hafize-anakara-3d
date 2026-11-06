@@ -1,5 +1,5 @@
-const AD = "ankara3d-v17";
-const KARO_AD = "ankara3d-karolar-v15";
+const AD = "ankara3d-v18";
+const KARO_AD = "ankara3d-karolar-v16";
 const KARO_SINIRI = 600; // önbellekte tutulacak en çok girdi sayısı (LRU)
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
@@ -177,7 +177,8 @@ self.addEventListener("fetch", e => {
   // 2) Diğer ArcGIS istekleri (veri sorguları vb.) her zaman ağdan
   if (arcgisSunucusuMu(url)) return;
 
-  // 3) Uygulama kabuğu (aynı origin)
+  // 3) Uygulama kabuğu (aynı origin) — çevrimdışı test senaryosu: navigasyon önbelleği
+  //    hem './' hem 'index.html' anahtarlarıyla eşleşir; sorun yok
   if (url.origin !== location.origin) return;
 
   e.respondWith(
