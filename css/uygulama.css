@@ -271,7 +271,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .cevrimo-gosterge { padding: 3px 7px; font-size: 0.68rem; }
 }
 
-/* Bildirim: tek satır (nowrap + ellipsis); kurtarma düğmesi varsa 8 sn kalır, yoksa 3 sn */
+/* Bina kartı açıkken bildirim onun üstüne binsin: hiçbir şey üst üste binmez (masaüstü ve mobil) */
+.bildirim--bina-karti-ustunde { bottom: calc(76px + 200px + env(safe-area-inset-bottom)); }
 .bildirim {
   position: fixed;
   left: 50%;
@@ -383,7 +384,9 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .kontrol-dugme span { font-size: 10px; }
   .katman-karti { bottom: calc(70px + env(safe-area-inset-bottom)); }
   .bildirim { bottom: calc(70px + env(safe-area-inset-bottom)); }
+YENİ
   .bildirim--kart-ustunde { bottom: calc(70px + 320px + env(safe-area-inset-bottom)); }
+  .bildirim--bina-karti-ustunde { bottom: calc(70px + 200px + env(safe-area-inset-bottom)); }
 }
 
 /* Klavye kullanıcıları için atla bağlantısı: odakta görünür */
@@ -433,6 +436,15 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
 @keyframes bina-karti-gir {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
+}
+/* Mobil kart için animasyon: alttan hafif kayma */
+@keyframes bina-karti-gir-mobil {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* reduced-motion: kart animasyonsuz açılır (global kural animasyonu zaten keser; bu blok garantidir) */
+@media (prefers-reduced-motion: reduce) {
+  .bina-karti { animation: none !important; }
 }
 /* Bina bilgi kartı: masaüstünde sağ üstte yüzen kart; mobilde alt çubuk üstünde yatay kart */
 .bina-karti {

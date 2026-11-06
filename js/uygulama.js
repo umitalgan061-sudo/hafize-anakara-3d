@@ -44,9 +44,16 @@ require([
       });
       el.appendChild(btn);
     }
+YENİ
     // Katman kartı açıkken bildirim onun üstüne binmesin (masaüstü ve mobil)
     const kart = document.getElementById("katman-karti");
     el.classList.toggle("bildirim--kart-ustunde", !!(kart && !kart.hidden));
+    // Bina kartı açıkken de bildirim onun üstüne binmesin (mobilde alt kartla çakışır)
+    const binaK = document.getElementById("bina-karti");
+    el.classList.toggle("bildirim--bina-karti-ustunde", !!(binaK && !binaK.hidden));
+    // Bina kartı açıkken (mobilde altta) bildirim onun üstüne binmesin
+    const binaKartiEl = document.getElementById("bina-karti");
+    el.classList.toggle("bildirim--bina-karti-ustunde", !!(binaKartiEl && !binaKartiEl.hidden));
     el.hidden = false;
     clearTimeout(el._timer);
     el._timer = setTimeout(() => { el.hidden = true; }, onRetry ? 8000 : 3000);
@@ -766,8 +773,11 @@ require([
 
   btnKatmanlar.addEventListener("click", () => {
     titresim();
+YENİ
     const acilacak = katmanKarti.hidden;
+    if (acilacak) binaKartiKapat(false); // mobilde bina kartıyla altta üst üste binmesin
     katmanKarti.hidden = !acilacak;
+    if (acilacak) binaKartiKapat(false); // bina kartı açıksa kapat: ikisi altta üst üste binmesin\n>>>>>>>YENİ
     btnKatmanlar.setAttribute("aria-expanded", String(acilacak));
     if (acilacak) {
       const ilk = katmanKarti.querySelector("input");
@@ -1005,8 +1015,13 @@ require([
 
   // Global (sözleşme): kartı doldurur, açar, ekran okuyucuya duyurur, odağı kapama düğmesine taşır.
   // icerik: { ad: string, satirlar: string[] } — satırlar createElement ile eklenir (asla innerHTML)
+YENİ
   function binaKartiGoster(icerik) {
     if (!binaKarti) return;
+    // Bina kartı açılınca katman kartı kapalı kalsın (mobilde ikisi altta üst üste biner)
+    katmanKartiKapat();
+    const bl = document.getElementById("bildirim");
+    if (bl && !bl.hidden) bl.classList.add("bildirim--bina-karti-ustunde");
     const ad = (icerik && icerik.ad) || "Yapı";
     const satirlar = (icerik && Array.isArray(icerik.satirlar)) ? icerik.satirlar.filter(s => s) : [];
     if (binaKartiBaslik) binaKartiBaslik.textContent = ad;
@@ -1022,6 +1037,9 @@ require([
       binaKartiTekSatir.textContent = satirlar.join(" · ");
     }
     binaKarti.hidden = false;
+    // Bildirim açıksa bina kartının üstüne kaydır: hiçbir şey üst üste binmez (çevrimdışı bildirimi dahil)
+    const bildirimEl = document.getElementById("bildirim");
+    if (bildirimEl && !bildirimEl.hidden) bildirimEl.classList.add("bildirim--bina-karti-ustunde");
     duyur("Seçili: " + ad + (satirlar.length ? ", " + satirlar.join(", ") : ""));
     if (binaKartiKapatBtn) binaKartiKapatBtn.focus();
   }
@@ -1030,6 +1048,9 @@ require([
   function binaKartiKapat(odakDon) {
     if (!binaKarti || binaKarti.hidden) return;
     binaKarti.hidden = true;
+    // Kart kapanınca bildirim üstte-binme sınıfını bırakır, normal konuma döner
+    const bildirimEl = document.getElementById("bildirim");
+    if (bildirimEl) bildirimEl.classList.remove("bildirim--bina-karti-ustunde");
     if (seciliVurguGraphic) { view.graphics.remove(seciliVurguGraphic); seciliVurguGraphic = null; }
     const odakKartta = binaKarti.contains(document.activeElement);
     if (odakDon === true || (odakDon !== false && odakKartta)) view.focus();
@@ -1037,37 +1058,6 @@ require([
   window.seciliVurgula = seciliVurgula;
   window.binaKartiGoster = binaKartiGoster;
   window.binaKartiKapat = binaKartiKapat;
-
-  // Global (sözleşme): mesh geometriden yükseklik (m) ve kat tahmini üretir;
-  // geçersiz geometride { yukseklik: null, kat: null } döner, çökmez
-  function yukseklikTahmin(geometry) {
-    let yukseklik = null;
-    try {
-      if (geometry && geometry.extent &&
-          Number.isFinite(geometry.extent.zmax) && Number.isFinite(geometry.extent.zmin)) {
-        const h = geometry.extent.zmax - geometry.extent.zmin;
-        if (Number.isFinite(h) && h > 0) yukseklik = h;
-      }
-    } catch (_) { yukseklik = null; }
-    if (yukseklik === null) return { yukseklik: null, kat: null };
-    return { yukseklik: Math.round(yukseklik * 10) / 10, kat: Math.max(1, Math.round(yukseklik / 3)) };
-  }
-  window.yukseklikTahmin = yukseklikTahmin;
-
-  // Global (sözleşme): mesh geometriden yükseklik (extent zmax−zmin) ve ~3 m/kattan
-  // kat tahmini üretir; geçersiz/boş geometride { yukseklik: null, kat: null } döner, asla çökmez
-  function yukseklikTahmin(geometry) {
-    const bos = { yukseklik: null, kat: null };
-    try {
-      if (!geometry) return bos;
-      const ext = geometry.extent;
-      if (!ext || !Number.isFinite(ext.zmax) || !Number.isFinite(ext.zmin)) return bos;
-      const yukseklik = ext.zmax - ext.zmin;
-      if (!Number.isFinite(yukseklik) || yukseklik <= 0) return bos;
-      return { yukseklik: yukseklik, kat: Math.max(1, Math.round(yukseklik / 3)) };
-    } catch (err) { return bos; }
-  }
-  window.yukseklikTahmin = yukseklikTahmin;
 
   // Global (sözleşme): mesh/polygon geometrisinden yükseklik (m) ve ~3 m/kattan kat tahmini üretir;
   // geçersiz/boş geometride { yukseklik: null, kat: null } döner, asla hata atmaz
@@ -1135,8 +1125,14 @@ require([
   function hitTestSec(e) {
     try {
       view.hitTest(e).then(response => {
-        const sonuc = (response.results || []).find(r =>
-          r.graphic && (r.graphic.layer === yapilarLayer || r.graphic.layer === binalarLayer || r.graphic.layer === numaratajLayer));
+        // Sözleşme önceliği: Numarataj > Yapılar > 3B Binalar —
+        // sonuçlar katman önceliğine göre dizilir, ilk öncelikli olan seçilir
+        const oncelik = [numaratajLayer, yapilarLayer, binalarLayer];
+        const uyusanlar = (response.results || []).filter(r =>
+          r.graphic && oncelik.includes(r.graphic.layer));
+        const sonuc = oncelik
+          .map(l => uyusanlar.find(r => r.graphic.layer === l))
+          .find(Boolean);
         if (!sonuc) { binaKartiKapat(false); return; }
         secimIsle(sonuc);
       }).catch(() => {});
