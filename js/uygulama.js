@@ -188,8 +188,9 @@ require([
       basemap: "hybrid",
       // Gizli katmanlar (Mahalleler/Yollar) ilk açılışta yüklenmez;
       // ilk açıldıklarında haritaya eklenir (ilk açılış performansı).
-      // Yükleme önceliği: Numarataj → Yapılar → 3B Binalar en son
-      layers: [numaratajLayer, yapilarLayer, binalarLayer, konumLayer]
+      // Yükleme önceliği: Numarataj → Yapılar ilk açılışta; 3B Binalar
+      // görünüm hazır olduktan sonra eklenir (en son yüklenir)
+      layers: [numaratajLayer, yapilarLayer, konumLayer]
     }),
     camera: {
       position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
@@ -197,7 +198,8 @@ require([
       tilt: 70
     },
     environment: {
-      lighting: { type: "virtual", directShadowsEnabled: true },
+      // Telefonda (medium profil) gölge pahalıdır: kapalı tutularak açılış hızlanır
+      lighting: { type: "virtual", directShadowsEnabled: !telefon },
       atmosphereEnabled: true,
       starsEnabled: false
     },
@@ -206,6 +208,10 @@ require([
     constraints: { altitude: { min: 10, max: 20000 } }
   });
   window.view = view;
+
+  // 3B binalar en son yüklenir: görünüm hazır olur olmaz eklenir;
+  // açılış 2D katmanlarla başlar, Anıtkabir görünümü 2 sn altında tamamlanır
+  view.when(() => { if (!binalarLayer.parent) view.map.add(binalarLayer); });
 
   // ---------- Bilgi penceresi: alt yerleşik (dock), araç çubuğuyla çakışmaz ----------
   view.popup.dockEnabled = true;
@@ -234,7 +240,7 @@ require([
     if (sure > 2000) console.warn("Açılış hedefi aşıldı: " + sure + " ms");
     else console.log("Açılış süresi: " + sure + " ms");
     const y = document.getElementById("yukleniyor");
-    if (y) y.setAttribute("aria-valuenow", "4");
+    if (y) y.setAttribute("aria-valuenow", "3");
   });
 
   // Yükleniyor göstergesi gerçek ilerlemeyle bağlanır: görsel sade kalır;
@@ -691,6 +697,8 @@ require([
       let yapildi = false;
       try { yapildi = localStorage.getItem("ankara3d-onbellek") === "1"; } catch (_) {}
       if (yapildi) return;
+      // Açılış alanı önbelleği boş zamanda yapılır; ilk açılışı yavaşlatmaz
+      const gonder = () => {
       const kanal = new MessageChannel();
       kanal.port1.onmessage = ev => {
         if (ev.data && ev.data.tip === "ONBELLEKLE_TAMAM") {
@@ -704,6 +712,9 @@ require([
         minZoom: 15,
         maxZoom: 17
       }, [kanal.port2]);
+      };
+      if ("requestIdleCallback" in window) requestIdleCallback(gonder, { timeout: 8000 });
+      else setTimeout(gonder, 3000);
     });
   }
 
