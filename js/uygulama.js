@@ -245,7 +245,10 @@ require([
   const yuklemeBaslangic = performance.now();
   function yuklemeIlerleme(ad) {
     yuklenenSayisi++;
-    if (yukluEl) yukluEl.setAttribute("aria-valuenow", String(yuklenenSayisi));
+    if (yukluEl) {
+      yukluEl.setAttribute("aria-valuenow", String(yuklenenSayisi));
+      yukluEl.setAttribute("aria-valuetext", ad + " yüklendi (" + yuklenenSayisi + "/3)");
+    }
     if (yukluDuyuru) yukluDuyuru.textContent = "Yükleniyor — " + ad + " (" + yuklenenSayisi + "/3)";
     duyur(ad + " yüklendi");
   }
@@ -432,13 +435,24 @@ require([
           bos.setAttribute("aria-disabled", "true");
           aramaSonuclari.appendChild(bos);
         } else {
-          veri.candidates.forEach(c => {
+          veri.candidates.forEach((c, i) => {
             const adres = c.address || (c.attributes && c.attributes.Match_addr) || "İsimsiz";
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "arama-sonuc";
             btn.setAttribute("role", "option");
+            btn.id = "arama-opt-" + i;
+            btn.setAttribute("aria-selected", "false");
             btn.textContent = adres;
+            btn.addEventListener("focus", () => {
+              aramaGirdi.setAttribute("aria-activedescendant", btn.id);
+              aramaSonuclari.querySelectorAll(".arama-sonuc").forEach(d => {
+                d.setAttribute("aria-selected", String(d === btn));
+              });
+            });
+            btn.addEventListener("blur", () => {
+              aramaGirdi.removeAttribute("aria-activedescendant");
+            });
             btn.addEventListener("click", () => {
               const pt = new Point({ longitude: c.location.x, latitude: c.location.y });
               isaretKoy(pt, [200, 30, 30, 1], "Arama sonucu", adres);
@@ -450,6 +464,7 @@ require([
           });
         }
         aramaSonuclari.hidden = false;
+        aramaGirdi.setAttribute("aria-expanded", "true");
         duyur(veri.candidates && veri.candidates.length ? veri.candidates.length + " sonuç bulundu" : "Sonuç bulunamadı");
       })
       .catch(err => {
