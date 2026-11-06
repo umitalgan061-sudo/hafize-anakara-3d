@@ -19,8 +19,9 @@
 </head>
 <body>
   <a class="atla-link" href="#viewDiv">Haritaya geç</a>
-  <div id="viewDiv" tabindex="-1"></div>
-  <div id="yukleniyor" class="yukleniyor" aria-hidden="true">
+  <div id="viewDiv" tabindex="-1" aria-label="Ankara 3D harita görünümü"></div>
+  <div id="yukleniyor" class="yukleniyor" role="status">
+    <span class="gorsel-gizli">Harita yükleniyor</span>
     <svg viewBox="0 0 40 100" class="yukleniyor__logo"><g fill="#b3261e"><rect x="19" y="1" width="2" height="9"/><path d="M15 11h10l-1.5 5h-7z"/><path fill-rule="evenodd" d="M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z"/><path d="M16 34h8l2 62H14z"/><rect x="12" y="96" width="16" height="3"/></g></svg>
     <span class="yukleniyor__halka"></span>
   </div>
@@ -33,7 +34,7 @@
     <div class="arama-kutu">
       <input type="search" id="arama-girdi" placeholder="Adres ara" aria-label="Adres ara" autocomplete="off" enterkeyhint="search" />
       <button type="button" id="arama-temizle" aria-label="Aramayı temizle" title="Temizle" hidden>✕</button>
-      <div id="arama-sonuclari" class="arama-sonuclari" hidden></div>
+      <div id="arama-sonuclari" class="arama-sonuclari" role="listbox" aria-label="Arama sonuçları" hidden></div>
     </div>
     <button type="button" class="kurulum-dugme" id="btn-kurulum" hidden aria-label="Uygulamayı ana ekrana kur">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
@@ -44,19 +45,19 @@
 
   <div class="alt-cubuk" role="group" aria-label="Harita kontrolleri">
     <button type="button" class="kontrol-dugme" id="btn-konum" aria-label="Konumumu bul" title="Konumumu bul">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
       <span>Konum</span>
     </button>
     <button type="button" class="kontrol-dugme" id="btn-anitkabir" aria-label="Anıtkabir'e dön" title="Anıtkabir'e dön">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V10l7-6 7 6v11"/><path d="M9 21v-6h6v6"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 21h18M5 21V10l7-6 7 6v11"/><path d="M9 21v-6h6v6"/></svg>
       <span>Anıtkabir</span>
     </button>
     <button type="button" class="kontrol-dugme" id="btn-katmanlar" aria-label="Katmanlar" title="Katmanlar" aria-expanded="false">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>
       <span>Katmanlar</span>
     </button>
     <button type="button" class="kontrol-dugme" id="btn-kuzey" aria-label="Kuzeye çevir" title="Kuzeye çevir">
-      <svg id="kuzey-simge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 3 19 21 12 17 5 21 12 3"/></svg>
+      <svg id="kuzey-simge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polygon points="12 3 19 21 12 17 5 21 12 3"/></svg>
       <span>Kuzey</span>
     </button>
   </div>
