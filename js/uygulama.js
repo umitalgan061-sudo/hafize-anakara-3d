@@ -207,6 +207,15 @@ require([
   });
   window.view = view;
 
+  // Katman yükleme önceliği katılaştırıldı: sıralı zincir — önce Numarataj,
+  // sonra Yapılar, en son 3B Binalar (Promise.all değil; her biri bir öncekinin
+  // yüklenmesini bekler). Hata durumunda aşağıdaki basarisizKatmanlar akışı
+  // devreye girer ve tek satır uyarı + Yeniden dene gösterir.
+  numaratajLayer.load()
+    .then(() => yapilarLayer.load())
+    .then(() => binalarLayer.load())
+    .catch(err => console.error("Katman yükleme zinciri hatası:", err));
+
   // 3B bina katmanı katman listesinde en sonda; kabul denetimi renderer'ını
   // harita üzerinden okur, bu yüzden baştan haritaya ekli kalır
   // ---------- Bilgi penceresi: alt yerleşik (dock), araç çubuğuyla çakışmaz ----------

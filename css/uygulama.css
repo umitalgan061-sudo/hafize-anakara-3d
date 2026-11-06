@@ -283,7 +283,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.6);
   pointer-events: none;
 }
 .yukleniyor__logo { height: 48px; width: auto; }
