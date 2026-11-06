@@ -465,6 +465,14 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Sözleşme: satır kapsayıcısı dikey dizilir; mobil yatay kartta taşmayı önler */
+.bina-karti__satirlar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+}
 /* Kapama düğmesi: en az 44x44 dokunma hedefi, --vurgu odak halkası (WCAG) */
 #bina-karti-kapat {
   position: absolute;
@@ -500,5 +508,6 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
     padding: 10px 12px;
   }
   .bina-karti__baslik { flex: 1 1 100%; padding-right: 44px; }
+  .bina-karti__satirlar { flex: 1 1 100%; flex-direction: row; flex-wrap: wrap; gap: 2px 12px; }
   .bina-karti__satir { flex: 0 1 auto; max-width: 100%; }
 }
