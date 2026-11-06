@@ -86,7 +86,7 @@ require([
   // ---------- Katmanlar ----------
   // 3B Binalar (Esri SceneServer) — opak buz grisi
   const buildingsUrl = "https://basemaps3d.arcgis.com/arcgis/rest/services/Esri3D_Buildings_v1/SceneServer";
-  constibilarLayer = new SceneLayer({
+  const binalarLayer = new SceneLayer({
     url: buildingsUrl,
     title: "3B Binalar",
     // Sözleşme: 3B binalar load olana kadar GİZLİ başlar (açılışta gölge gibi görünmez);
