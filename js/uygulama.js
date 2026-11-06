@@ -186,7 +186,10 @@ require([
     container: "viewDiv",
     map: new WebScene({
       basemap: "hybrid",
-      layers: [binalarLayer, yapilarLayer, numaratajLayer, mahallelerLayer, yollarLayer, konumLayer]
+      // Gizli katmanlar (Mahalleler/Yollar) ilk açılışta yüklenmez;
+      // ilk açıldıklarında haritaya eklenir (ilk açılış performansı).
+      // Yükleme önceliği: Numarataj → Yapılar → 3B Binalar en son
+      layers: [numaratajLayer, yapilarLayer, binalarLayer, konumLayer]
     }),
     camera: {
       position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
@@ -223,6 +226,40 @@ require([
     gosterBildirim("Harita yüklenemedi", () => location.reload());
   });
   setTimeout(yukleniyoruKapat, 9000);
+
+  // İlk açılış süresi ölçümü (hedef: Anıtkabir görünümü 2 sn altında)
+  const acilisBaslangic = performance.now();
+  view.when(() => {
+    const sure = Math.round(performance.now() - acilisBaslangic);
+    if (sure > 2000) console.warn("Açılış hedefi aşıldı: " + sure + " ms");
+    else console.log("Açılış süresi: " + sure + " ms");
+    const y = document.getElementById("yukleniyor");
+    if (y) y.setAttribute("aria-valuenow", "4");
+  });
+
+  // Yükleniyor göstergesi gerçek ilerlemeyle bağlanır: görsel sade kalır;
+  // ekran okuyucuya hem metin duyurusu hem progressbar değeri gider (WCAG 2.1 AA)
+  const yukluEl = document.getElementById("yukleniyor");
+  const yukluDuyuru = yukluEl ? yukluEl.querySelector(".gorsel-gizli") : null;
+  let yuklenenSayisi = 0;
+  const yuklemeBaslangic = performance.now();
+  function yuklemeIlerleme(ad) {
+    yuklenenSayisi++;
+    if (yukluEl) {
+      yukluEl.setAttribute("aria-valuenow", String(yuklenenSayisi));
+      yukluEl.setAttribute("aria-valuetext", ad + " yüklendi (" + yuklenenSayisi + "/3)");
+    }
+    if (yukluDuyuru) yukluDuyuru.textContent = "Yükleniyor — " + ad + " (" + yuklenenSayisi + "/3)";
+    duyur(ad + " yüklendi");
+  }
+  [[numaratajLayer, "Numarataj"], [yapilarLayer, "Yapılar"], [binalarLayer, "3B binalar"]].forEach(([lyr, ad]) => {
+    reactiveUtils.watch(() => lyr.loadStatus, s => {
+      if (s === "loaded") {
+        yuklemeIlerleme(ad);
+        console.log("Katman yükleme süresi: " + Math.round(performance.now() - yuklemeBaslangic) + " ms (" + ad + ")");
+      }
+    });
+  });
 
   // Katman yüklenemezse kurtarma akışı: tek satır uyarı + "Yeniden dene"
   const basarisizKatmanlar = new Set();
@@ -398,13 +435,24 @@ require([
           bos.setAttribute("aria-disabled", "true");
           aramaSonuclari.appendChild(bos);
         } else {
-          veri.candidates.forEach(c => {
+          veri.candidates.forEach((c, i) => {
             const adres = c.address || (c.attributes && c.attributes.Match_addr) || "İsimsiz";
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "arama-sonuc";
             btn.setAttribute("role", "option");
+            btn.id = "arama-opt-" + i;
+            btn.setAttribute("aria-selected", "false");
             btn.textContent = adres;
+            btn.addEventListener("focus", () => {
+              aramaGirdi.setAttribute("aria-activedescendant", btn.id);
+              aramaSonuclari.querySelectorAll(".arama-sonuc").forEach(d => {
+                d.setAttribute("aria-selected", String(d === btn));
+              });
+            });
+            btn.addEventListener("blur", () => {
+              aramaGirdi.removeAttribute("aria-activedescendant");
+            });
             btn.addEventListener("click", () => {
               const pt = new Point({ longitude: c.location.x, latitude: c.location.y });
               isaretKoy(pt, [200, 30, 30, 1], "Arama sonucu", adres);
@@ -416,6 +464,7 @@ require([
           });
         }
         aramaSonuclari.hidden = false;
+        aramaGirdi.setAttribute("aria-expanded", "true");
         duyur(veri.candidates && veri.candidates.length ? veri.candidates.length + " sonuç bulundu" : "Sonuç bulunamadı");
       })
       .catch(err => {
@@ -459,14 +508,14 @@ require([
     }
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
     const dugmeler = Array.from(aramaSonuclari.querySelectorAll(".arama-sonuc"));
-    const aktif = document.activeElement;
-    const sira = dugmeler.indexOf(aktif);
+    const aktifIndeks = dugmeler.indexOf(document.activeElement);
     e.preventDefault();
+    if (dugmeler.length === 0) return;
     if (e.key === "ArrowDown") {
-      const sonraki = dugmeler[(sira + 1) % dugmeler.length] || dugmeler[0];
+      const sonraki = dugmeler[(aktifIndeks + 1) % dugmeler.length];
       if (sonraki) sonraki.focus();
     } else {
-      const onceki = dugmeler[(sira - 1 + dugmeler.length) % dugmeler.length] || dugmeler[dugmeler.length - 1];
+      const onceki = dugmeler[(aktifIndeks - 1 + dugmeler.length) % dugmeler.length];
       if (onceki) onceki.focus(); else aramaGirdi.focus();
     }
   });
@@ -584,6 +633,9 @@ require([
     [cbYollar, yollarLayer, "Yollar"]
   ].forEach(([cb, lyr, ad]) => {
     cb.addEventListener("change", () => {
+      titresim();
+      // Gizli katmanlar ilk kez açıldığında haritaya eklenir ve yüklenir (lazy load)
+      if (cb.checked && !lyr.parent) view.map.add(lyr);
       lyr.visible = cb.checked;
       duyur(ad + (cb.checked ? " açıldı" : " kapatıldı"));
     });
