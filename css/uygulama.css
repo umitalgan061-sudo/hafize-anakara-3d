@@ -75,7 +75,8 @@ body {
   outline: none;
 }
 #arama-girdi:focus { background: #fff; border-color: var(--vurgu); }
-#arama-girdi::placeholder { color: #595959; opacity: 1; }
+/* WCAG 2.1 AA kontrast: placeholder en az 4.5:1 (#4d4d4d > 5:1) */
+#arama-girdi::placeholder { color: #4d4d4d; opacity: 1; }
 /* Arama kutusu: tarayıcının kendi iptal düğmesi asla çizilmez */
 #arama-girdi { -webkit-appearance: none; appearance: none; }
 #arama-temizle {
@@ -139,7 +140,8 @@ input[type="search"]::-webkit-search-results-decoration,
 .arama-sonuc:hover, .arama-sonuc:focus-visible { background: #f2f2f2; }
 /* Klavye gezinmesinde aria-selected=true olan seçenek de görsel olarak seçili görünsün (WCAG 2.4.7) */
 .arama-sonuc[aria-selected="true"] { background: #f2f2f2; }
-.arama-sonuc--bos { color: #595959; cursor: default; }
+/* WCAG 2.1 AA: boş-durum metni en az 4.5:1 (#444 > 7:1) */
+.arama-sonuc--bos { color: #444; cursor: default; }
 
 /* Alt araç çubuğu: ortada yatay hap */
 .alt-cubuk {
@@ -193,7 +195,9 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
 #arama-temizle:focus-visible { border-radius: 50%; }
 .katman-satir:focus-within { background: #f2f2f2; }
 .katman-satir:focus-within input { outline: 3px solid var(--vurgu); outline-offset: 1px; }
-/* Onay kutusu tek başına odaktayken de 3px --vurgu halkası görünsün (WCAG 2.4.7) */\n.katman-satir input:focus-visible { outline: 3px solid var(--vurgu); outline-offset: 2px; border-radius: 4px; }\n.taban-dugme:focus-visible, .kurulum-dugme:focus-visible { outline: 3px solid var(--vurgu); outline-offset: 2px; }
+/* Onay kutusu tek başına odaktayken de 3px --vurgu halkası görünsün (WCAG 2.4.7) */
+.katman-satir input:focus-visible { outline: 3px solid var(--vurgu); outline-offset: 2px; border-radius: 4px; }
+.taban-dugme:focus-visible, .kurulum-dugme:focus-visible { outline: 3px solid var(--vurgu); outline-offset: 2px; }
 
 /* Katman kartı */
 .katman-karti {

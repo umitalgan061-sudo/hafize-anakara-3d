@@ -5,7 +5,7 @@ const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manife
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
 
 // "Harita" (streets-vector) tabanı çevrimdışı açılış için kritik vektör kaynakları:
-// stil kökü, sprite tanımı ve ilk glyph aralığı + kalın font — install'da tek tek
+// stil kökü, sprite tanımı ve glyph aralıkları + fontlar — install'da tek tek
 // ön-yüklenir; biri alınamazsa kurulum bozulmaz (diğerleri önbelleğe girer).
 const VEKTOR_ON = [
   "https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer?f=json",
@@ -18,27 +18,35 @@ const VEKTOR_ON = [
 
 // Esri/ArcGIS karo ve vektör-taban sunucuları (herkese açık, anahtarsız)
 function arcgisSunucusuMu(url) {
-  const host = url.hostname;
-  return host === "server.arcgisonline.com" ||
-    host === "basemaps.arcgis.com" ||
-    host === "basemaps3d.arcgis.com" ||
-    host.endsWith(".arcgisonline.com") ||
-    host.endsWith(".arcgis.com");
+  try {
+    const host = url.hostname;
+    return host === "server.arcgisonline.com" ||
+      host === "basemaps.arcgis.com" ||
+      host === "basemaps3d.arcgis.com" ||
+      host.endsWith(".arcgisonline.com") ||
+      host.endsWith(".arcgis.com");
+  } catch (_) { return false; }
 }
 
 // Raster/vektör karo isteği mi? (.../tile/z/y/x — veri sorguları değil)
 function karoIstegiMi(url) {
-  return arcgisSunucusuMu(url) && /\/tile\/\d+\/\d+\/\d+/.test(url.pathname);
+  try {
+    return arcgisSunucusuMu(url) && /\/tile\/\d+\/\d+\/\d+/.test(url.pathname);
+  } catch (_) { return false; }
 }
 
 // Vektör taban kaynakları (streets-vector): VectorTileServer karoları + style json,
-// glyph, sprite, font dosyaları — "Harita" tabanı çevrimdışı çalışır
+// glyph, sprite, font dosyaları — "Harita" tabanı çevrimdışı çalışır.
+// Kapsam: query/applyEdits/legend hariç; .pbf/.json/.png/.woff dosyaları ve
+// resources/styles/fonts/glyphs/sprites yolları dahil.
 function vektorKaynagiMi(url) {
-  if (!arcgisSunucusuMu(url) || karoIstegiMi(url)) return false;
-  if (/\/(query|applyEdits|legend)/i.test(url.pathname)) return false;
-  return /VectorTileServer/i.test(url.pathname) ||
-    /\/(resources|styles|fonts|glyphs|sprites?)(\/|$)/i.test(url.pathname) ||
-    /\.(pbf|woff2?|png|json)$/i.test(url.pathname);
+  try {
+    if (!arcgisSunucusuMu(url) || karoIstegiMi(url)) return false;
+    if (/\/(query|applyEdits|legend)/i.test(url.pathname)) return false;
+    return /VectorTileServer/i.test(url.pathname) ||
+      /\/(resources|styles|fonts|glyphs|sprites?)(\/|$)/i.test(url.pathname) ||
+      /\.(pbf|woff2?|png|json)$/i.test(url.pathname);
+  } catch (_) { return false; }
 }
 
 function lonLatToTile(lon, lat, z) {
@@ -129,10 +137,12 @@ function portYanitla(port, mesaj) {
 // istemcinin çökmesini önleyen zararsız boş içerik döner
 function bosYanit(url) {
   let ct = "application/octet-stream";
-  if (/\.json$/i.test(url.pathname)) ct = "application/json";
-  else if (/\.pbf$/i.test(url.pathname)) ct = "application/x-protobuf";
-  else if (/\.woff2?$/i.test(url.pathname)) ct = "font/woff2";
-  else if (/\.png$/i.test(url.pathname)) ct = "image/png";
+  try {
+    if (/\.json$/i.test(url.pathname)) ct = "application/json";
+    else if (/\.pbf$/i.test(url.pathname)) ct = "application/x-protobuf";
+    else if (/\.woff2?$/i.test(url.pathname)) ct = "font/woff2";
+    else if (/\.png$/i.test(url.pathname)) ct = "image/png";
+  } catch (_) {}
   return new Response("", { status: 200, headers: { "Content-Type": ct } });
 }
 

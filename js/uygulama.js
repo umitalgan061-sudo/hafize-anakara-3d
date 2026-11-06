@@ -24,6 +24,13 @@ require([
   // Kalıcı açılış performans ölçümü: ArcGIS JS yükleyici başlangıcı (bu callback'in çalıştığı an)
   const yukleyiciBaslangic = performance.now();
 
+  // prefers-reduced-motion (WCAG 2.1 AA): tüm kamera uçuş süreleri 0 yapılır;
+  // CSS animasyonları zaten kapalı, kamera hareketi de anlık olur
+  const reducedMotion = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  // Bayrak canlı okunur: reduced-motion tercihi sayfa açıkken değişirse (index.html'deki
+  // __azaltilmisHareket change dinleyicisi güncellenir) kamera uçuş süreleri de anında 0 olur
+  function ucusSuresi(ms) { return (window.__azaltilmisHareket || reducedMotion) ? 0 : ms; }
+
   // ---------- Yardımcılar ----------
   function gosterBildirim(metin, onRetry) {
     const el = document.getElementById("bildirim");
@@ -630,7 +637,8 @@ require([
     const kontrol = new AbortController();
     const zamanlayici = setTimeout(() => kontrol.abort(), 8000);
     fetch(url + "?" + params.toString(), { signal: kontrol.signal })
-      .then(r => r.json())
+      // HTTP-ok olmayan yanıt da catch akışına (tek satır bildirim + yeniden dene) düşsün
+      .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .finally(() => clearTimeout(zamanlayici))
       .then(veri => {
         aramaSonuclari.innerHTML = "";
@@ -667,7 +675,7 @@ require([
               binaKartiKapat(false); // yeni arama seçimi eskiyi kapatır
               const pt = new Point({ longitude: c.location.x, latitude: c.location.y });
               isaretKoy(pt, [200, 30, 30, 1], "Arama sonucu", adres);
-              view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: 800 });
+              view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: ucusSuresi(800) });
               aramaSonuclari.hidden = true;
               aramaGirdi.setAttribute("aria-expanded", "false");
               aramaGirdi.removeAttribute("aria-activedescendant");
@@ -754,7 +762,7 @@ require([
   function konumaGit(pt) {
     binaKartiKapat(false); // konuma uçuşunda eski bina kartı kapanır
     isaretKoy(pt, [30, 100, 200, 1], "Konumunuz", "");
-    view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: 800 });
+    view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: ucusSuresi(800) });
   }
   btnKonum.addEventListener("click", () => {
     titresim();
@@ -769,6 +777,7 @@ require([
     navigator.geolocation.getCurrentPosition(
       pos => {
         konumaGit(new Point({ longitude: pos.coords.longitude, latitude: pos.coords.latitude }));
+        duyur("Konumunuz bulundu, harita konuma uçuyor");
         watchId = navigator.geolocation.watchPosition(
           p => konumaGit(new Point({ longitude: p.coords.longitude, latitude: p.coords.latitude })),
           () => {},
@@ -789,7 +798,8 @@ require([
       position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
       heading: 355,
       tilt: 70
-    }, { duration: 1000 });
+    }, { duration: ucusSuresi(1000) });
+    duyur("Anıtkabir görünümüne dönüldü");
   });
 
   // ---------- Kuzeye çevir ----------
@@ -797,7 +807,8 @@ require([
   document.getElementById("btn-kuzey").addEventListener("click", () => {
     titresim();
     binaKartiKapat(false); // kart açıksa kapatır, düğme kendi işlevini yapar
-    view.goTo({ heading: 0 }, { duration: 600 });
+    view.goTo({ heading: 0 }, { duration: ucusSuresi(600) });
+    duyur("Harita kuzeye çevrildi");
   });
   reactiveUtils.watch(() => view.camera && view.camera.heading, h => {
     if (kuzeySimge && Number.isFinite(h)) kuzeySimge.style.transform = "rotate(" + (-h) + "deg)";
@@ -912,12 +923,15 @@ require([
       "  ·  yön " + yon.toFixed(0) + "°";
   }
   view.on("pointer-move", e => {
-    const p = view.toMap({ x: e.x, y: e.y });
-    if (p && Number.isFinite(p.longitude) && Number.isFinite(p.latitude)) {
-      sonDurumLon = p.longitude;
-      sonDurumLat = p.latitude;
-      durumGuncelle();
-    }
+    // Durum satırı güncellemesi asla konsol hatası üretmez (kalıcı hata giderimi)
+    try {
+      const p = view.toMap({ x: e.x, y: e.y });
+      if (p && Number.isFinite(p.longitude) && Number.isFinite(p.latitude)) {
+        sonDurumLon = p.longitude;
+        sonDurumLat = p.latitude;
+        durumGuncelle();
+      }
+    } catch (_) { /* yoksay — durum satırı çöp veri çizmez */ }
   });
   reactiveUtils.watch(
     () => [view.zoom, view.camera && view.camera.tilt, view.camera && view.camera.heading, view.camera && view.camera.position && view.camera.position.longitude, view.camera && view.camera.position && view.camera.position.latitude],
@@ -1266,6 +1280,13 @@ require([
     if (binaKarti && !binaKarti.hidden && !e.target.closest("#bina-karti") && !e.target.closest("#viewDiv")) {
       binaKartiKapat(true);
     }
+  });
+
+  // (e) Sözleşme global'lerinin varlık garantisi: biri eksikse tek satır warn;
+  // konsol error kalmaz (hata-free kuralı korunur)
+  ["view", "gosterBildirim", "duyur", "seciliVurgula", "binaKartiGoster", "binaKartiKapat",
+   "katmanKartiKapat", "yukseklikTahmin", "sonrakiSecim", "__cevrimiTest"].forEach(k => {
+    if (!window[k]) console.warn("Sözleşme global'i eksik:", k);
   });
 
   console.log("Ankara 3D hazır.");

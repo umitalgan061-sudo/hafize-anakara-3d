@@ -61,7 +61,7 @@
 </head>
 <body>
   <a class="atla-link" href="#viewDiv">Haritaya geç</a>
-  <div id="viewDiv" tabindex="-1" aria-label="Ankara 3D harita görünümü"></div>
+  <div id="viewDiv" tabindex="-1" role="application" aria-label="Ankara 3D harita görünümü. Haritada gezinmek için ok tuşlarını, yakınlaşmak için artı ve eksi tuşlarını kullanın; merkezdeki nesneyi seçmek için Enter."></div>
   <div id="yukleniyor" class="yukleniyor" role="progressbar" aria-label="Harita yükleniyor" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0">
     <span class="gorsel-gizli">Harita yükleniyor</span>
     <svg viewBox="0 0 40 100" class="yukleniyor__logo" aria-hidden="true" focusable="false"><g fill="#b3261e"><rect x="19" y="1" width="2" height="9"/><path d="M15 11h10l-1.5 5h-7z"/><path fill-rule="evenodd" d="M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z"/><path d="M16 34h8l2 62H14z"/><rect x="12" y="96" width="16" height="3"/></g></svg>
@@ -94,7 +94,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 21h18M5 21V10l7-6 7 6v11"/><path d="M9 21v-6h6v6"/></svg>
       <span>Anıtkabir</span>
     </button>
-    <button type="button" class="kontrol-dugme" id="btn-katmanlar" aria-label="Katmanlar" title="Katmanlar" aria-expanded="false" aria-haspopup="dialog">
+    <button type="button" class="kontrol-dugme" id="btn-katmanlar" aria-label="Katmanlar" title="Katmanlar" aria-expanded="false" aria-haspopup="dialog" aria-controls="katman-karti">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>
       <span>Katmanlar</span>
     </button>
@@ -104,7 +104,7 @@
     </button>
   </div>
 
-  <div class="katman-karti" id="katman-karti" role="dialog" aria-modal="true" aria-label="Katmanlar ve taban seçimi" hidden>
+  <div class="katman-karti" id="katman-karti" role="dialog" aria-modal="true" aria-label="Katmanlar ve taban seçimi" tabindex="-1" hidden>
     <label class="katman-satir"><input type="checkbox" id="cb-binalar" checked /> 3B Binalar</label>
     <label class="katman-satir"><input type="checkbox" id="cb-yapilar" checked /> Yapılar</label>
     <label class="katman-satir"><input type="checkbox" id="cb-numarataj" checked /> Numarataj</label>
@@ -117,7 +117,7 @@
   </div>
 
   <!-- Sözleşme (6. adım): kart kimliği #bina-karti, başlık #bina-karti-baslik (.bina-karti__baslik), açıklama #bina-karti-aciklama.gorsel-gizli, satır kapsayıcı .bina-karti__satirlar, kapama #bina-karti-kapat; role=dialog aria-modal=false, aria-labelledby/aria-describedby; Esc/dışarı dokunuş/Tab döngüsü js/uygulama.js'tedir; içerik yalnızca createElement ile doldurulur -->
-  <div id="bina-karti" class="bina-karti" role="dialog" aria-modal="false" aria-labelledby="bina-karti-baslik" aria-describedby="bina-karti-aciklama" hidden>
+  <div id="bina-karti" class="bina-karti" role="dialog" aria-modal="false" aria-labelledby="bina-karti-baslik" aria-describedby="bina-karti-aciklama" tabindex="-1" hidden>
     <span class="bina-karti__baslik" id="bina-karti-baslik"></span>
     <!-- Çoklu seçim sayacı rozeti (7. adım): aynı noktada birden çok sonuç varsa '2/3' gösterir; js/uygulama.js doldurur, yoksa gizli kalır -->
     <span class="bina-karti__sayac" id="bina-karti-sayac" hidden></span>
@@ -130,6 +130,18 @@
   <div id="duyuru" class="gorsel-gizli" role="status" aria-live="polite" aria-atomic="true"></div>
   <div class="durum-satiri" id="durum-satiri" aria-hidden="true"></div>
 
+  <!-- prefers-reduced-motion bayrağı: js/uygulama.js yüklenmeden tanımlanır;
+       kamera hareketleri (view.goTo duration) bu bayrakla 0 yapılır (WCAG 2.1 AA) -->
+  <script>
+    window.__azaltilmisHareket = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    if (window.matchMedia) {
+      try {
+        window.matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", function (e) {
+          window.__azaltilmisHareket = e.matches;
+        });
+      } catch (_) {}
+    }
+  </script>
   <script src="js/uygulama.js" fetchpriority="high"></script>
 </body>
 </html>
