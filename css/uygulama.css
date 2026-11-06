@@ -330,6 +330,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   pointer-events: none;
   /* Açılış katmanı tek seferlik gösterilip kaldırılır; opaklık değişimi katmanlaştırılır */
   will-change: opacity;
+  /* Boyama kapsamı: açılış overlay'i harita katmanlarıyla boyanmayı paylaşmaz */
+  contain: layout paint;
 }
 .yukleniyor__logo { height: 48px; width: auto; }
 .yukleniyor__halka {
@@ -366,6 +368,9 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   white-space: nowrap;
   pointer-events: none;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  /* Boyama optimizasyonu: ekrandan uzaktayken içerik boyanmaz (ilk açılış performansı) */
+  content-visibility: auto;
+  contain-intrinsic-size: 260px 24px;
 }
 @media (max-width: 720px) {
   .durum-satiri { display: none; }

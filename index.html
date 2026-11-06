@@ -18,6 +18,10 @@
   <link rel="preconnect" href="https://basemaps.arcgis.com" crossorigin />
   <link rel="preconnect" href="https://geocode.arcgis.com" crossorigin />
   <link rel="preconnect" href="https://baskentcbs.ankara.bel.tr" crossorigin />
+  <!-- preconnect desteklemeyen eski tarayıcılar için DNS çözümlemesi erkenden başlasın (kritik veri + 3B bina servisleri) -->
+  <link rel="dns-prefetch" href="https://baskentcbs.ankara.bel.tr" />
+  <link rel="dns-prefetch" href="https://basemaps3d.arcgis.com" />
+  <link rel="dns-prefetch" href="https://js.arcgis.com" />
   <!-- Açılış görünümü (Anıtkabir, z16 merkez) için yalnızca en kritik 4 uydu karo erkenden çekilir; fazlası sw.js karo önbelleğinden gelir -->
   <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38746" />
   <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38747" />

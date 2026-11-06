@@ -86,10 +86,12 @@ require([
   // ---------- Katmanlar ----------
   // 3B Binalar (Esri SceneServer) — opak buz grisi
   const buildingsUrl = "https://basemaps3d.arcgis.com/arcgis/rest/services/Esri3D_Buildings_v1/SceneServer";
-  const binalarLayer = new SceneLayer({
+  constibilarLayer = new SceneLayer({
     url: buildingsUrl,
     title: "3B Binalar",
-    visible: true,
+    // Sözleşme: 3B binalar load olana kadar GİZLİ başlar (açılışta gölge gibi görünmez);
+    // loaded watch Below load tamamlanınca görünür yapılır
+    visible: false,
     renderer: new SimpleRenderer({
       symbol: new MeshSymbol3D({
         symbolLayers: [{
@@ -371,6 +373,14 @@ require([
         console.log("Katman yükleme süresi: " + Math.round(performance.now() - yuklemeBaslangic) + " ms (" + ad + ")");
       }
     });
+  });
+  // 3B binalar yüklenene kadar gizli kalır; load tamamlanınca (kullanıcı kapatmadıysa) görünür olur.
+  // Yükleme başarısızsa gizli kalmaya devam eder (uçak modunda gölge/görünmez bina akışı yok).
+  reactiveUtils.watch(() => binalarLayer.loadStatus, s => {
+    if (s === "loaded" && !binalarLayer.visible) {
+      const cb = document.getElementById("cb-binalar");
+      if (cb && cb.checked) binalarLayer.visible = true;
+    }
   });
 
   // Katman yüklenemezse kurtarma akışı: tek satır uyarı + "Yeniden dene"
