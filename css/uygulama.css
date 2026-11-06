@@ -102,6 +102,8 @@ input[type="search"]::-webkit-search-results-decoration,
   border-radius: var(--yaricap);
   box-shadow: var(--golge);
   z-index: 20;
+  /* Sonuç listesi kaydırılırken sayfa zincirleme kaydırmaz (mobil tek ekran, sayfa hiç kaymaz) */
+  overscroll-behavior: contain;
   /* Boyama optimizasyonu: ekrandan uzakken içerik boyanmaz (ilk açılış performansı) */
   content-visibility: auto;
   contain-intrinsic-size: 220px 264px;
@@ -310,6 +312,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   white-space: nowrap;
 }
 .bildirim button:focus-visible { outline: 3px solid #ffb4ab; outline-offset: 1px; border-radius: 4px; }
+/* Katman kartı açıkken bildirim kartın üstünde dursun: hiçbir şey üst üste binmez */\n.bildirim--kart-ustunde { bottom: calc(84px + 320px + env(safe-area-inset-bottom)); }
 
 /* Yükleniyor göstergesi: açılışta anında görünür, haritayı kapatmaz (tıklanmaz, yarı saydam) */
 .yukleniyor {
@@ -378,6 +381,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .kontrol-dugme span { font-size: 10px; }
   .katman-karti { bottom: calc(70px + env(safe-area-inset-bottom)); }
   .bildirim { bottom: calc(70px + env(safe-area-inset-bottom)); }
+  .bildirim--kart-ustunde { bottom: calc(70px + 320px + env(safe-area-inset-bottom)); }
 }
 
 /* Klavye kullanıcıları için atla bağlantısı: odakta görünür */

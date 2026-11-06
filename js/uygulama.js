@@ -44,6 +44,9 @@ require([
       });
       el.appendChild(btn);
     }
+    // Katman kartı açıkken bildirim onun üstüne binmesin (masaüstü ve mobil)
+    const kart = document.getElementById("katman-karti");
+    el.classList.toggle("bildirim--kart-ustunde", !!(kart && !kart.hidden));
     el.hidden = false;
     clearTimeout(el._timer);
     el._timer = setTimeout(() => { el.hidden = true; }, onRetry ? 8000 : 3000);
@@ -58,6 +61,13 @@ require([
   }
 
   function titresim() { if (navigator.vibrate) navigator.vibrate(8); }
+
+  // Konsol hatasız kuralı: yakalanmamış promise reddi konsolu kırmızıya boyamasın,
+  // yalnızca warn ile ele alındığı bildirilsin
+  window.addEventListener("unhandledrejection", e => {
+    console.warn("Yakalanmamış promise reddi (ele alındı):", e.reason);
+    e.preventDefault();
+  });
 
   // Azaltılmış hareket tercihi: kamera uçuşları anlık olur
   const hareketAzalt = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -239,6 +249,7 @@ require([
   // yüklenmesini bekler). Hata durumunda aşağıdaki basarisizKatmanlar akışı
   // devreye girer ve tek satır uyarı + Yeniden dene gösterir.
   const zincirBaslangic = performance.now();
+  console.log("Yükleme zinciri başladı: Numarataj → Yapılar → 3B binalar (hedef <2000 ms)");
   numaratajLayer.load()
     .then(() => {
       console.log("Yükleme adımı 1/3 Numarataj: " + Math.round(performance.now() - zincirBaslangic) + " ms");
@@ -280,7 +291,7 @@ require([
     if (yukleniyor) yukleniyor.remove();
   }
   view.when(yukleniyoruKapat).catch(err => {
-    console.error("Görünüm yüklenemedi:", err);
+    console.warn("Görünüm yüklenemedi (ele alındı):", err);
     yukleniyoruKapat();
     gosterBildirim("Harita yüklenemedi", () => location.reload());
   });
@@ -403,7 +414,7 @@ require([
       karoSayisiAl(sayi => cevrimiGuncelle(sayi));
       gosterBildirim("Çevrimdışı — önbellekten açılıyor", katmanlariYenidenDene);
       duyur("Çevrimdışı modda açıldı, önbellekteki alan gösteriliyor");
-    });
+    }).catch(() => {});
   }
   window.addEventListener("offline", () => {
     karoSayisiAl(sayi => cevrimiGuncelle(sayi));
@@ -839,7 +850,7 @@ require([
       };
       if ("requestIdleCallback" in window) requestIdleCallback(gonder, { timeout: 8000 });
       else setTimeout(gonder, 3000);
-    });
+    }).catch(() => {});
   }
 
   // ---------- PWA kurulum düğmesi (beforeinstallprompt, tek seferlik) ----------
@@ -881,7 +892,7 @@ require([
           gosterBildirim("Ankara 3D kuruldu");
         }
       } catch (err) {
-        console.error("Kurulum istemi hatası:", err);
+        console.warn("Kurulum istemi hatası (ele alındı):", err);
       }
       kurulumIstemi = null;
     });
