@@ -40,7 +40,7 @@ function lonLatToTile(lon, lat, z) {
 // böylece keys()[0] her zaman en eski (silinecek ilk) girdi olur
 async function karoYaz(c, anahtar, yanit) {
   try { await c.delete(anahtar); } catch (_) {}
-  await c.put(anahtar, yanit);
+  try { await c.put(anahtar, yanit); } catch (_) {}
 }
 
 // Alan karo önbellekleme: minZoom–maxZoom arasındaki tüm uydu karoları önbelleğe alır.
@@ -51,7 +51,8 @@ async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst
       typeof bbox.minLat !== "number" || typeof bbox.maxLat !== "number" ||
       !Number.isFinite(bbox.minLon) || !Number.isFinite(bbox.maxLon) ||
       !Number.isFinite(bbox.minLat) || !Number.isFinite(bbox.maxLat)) return 0;
-  const c = await caches.open(KARO_AD);
+  let c;
+  try { c = await caches.open(KARO_AD); } catch (_) { return 0; }
   let sayac = 0;
   const zoomlar = [];
   const zMin = Math.max(1, Math.min(19, Math.floor(minZoom) || 1));
@@ -66,7 +67,9 @@ async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst
       for (let y = a.y; y <= b.y; y++) {
         const u = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/" + z + "/" + y + "/" + x;
         istekler.push((async () => {
-          if (sadeceEksik && await c.match(u)) return;
+          if (sadeceEksik) {
+            try { if (await c.match(u)) return; } catch (_) {}
+          }
           try {
             const r = await fetch(u);
             if (r.ok) { sayac++; await karoYaz(c, u, r); }
@@ -82,12 +85,14 @@ async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst
 
 // Önbellek sınırını aşınca en eski girdileri baştan sil (Cache API keys eklenme sırasındadır)
 async function karoSinirla() {
-  const c = await caches.open(KARO_AD);
-  const keys = await c.keys();
-  const fazlalik = keys.length - KARO_SINIRI;
-  for (let i = 0; i < fazlalik; i++) {
-    await c.delete(keys[i]);
-  }
+  try {
+    const c = await caches.open(KARO_AD);
+    const keys = await c.keys();
+    const fazlalik = keys.length - KARO_SINIRI;
+    for (let i = 0; i < fazlalik; i++) {
+      try { await c.delete(keys[i]); } catch (_) {}
+    }
+  } catch (_) {}
 }
 
 // Port üzerinden yanıtı garanti et: hata olsa bile istemci beklemesin
@@ -110,13 +115,18 @@ function bosYanit(url) {
 
 self.addEventListener("install", e => {
   e.waitUntil(
-    caches.open(AD)
-      .then(c => c.addAll(KABUK))
+    caches.open(AD).then(async c => {
+      // Kabuk dosyaları TEK TEK eklenir: biri geçici olarak alınamazsa
+      // kurulum bozulmaz, geri kalanı önbelleğe girer (uçak modunda açılış kurtarma)
+      await Promise.all(KABUK.map(u =>
+        fetch(u).then(r => { if (r.ok) return c.put(u, r); }).catch(() => {})
+      ));
       // İkonlar tek tek eklenir; biri eksik olursa kurulum bozulmaz
-      .then(() => Promise.all(IKONLAR.map(u =>
-        fetch(u).then(r => { if (r.ok) return caches.open(AD).then(c => c.put(u, r)); }).catch(() => {})
-      )))
-      .then(() => self.skipWaiting())
+      await Promise.all(IKONLAR.map(u =>
+        fetch(u).then(r => { if (r.ok) return c.put(u, r); }).catch(() => {})
+      ));
+    }).then(() => self.skipWaiting())
+      .catch(() => self.skipWaiting())
   );
 });
 
@@ -124,7 +134,12 @@ self.addEventListener("install", e => {
 self.addEventListener("activate", e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== AD && k !== KARO_AD).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== AD && k !== KARO_AD).map(k => caches.delete(k).catch(() => {}))))
+      .then(() => caches.open(AD))
+      .then(c => c.match("index.html").then(hit => {
+        // Navigasyon kurtarma garantisi: index.html önbellekte yoksa yeniden koy
+        if (!hit) return fetch("index.html").then(r => { if (r.ok) return c.put("index.html", r); }).catch(() => {});
+      }))
       .then(() => self.clients.claim())
   );
 });
@@ -188,82 +203,106 @@ self.addEventListener("message", e => {
     // Bilinmeyen mesaj: yine de garanti yanıt ver (istemci portu asla beklemesin)
     portYanitla(port, { tip: "BILINMEYEN", istenen: (veri && veri.tip) || null });
   } catch (hata) {
-    // Beklenmedik synchronous hata: port yine yanıt alır
+    // Beklenmedik senkron hata: port yine yanıt alır
     portYanitla(port, { tip: "BILINMEYEN", istenen: (veri && veri.tip) || null, hata: true });
   }
 });
 
 self.addEventListener("fetch", e => {
-  if (e.request.method !== "GET") return;
-  const url = new URL(e.request.url);
+  try {
+    if (e.request.method !== "GET") return;
+    const url = new URL(e.request.url);
 
-  // 1) Harita karoları + vektör taban kaynakları: önce önbellekten anında sun,
-  //    varsa arka planda ağdan tazele (stale-while-revalidate); önbellekte yoksa
-  //    ağdan çek, ağ yoksa/bozuksa son önbellek denemesi, yoksa:
-  //    - karo: boş 504 gövdesi, vektör kaynağı: boş içerik (istemci çökmez)
-  if (karoIstegiMi(url) || vektorKaynagiMi(url)) {
-    const vektor = vektorKaynagiMi(url);
+    // 1) Harita karoları + vektör taban kaynakları: önce önbellekten anında sun,
+    //    varsa arka planda ağdan tazele (stale-while-revalidate); önbellekte yoksa
+    //    ağdan çek, ağ yoksa/bozuksa son önbellek denemesi, yoksa:
+    //    - karo: boş 504 gövdesi, vektör kaynağı: boş içerik (istemci çökmez)
+    if (karoIstegiMi(url) || vektorKaynagiMi(url)) {
+      const vektor = vektorKaynagiMi(url);
+      e.respondWith(
+        caches.open(KARO_AD).then(async c => {
+          let hit = null;
+          try { hit = await c.match(e.request, { ignoreSearch: true }); } catch (_) {}
+          if (hit) {
+            // Çevrimiçiysek arka planda güncelle (LRU sırası tazelenir); ağ yoksa sessizce geç
+            fetch(e.request)
+              .then(r => {
+                if (r.ok || r.type === "opaque") {
+                  karoYaz(c, e.request, r.clone()).then(karoSinirla).catch(() => {});
+                }
+              })
+              .catch(() => {});
+            return hit;
+          }
+          try {
+            const resp = await fetch(e.request);
+            if (resp.ok || resp.type === "opaque") {
+              try {
+                await karoYaz(c, e.request, resp.clone());
+                karoSinirla().catch(() => {});
+              } catch (_) {}
+            }
+            return resp;
+          } catch (err) {
+            // Ağ yokken önbellek dönüşünü son kez dene
+            try {
+              const tekrar = await c.match(e.request, { ignoreSearch: true });
+              if (tekrar) return tekrar;
+            } catch (_) {}
+            // Çevrimdışı taban geçişinde eksik vektör kaynağı: 504 yerine boş içerik
+            if (vektor) return bosYanit(url);
+            return new Response("", { status: 504 });
+          }
+        }).catch(() => {
+          // Önbellek açılamazsa bile istek bozulmadan ağa yönlensin
+          return fetch(e.request).catch(() => vektor ? bosYanit(url) : new Response("", { status: 504 }));
+        })
+      );
+      return;
+    }
+
+    // 2) Diğer ArcGIS istekleri (veri sorguları vb.) her zaman ağdan
+    if (arcgisSunucusuMu(url)) return;
+
+    // 3) Uygulama kabuğu (aynı origin) — çevrimdışı navigasyon kurtarma
+    if (url.origin !== location.origin) return;
+
     e.respondWith(
-      caches.open(KARO_AD).then(async c => {
-        const hit = await c.match(e.request, { ignoreSearch: true });
-        if (hit) {
-          // Çevrimiçiysek arka planda güncelle (LRU sırası tazelenir); ağ yoksa sessizce geç
+      caches.match(e.request, { ignoreSearch: e.request.mode === "navigate" }).then(hit => {
+        // Navigasyon: önce önbellekten aç (uçak modunda açılış kurtarma),
+        // mümkünse arka planda ağı önbelleğe güncelle; önbellek de boşsa index.html kurtarma
+        if (e.request.mode === "navigate") {
           fetch(e.request)
-            .then(r => {
-              if (r.ok || r.type === "opaque") {
-                karoYaz(c, e.request, r.clone()).then(karoSinirla).catch(() => {});
-              }
+            .then(resp => {
+              if (resp.ok) caches.open(AD).then(c => c.put("index.html", resp)).catch(() => {});
             })
             .catch(() => {});
-          return hit;
+          if (hit) return hit;
+          return fetch(e.request)
+            .then(r => r)
+            .catch(() =>
+              caches.match("index.html")
+                .then(f => f || new Response("Çevrimdışı — önbellek boş", {
+                  status: 503,
+                  headers: { "Content-Type": "text/plain;charset=utf-8" }
+                }))
+            );
         }
-        try {
-          const resp = await fetch(e.request);
-          if (resp.ok || resp.type === "opaque") {
-            await karoYaz(c, e.request, resp.clone());
-            karoSinirla().catch(() => {});
+        if (hit) return hit;
+        return fetch(e.request).then(resp => {
+          if (resp.ok && /\.(css|js|json|png|svg)$/.test(url.pathname)) {
+            const kopya = resp.clone();
+            caches.open(AD).then(c => c.put(e.request, kopya)).catch(() => {});
           }
           return resp;
-        } catch (err) {
-          // Ağ yokken önbellek dönüşünü son kez dene
-          const tekrar = await c.match(e.request, { ignoreSearch: true });
-          if (tekrar) return tekrar;
-          // Çevrimdışı taban geçişinde eksik vektör kaynağı: 504 yerine boş içerik
-          if (vektor) return bosYanit(url);
-          return new Response("", { status: 504 });
-        }
-      })
+        }).catch(() => {
+          if (e.request.destination === "image") return new Response("", { status: 404 });
+          return Response.error();
+        });
+      }).catch(() => fetch(e.request).catch(() => Response.error()))
     );
+  } catch (_) {
+    // Hiçbir fetch dalı asla atmasın: en kötü durumda istek ağa bırakılır
     return;
   }
-
-  // 2) Diğer ArcGIS istekleri (veri sorguları vb.) her zaman ağdan
-  if (arcgisSunucusuMu(url)) return;
-
-  // 3) Uygulama kabuğu (aynı origin) — çevrimdışı navigasyon kurtarma
-  if (url.origin !== location.origin) return;
-
-  e.respondWith(
-    caches.match(e.request, { ignoreSearch: e.request.mode === "navigate" }).then(hit => {
-      // Navigasyon: önce önbellekten aç (uçak modunda açılış kurtarma),
-      // mümkünse arka planda ağı önbelleğe güncelle; önbellek de boşsa index.html kurtarma
-      if (e.request.mode === "navigate") {
-        fetch(e.request)
-          .then(resp => { if (resp.ok) caches.open(AD).then(c => c.put("index.html", resp)).catch(() => {}); })
-          .catch(() => {});
-        return hit || fetch(e.request).catch(() => caches.match("index.html").then(f => f || bosYanit(url)));
-      }
-      if (hit) return hit;
-      return fetch(e.request).then(resp => {
-        if (resp.ok && /\.(css|js|json|png|svg)$/.test(url.pathname)) {
-          const kopya = resp.clone();
-          caches.open(AD).then(c => c.put(e.request, kopya)).catch(() => {});
-        }
-        return resp;
-      }).catch(() => {
-        if (e.request.destination === "image") return new Response("", { status: 404 });
-        return Response.error();
-      });
-    })
-  );
 });

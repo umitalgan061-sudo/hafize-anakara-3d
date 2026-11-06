@@ -321,6 +321,15 @@ require([
     );
     if (viewMs > 2000) console.warn("AÇILIŞ ÖZET hedef aşıldı: " + viewMs + " ms");
   }
+  // Kalıcı doğrulama garantisi: zincir kırılırsa (örn. uçak modunda katmanlar
+  // yüklenemezse) özet yine de tek satır raporlansın — 6 sn sonra kısmi özet.
+  setTimeout(() => {
+    if (ozetRaporlandi || viewHazirSuresi === null) return;
+    ozetRaporlandi = true;
+    const viewMs = Math.round(viewHazirSuresi - yukleyiciBaslangic);
+    const parca = Object.keys(katmanSureleri).map(k => k + " " + Math.round(katmanSureleri[k]) + " ms").join(", ") || "katman yüklenemedi";
+    console.warn("AÇILIŞ ÖZET (kısmi, zincir tamamlanamadı): yükleyici→view hazır " + viewMs + " ms | " + parca + " | hedef <2000");
+  }, 6000);
 
   // İlk açılış süresi ölçümü (hedef: Anıtkabir görünümü 2 sn altında)
   const acilisBaslangic = performance.now();
@@ -379,6 +388,7 @@ require([
       if (status === "failed") {
         basarisizKatmanlar.add(lyr);
         gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
+        duyur("Bazı katmanlar yüklenemedi");
         console.warn(lyr.title, "yükleme hatası (ele alındı):", lyr.loadError);
       } else if (status === "loaded") {
         basarisizKatmanlar.delete(lyr);
@@ -604,9 +614,9 @@ require([
       })
       .catch(err => {
         console.warn("Arama hatası (ele alındı):", err);
-        if (err && err.name === "AbortError") gosterBildirim("Arama zaman aşımına uğradı", () => aramaYap(sorgu));
-        else if (!navigator.onLine) gosterBildirim("Çevrimdışı — arama yapılamadı", () => aramaYap(sorgu));
-        else gosterBildirim("Arama başarısız oldu", () => aramaYap(sorgu));
+        if (err && err.name === "AbortError") { gosterBildirim("Arama zaman aşımına uğradı", () => aramaYap(sorgu)); duyur("Arama zaman aşımına uğradı"); }
+        else if (!navigator.onLine) { gosterBildirim("Çevrimdışı — arama yapılamadı", () => aramaYap(sorgu)); duyur("Çevrimdışı — arama yapılamadı"); }
+        else { gosterBildirim("Arama başarısız oldu", () => aramaYap(sorgu)); duyur("Arama başarısız oldu"); }
       });
   }
 
@@ -788,8 +798,8 @@ require([
 
   function tabanSec(taban) {
     // Çevrimdışı taban geçişi: vektör taban kaynakları ve karolar önbellekten
-    // sunulur; kullanıcı tek satır bildirimle bilgilendirilir
-    if (!navigator.onLine) gosterBildirim("Çevrimdışı — taban önbellekten açıldı");
+    // sunulur; kullanıcı tek satır bildirim + kurtarma akışıyla bilgilendirilir
+    if (!navigator.onLine) gosterBildirim("Çevrimdışı — taban önbellekten açıldı", () => tabanSec(taban));
     view.map.basemap = taban;
     tabanUydu.setAttribute("aria-pressed", String(taban === "hybrid"));
     tabanHarita.setAttribute("aria-pressed", String(taban === "streets-vector"));
