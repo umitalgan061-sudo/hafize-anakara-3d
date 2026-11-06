@@ -788,7 +788,7 @@ require([
     }
   });
   document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && !katmanKarti.hidden) { katmanKartiKapat(); return; }
+    if (e.key === "Escape" && !katmanKarti.hidden) { katmanKartiKapat(); e.stopImmediatePropagation(); return; }
     // Kart açıkken Tab/Shift+Tab kart içinde döngüsel kalsın
     if (e.key === "Tab" && !katmanKarti.hidden) {
       const odaklilar = katmanKarti.querySelectorAll("input, button");
@@ -1038,7 +1038,66 @@ require([
   window.binaKartiGoster = binaKartiGoster;
   window.binaKartiKapat = binaKartiKapat;
 
-  // Katmana göre seçim: Yapı (çok satır), Numarataj (No + adres), 3B bina (yalnız ad)
+  // Global (sözleşme): mesh geometriden yükseklik (m) ve kat tahmini üretir;
+  // geçersiz geometride { yukseklik: null, kat: null } döner, çökmez
+  function yukseklikTahmin(geometry) {
+    let yukseklik = null;
+    try {
+      if (geometry && geometry.extent &&
+          Number.isFinite(geometry.extent.zmax) && Number.isFinite(geometry.extent.zmin)) {
+        const h = geometry.extent.zmax - geometry.extent.zmin;
+        if (Number.isFinite(h) && h > 0) yukseklik = h;
+      }
+    } catch (_) { yukseklik = null; }
+    if (yukseklik === null) return { yukseklik: null, kat: null };
+    return { yukseklik: Math.round(yukseklik * 10) / 10, kat: Math.max(1, Math.round(yukseklik / 3)) };
+  }
+  window.yukseklikTahmin = yukseklikTahmin;
+
+  // Global (sözleşme): mesh geometriden yükseklik (extent zmax−zmin) ve ~3 m/kattan
+  // kat tahmini üretir; geçersiz/boş geometride { yukseklik: null, kat: null } döner, asla çökmez
+  function yukseklikTahmin(geometry) {
+    const bos = { yukseklik: null, kat: null };
+    try {
+      if (!geometry) return bos;
+      const ext = geometry.extent;
+      if (!ext || !Number.isFinite(ext.zmax) || !Number.isFinite(ext.zmin)) return bos;
+      const yukseklik = ext.zmax - ext.zmin;
+      if (!Number.isFinite(yukseklik) || yukseklik <= 0) return bos;
+      return { yukseklik: yukseklik, kat: Math.max(1, Math.round(yukseklik / 3)) };
+    } catch (err) { return bos; }
+  }
+  window.yukseklikTahmin = yukseklikTahmin;
+
+  // Global (sözleşme): mesh/polygon geometrisinden yükseklik (m) ve ~3 m/kattan kat tahmini üretir;
+  // geçersiz/boş geometride { yukseklik: null, kat: null } döner, asla hata atmaz
+  function yukseklikTahmin(geometry) {
+    const bos = { yukseklik: null, kat: null };
+    try {
+      if (!geometry) return bos;
+      let zmin = Infinity, zmax = -Infinity;
+      const zEkle = z => { if (Number.isFinite(z)) { if (z < zmin) zmin = z; if (z > zmax) zmax = z; } };
+      const halka = ring => {
+        if (!Array.isArray(ring)) return;
+        for (const p of ring) {
+          if (Array.isArray(p)) zEkle(p[2]);
+          else if (p && Number.isFinite(p.z)) zEkle(p.z);
+        }
+      };
+      if (geometry.vertexAttributes && geometry.vertexAttributes.position) {
+        const pos = geometry.vertexAttributes.position;
+        for (let i = 0; i + 2 < pos.length; i += 3) zEkle(pos[i + 2]);
+      } else if (geometry.rings) geometry.rings.forEach(halka);
+      else if (geometry.paths) geometry.paths.forEach(halka);
+      else if (geometry.z !== undefined) zEkle(geometry.z);
+      if (!Number.isFinite(zmin) || !Number.isFinite(zmax)) return bos;
+      const yukseklik = Math.round((zmax - zmin) * 10) / 10;
+      if (yukseklik <= 0) return bos;
+      return { yukseklik: yukseklik, kat: Math.max(1, Math.round(yukseklik / 3)) };
+    } catch (err) { return bos; }
+  }
+
+  // Katmana göre seçim: Yapı (çok satır), Numarataj (No + adres), 3B bina (yükseklik + kat)
   function secimIsle(sonuc) {
     // Seçim bilgi kartı açılınca yerleşik popup kapanır (mobilde altta üst üste binmez, bilgi tek kartta)
     if (view.popup) view.popup.close();
@@ -1060,7 +1119,16 @@ require([
       if (a.postakodu) satirlar.push("Posta kodu " + a.postakodu);
       seciliVurgula(sonuc.graphic.geometry, "polygon");
       binaKartiGoster({ ad: ad, satirlar: satirlar });
-    } else if (layer === bilaterarLayer) { /* yer tutucu */ }
+    } else if (layer === binalarLayer) {
+      // 3B bina: başlık ad yoksa '3B Bina'; yükseklik ve kat tahmini satır olarak eklenir (null ise yazılmaz)
+      const ad = a.ad || "3B Bina";
+      const tahmin = yukseklikTahmin(sonuc.graphic.geometry);
+      const satirlar = [];
+      if (tahmin && Number.isFinite(tahmin.yukseklik)) satirlar.push("Yükseklik ~" + tahmin.yukseklik.toFixed(1) + " m");
+      if (tahmin && Number.isFinite(tahmin.kat)) satirlar.push("Tahmini " + tahmin.kat + " kat");
+      seciliVurgula(sonuc.graphic.geometry, "polygon");
+      binaKartiGoster({ ad: ad, satirlar: satirlar });
+    }
   }
 
   // Ortak seçim akışı: hitTest → katman katman seçim; sonuç yoksa kart kapanır
