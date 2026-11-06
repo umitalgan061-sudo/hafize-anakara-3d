@@ -1,5 +1,5 @@
-const AD = "ankara3d-v26";
-const KARO_AD = "ankara3d-karolar-v23";
+const AD = "ankara3d-v27";
+const KARO_AD = "ankara3d-karolar-v24";
 const KARO_SINIRI = 600; // önbellekte tutulacak en çok girdi sayısı (LRU)
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];

@@ -281,7 +281,9 @@ require([
       }));
     })
     .then(() => {
+      const toplam = performance.now() - yukleyiciBaslangic;
       console.log("Yükleme adımı 3/3 3B Binalar — zincir tamam: " + Math.round(performance.now() - zincirBaslangic) + " ms");
+      gerilemeKontrol("zincir tamam", toplam);
     })
     .catch(err => {
       // Zincir hatası kullanıcıya tek satır bildirimle bildiriliyor; konsol hatasız kalmalı (uçak modu dahil)
@@ -293,9 +295,12 @@ require([
       // katmanlar bildirilmisKatmanlar'da işaretli; bu catch hepsini işaretler, yuklemeHatasiIzle yinelenmez
       const yeniVar = [numaratajLayer, yapilarLayer, binalarLayer].some(l => !bildirilmisKatmanlar.has(l));
       [numaratajLayer, yapilarLayer, binalarLayer].forEach(l => { basarisizKatmanlar.add(l); bildirilmisKatmanlar.add(l); });
+      // Zincir kırılınca kısmi-başarı (partial success) özeti HER DURUMDA tek satır
+      // loglanır — 6 sn fallback'iyle yinelenmez (ozetRaporlandi ile korumalı)
+      if (!ozetRaporlandi) { ozetRaporlandi = true; kismiOzetLogla(); }
       if (!yeniVar) return;
-      if (!navigator.onLine) gosterBildirim("Çevrimdışı — katmanlar önbellekten deneniyor", katmanlariYenidenDene);
-      else gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
+      if (!navigator.onLine) { gosterBildirim("Çevrimdışı — katmanlar önbellekten deneniyor", katmanlariYenidenDene); duyur("Çevrimdışı — katmanlar önbellekten deneniyor"); }
+      else { gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene); duyur("Bazı katmanlar yüklenemedi"); }
     });
 
   // ---------- Bilgi penceresi: alt yerleşik (dock), araç çubuğuyla çakışmaz ----------
@@ -322,6 +327,23 @@ require([
   const katmanSureleri = {};
   let viewHazirSuresi = null;
   let ozetRaporlandi = false;
+  // Gerileme tespiti (kalıcı): açılış hedefi 2000 ms; aşıldığında HER ZAMAN
+  // console.warn tetiklenir — konsol hatasız kalır (warn kullanılır, error değil)
+  function gerilemeKontrol(kaynak, toplamMs) {
+    if (Number.isFinite(toplamMs) && toplamMs > 2000) {
+      console.warn("GERİLEME (" + kaynak + "): açılış " + Math.round(toplamMs) + " ms — hedef 2000 ms aşıldı");
+    }
+  }
+  // Kısmi-başarı özeti: zincir kırılınca (örn. uçak modunda) yüklü katmanlarla
+  // tek satır rapor; view hazır değilse bile log basılır (hiçbir durum log'suz kalmaz)
+  function kismiOzetLogla() {
+    const viewMs = viewHazirSuresi !== null ? Math.round(viewHazirSuresi - yukleyiciBaslangic) : null;
+    const parca = Object.keys(katmanSureleri).map(k => k + " " + Math.round(katmanSureleri[k]) + " ms").join(", ") || "katman yüklenemedi";
+    console.warn("AÇILIŞ ÖZET (kısmi, zincir tamamlanamadı): " +
+      (viewMs !== null ? "yükleyici→view hazır " + viewMs + " ms | " : "view henüz hazır değil | ") +
+      parca + " | hedef <2000");
+    if (viewMs !== null) gerilemeKontrol("kısmi özet", viewMs);
+  }
   function acilisOzetRaporla() {
     if (ozetRaporlandi || viewHazirSuresi === null) return;
     if (!katmanSureleri["Numarataj"] || !katmanSureleri["Yapılar"] || !katmanSureleri["3B binalar"]) return;
@@ -334,7 +356,7 @@ require([
       ", 3B binalar " + Math.round(katmanSureleri["3B binalar"]) + " ms" +
       " | hedef <2000"
     );
-    if (viewMs > 2000) console.warn("AÇILIŞ ÖZET hedef aşıldı: " + viewMs + " ms");
+    gerilemeKontrol("AÇILIŞ ÖZET", viewMs);
   }
   // Kalıcı doğrulama garantisi: zincir kırılırsa (örn. uçak modunda katmanlar
   // yüklenemezse) özet yine de tek satır raporlansın — 6 sn sonra kısmi özet.
