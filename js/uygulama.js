@@ -197,6 +197,9 @@ require([
       tilt: 70
     },
     environment: {
+      // directShadowsEnabled her profilde true — gölgeler her zaman açık kalır.
+      // Telefonda qualityProfile "medium" gölge haritasını 1024 px'e düşürür
+      // (masaüstünde "high": 2048 px); bu ince ayar ilk açılışı hızlandırır.
       lighting: { type: "virtual", directShadowsEnabled: true },
       atmosphereEnabled: true,
       starsEnabled: false
@@ -211,9 +214,19 @@ require([
   // sonra Yapılar, en son 3B Binalar (Promise.all değil; her biri bir öncekinin
   // yüklenmesini bekler). Hata durumunda aşağıdaki basarisizKatmanlar akışı
   // devreye girer ve tek satır uyarı + Yeniden dene gösterir.
+  const zincirBaslangic = performance.now();
   numaratajLayer.load()
-    .then(() => yapilarLayer.load())
-    .then(() => binalarLayer.load())
+    .then(() => {
+      console.log("Yükleme adımı 1/3 Numarataj: " + Math.round(performance.now() - zincirBaslangic) + " ms");
+      return yapilarLayer.load();
+    })
+    .then(() => {
+      console.log("Yükleme adımı 2/3 Yapılar: " + Math.round(performance.now() - zincirBaslangic) + " ms");
+      return binalarLayer.load();
+    })
+    .then(() => {
+      console.log("Yükleme adımı 3/3 3B Binalar: " + Math.round(performance.now() - zincirBaslangic) + " ms — zincir tamam");
+    })
     .catch(err => console.error("Katman yükleme zinciri hatası:", err));
 
   // 3B bina katmanı katman listesinde en sonda; kabul denetimi renderer'ını
@@ -243,7 +256,7 @@ require([
   view.when(() => {
     const sure = Math.round(performance.now() - acilisBaslangic);
     if (sure > 2000) console.warn("Açılış hedefi aşıldı: " + sure + " ms");
-    else console.log("Açılış süresi: " + sure + " ms");
+    else console.log("Açılış süresi (Anıtkabir görünümü hazır): " + sure + " ms");
     const y = document.getElementById("yukleniyor");
     if (y) y.setAttribute("aria-valuenow", "3");
   });
@@ -350,12 +363,15 @@ require([
     if (!denetci || !view.extent) return;
     const ex = view.extent;
     const z = Math.max(1, Math.round(view.zoom || 15));
+    // Portlu gönderilir; sw.js yanıtını (GUNCEL_TAMAM) yalnızca port varsa yollar
+    const kanal = new MessageChannel();
+    kanal.port1.onmessage = () => {};
     denetci.postMessage({
       tip: "GUNCEL_ALAN",
       bbox: { minLon: ex.xmin, minLat: ex.ymin, maxLon: ex.xmax, maxLat: ex.ymax },
       minZoom: Math.max(1, z - 1),
       maxZoom: Math.min(19, z + 1)
-    });
+    }, [kanal.port2]);
   }
   function guncelAlaniTazele() {
     if (!navigator.onLine || !("serviceWorker" in navigator)) return;
@@ -645,8 +661,12 @@ require([
   ].forEach(([cb, lyr, ad]) => {
     cb.addEventListener("change", () => {
       titresim();
-      // Gizli katmanlar ilk kez açıldığında haritaya eklenir ve yüklenir (lazy load)
-      if (cb.checked && !lyr.parent) view.map.add(lyr);
+      // Gizli katmanlar (Mahalleler/Yollar) ilk açılışta haritada YOKTUR;
+      // yalnızca ilk kez açıldıklarında haritaya eklenir (lazy load — açılış performansı)
+      if (cb.checked && !lyr.parent) {
+        view.map.add(lyr);
+        console.log("Katman ilk açılışta eklendi (lazy): " + ad);
+      }
       lyr.visible = cb.checked;
       duyur(ad + (cb.checked ? " açıldı" : " kapatıldı"));
     });

@@ -275,7 +275,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   text-overflow: ellipsis;
 }
 
-/* Yükleniyor göstergesi */
+/* Yükleniyor göstergesi: açılışta anında görünür, haritayı kapatmaz */
 .yukleniyor {
   position: fixed;
   inset: 0;
@@ -283,13 +283,18 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(2px);
   pointer-events: none;
 }
 .yukleniyor__logo { height: 48px; width: auto; }
 .yukleniyor__halka {
   position: absolute;
-  width: 72px; height: 72px;
+  left: 50%;
+  top: 50%;
+  width: 72px;
+  height: 72px;
+  margin: -36px 0 0 -36px;
   border: 3px solid rgba(179, 38, 30, 0.15);
   border-top-color: var(--vurgu);
   border-radius: 50%;
@@ -373,5 +378,9 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
     scroll-behavior: auto !important;
   }
   /* Yükleniyor halkası animasyonsuz da görünür kalsın */
-  .yukleniyor__halka { border: 3px solid rgba(179, 38, 30, 0.35); }
+  .yukleniyor__halka {
+    animation: none;
+    border: 3px solid rgba(179, 38, 30, 0.35);
+    border-top-color: var(--vurgu);
+  }
 }
