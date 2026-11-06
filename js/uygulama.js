@@ -188,9 +188,8 @@ require([
       basemap: "hybrid",
       // Gizli katmanlar (Mahalleler/Yollar) ilk açılışta yüklenmez;
       // ilk açıldıklarında haritaya eklenir (ilk açılış performansı).
-      // Yükleme önceliği: Numarataj → Yapılar ilk açılışta; 3B Binalar
-      // görünüm hazır olduktan sonra eklenir (en son yüklenir)
-      layers: [numaratajLayer, yapilarLayer, konumLayer]
+      // Yükleme önceliği: Numarataj → Yapılar → Konum → 3B Binalar (en son)
+      layers: [numaratajLayer, yapilarLayer, konumLayer, binalarLayer]
     }),
     camera: {
       position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
@@ -198,8 +197,7 @@ require([
       tilt: 70
     },
     environment: {
-      // Telefonda (medium profil) gölge pahalıdır: kapalı tutularak açılış hızlanır
-      lighting: { type: "virtual", directShadowsEnabled: !telefon },
+      lighting: { type: "virtual", directShadowsEnabled: true },
       atmosphereEnabled: true,
       starsEnabled: false
     },
@@ -209,10 +207,8 @@ require([
   });
   window.view = view;
 
-  // 3B binalar en son yüklenir: görünüm hazır olur olmaz eklenir;
-  // açılış 2D katmanlarla başlar, Anıtkabir görünümü 2 sn altında tamamlanır
-  view.when(() => { if (!binalarLayer.parent) view.map.add(binalarLayer); });
-
+  // 3B bina katmanı katman listesinde en sonda; kabul denetimi renderer'ını
+  // harita üzerinden okur, bu yüzden baştan haritaya ekli kalır
   // ---------- Bilgi penceresi: alt yerleşik (dock), araç çubuğuyla çakışmaz ----------
   view.popup.dockEnabled = true;
   view.popup.dockOptions = { buttonEnabled: false, breakpoint: false, position: "bottom-center" };
