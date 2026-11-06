@@ -21,6 +21,9 @@ require([
 ) {
   "use strict";
 
+  // Kalıcı açılış performans ölçümü: ArcGIS JS yükleyici başlangıcı (bu callback'in çalıştığı an)
+  const yukleyiciBaslangic = performance.now();
+
   // ---------- Yardımcılar ----------
   function gosterBildirim(metin, onRetry) {
     const el = document.getElementById("bildirim");
@@ -145,38 +148,59 @@ require([
     }
   });
 
-  const mahallelerLayer = new FeatureLayer({
-    url: MAKS_URL + "/3",
-    title: "Mahalleler",
-    visible: false,
-    outFields: ["ad"],
-    labelingInfo: [{
-      labelExpressionInfo: { expression: "$feature.ad" },
-      labelPlacement: "center-center",
-      symbol: new LabelSymbol3D({
-        symbolLayers: [new TextSymbol3DLayer({
-          material: { color: [20, 20, 20, 1] },
-          halo: { color: [255, 255, 255, 0.9], size: 1 },
-          size: 12,
-          font: { family: "system-ui", weight: "bold" }
-        })]
-      }),
-      minScale: 20000
-    }],
-    labelsVisible: true,
-    popupTemplate: {
-      title: "{ad}",
-      content: [{ type: "fields", fieldInfos: [{ fieldName: "ad", label: "Mahalle" }] }]
+  // Mahalleler ve Yollar katmanları GİZLİDİR: açılışta FeatureLayer OLUŞTURULMAZ
+  // (metadata/veri isteği atılmaz — ilk açılış performansı). İlk açıldıklarında
+  // bu factory'lerle tek seferlik oluşturulur, haritaya eklenir ve yalnızca
+  // loadStatus watch ile hata akışına girer; yükleme zincirine (3 adım) DAHİL DEĞİLDİR.
+  let _mahallelerLayer = null;
+  let _yollarLayer = null;
+  function mahallelerKatmani() {
+    if (!_mahallelerLayer) {
+      _mahallelerLayer = new FeatureLayer({
+        url: MAKS_URL + "/3",
+        title: "Mahalleler",
+        visible: false,
+        outFields: ["ad"],
+        labelingInfo: [{
+          labelExpressionInfo: { expression: "$feature.ad" },
+          labelPlacement: "center-center",
+          symbol: new LabelSymbol3D({
+            symbolLayers: [new TextSymbol3DLayer({
+              material: { color: [20, 20, 20, 1] },
+              halo: { color: [255, 255, 255, 0.9], size: 1 },
+              size: 12,
+              font: { family: "system-ui", weight: "bold" }
+            })]
+          }),
+          minScale: 20000
+        }],
+        labelsVisible: true,
+        popupTemplate: {
+          title: "{ad}",
+          content: [{ type: "fields", fieldInfos: [{ fieldName: "ad", label: "Mahalle" }] }]
+        }
+      });
+      view.map.add(_mahallelerLayer);
+      yuklemeHatasiIzle(_mahallelerLayer);
+      console.log("Mahalleler katmanı ilk açılışta oluşturuldu (lazy)");
     }
-  });
-
-  const yollarLayer = new FeatureLayer({
-    url: MAKS_URL + "/1",
-    title: "Yollar",
-    visible: false,
-    outFields: ["ad"],
-    popupTemplate: { title: "{ad}", content: [{ type: "fields", fieldInfos: [{ fieldName: "ad", label: "Yol" }] }] }
-  });
+    return _mahallelerLayer;
+  }
+  function yollarKatmani() {
+    if (!_yollarLayer) {
+      _yollarLayer = new FeatureLayer({
+        url: MAKS_URL + "/1",
+        title: "Yollar",
+        visible: false,
+        outFields: ["ad"],
+        popupTemplate: { title: "{ad}", content: [{ type: "fields", fieldInfos: [{ fieldName: "ad", label: "Yol" }] }] }
+      });
+      view.map.add(_yollarLayer);
+      yuklemeHatasiIzle(_yollarLayer);
+      console.log("Yollar katmanı ilk açılışta oluşturuldu (lazy)");
+    }
+    return _yollarLayer;
+  }
 
   const konumLayer = new GraphicsLayer({ title: "Konum" });
 
@@ -188,8 +212,8 @@ require([
       basemap: "hybrid",
       // Gizli katmanlar (Mahalleler/Yollar) ilk açılışta yüklenmez;
       // ilk açıldıklarında haritaya eklenir (ilk açılış performansı).
-      // Yükleme önceliği: Numarataj → Yapılar → 3B Binalar en son
-      layers: [numaratajLayer, yapilarLayer, binalarLayer, konumLayer]
+      // Yükleme önceliği: Numarataj → Yapılar → Konum → 3B Binalar (en son)
+      layers: [numaratajLayer, yapilarLayer, konumLayer, binalarLayer]
     }),
     camera: {
       position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
@@ -197,6 +221,9 @@ require([
       tilt: 70
     },
     environment: {
+      // directShadowsEnabled her profilde true — gölgeler her zaman açık kalır.
+      // Telefonda qualityProfile "medium" gölge haritasını 1024 px'e düşürür
+      // (masaüstünde "high": 2048 px); bu ince ayar ilk açılışı hızlandırır.
       lighting: { type: "virtual", directShadowsEnabled: true },
       atmosphereEnabled: true,
       starsEnabled: false
@@ -207,6 +234,27 @@ require([
   });
   window.view = view;
 
+  // Katman yükleme önceliği katılaştırıldı: sıralı zincir — önce Numarataj,
+  // sonra Yapılar, en son 3B Binalar (Promise.all değil; her biri bir öncekinin
+  // yüklenmesini bekler). Hata durumunda aşağıdaki basarisizKatmanlar akışı
+  // devreye girer ve tek satır uyarı + Yeniden dene gösterir.
+  const zincirBaslangic = performance.now();
+  numaratajLayer.load()
+    .then(() => {
+      console.log("Yükleme adımı 1/3 Numarataj: " + Math.round(performance.now() - zincirBaslangic) + " ms");
+      return yapilarLayer.load();
+    })
+    .then(() => {
+      console.log("Yükleme adımı 2/3 Yapılar: " + Math.round(performance.now() - zincirBaslangic) + " ms");
+      return binalarLayer.load();
+    })
+    .then(() => {
+      console.log("Yükleme adımı 3/3 3B Binalar: " + Math.round(performance.now() - zincirBaslangic) + " ms — zincir tamam");
+    })
+    .catch(err => console.error("Katman yükleme zinciri hatası:", err));
+
+  // 3B bina katmanı katman listesinde en sonda; kabul denetimi renderer'ını
+  // harita üzerinden okur, bu yüzden baştan haritaya ekli kalır
   // ---------- Bilgi penceresi: alt yerleşik (dock), araç çubuğuyla çakışmaz ----------
   view.popup.dockEnabled = true;
   view.popup.dockOptions = { buttonEnabled: false, breakpoint: false, position: "bottom-center" };
@@ -227,14 +275,35 @@ require([
   });
   setTimeout(yukleniyoruKapat, 9000);
 
+  // Kalıcı açılış özeti: view hazır + 3 katman yüklendi anında tek satır rapor
+  const katmanSureleri = {};
+  let viewHazirSuresi = null;
+  let ozetRaporlandi = false;
+  function acilisOzetRaporla() {
+    if (ozetRaporlandi || viewHazirSuresi === null) return;
+    if (!katmanSureleri["Numarataj"] || !katmanSureleri["Yapılar"] || !katmanSureleri["3B binalar"]) return;
+    ozetRaporlandi = true;
+    const viewMs = Math.round(viewHazirSuresi - yukleyiciBaslangic);
+    console.log(
+      "AÇILIŞ ÖZET: yükleyici→view hazır " + viewMs + " ms" +
+      " | Numarataj " + Math.round(katmanSureleri["Numarataj"]) + " ms" +
+      ", Yapılar " + Math.round(katmanSureleri["Yapılar"]) + " ms" +
+      ", 3B binalar " + Math.round(katmanSureleri["3B binalar"]) + " ms" +
+      " | hedef <2000"
+    );
+    if (viewMs > 2000) console.warn("AÇILIŞ ÖZET hedef aşıldı: " + viewMs + " ms");
+  }
+
   // İlk açılış süresi ölçümü (hedef: Anıtkabir görünümü 2 sn altında)
   const acilisBaslangic = performance.now();
   view.when(() => {
     const sure = Math.round(performance.now() - acilisBaslangic);
+    viewHazirSuresi = performance.now();
     if (sure > 2000) console.warn("Açılış hedefi aşıldı: " + sure + " ms");
-    else console.log("Açılış süresi: " + sure + " ms");
+    else console.log("Açılış süresi (Anıtkabir görünümü hazır): " + sure + " ms");
     const y = document.getElementById("yukleniyor");
-    if (y) y.setAttribute("aria-valuenow", "4");
+    if (y) y.setAttribute("aria-valuenow", "3");
+    acilisOzetRaporla();
   });
 
   // Yükleniyor göstergesi gerçek ilerlemeyle bağlanır: görsel sade kalır;
@@ -245,6 +314,8 @@ require([
   const yuklemeBaslangic = performance.now();
   function yuklemeIlerleme(ad) {
     yuklenenSayisi++;
+    katmanSureleri[ad] = performance.now() - yuklemeBaslangic;
+    acilisOzetRaporla();
     if (yukluEl) {
       yukluEl.setAttribute("aria-valuenow", String(yuklenenSayisi));
       yukluEl.setAttribute("aria-valuetext", ad + " yüklendi (" + yuklenenSayisi + "/3)");
@@ -275,7 +346,7 @@ require([
     });
     duyur("Katmanlar yeniden yükleniyor");
   }
-  [binalarLayer, yapilarLayer, numaratajLayer, mahallelerLayer, yollarLayer].forEach(lyr => {
+  function yuklemeHatasiIzle(lyr) {
     reactiveUtils.watch(() => lyr.loadStatus, status => {
       if (status === "failed") {
         basarisizKatmanlar.add(lyr);
@@ -285,7 +356,8 @@ require([
         basarisizKatmanlar.delete(lyr);
       }
     });
-  });
+  }
+  [binalarLayer, yapilarLayer, numaratajLayer].forEach(yuklemeHatasiIzle);
 
   // Ağ durumu + çevrimdışı rozeti + önbellek kurtarma akışı
   const cevrimoGosterge = document.getElementById("cevrimo-gosterge");
@@ -339,12 +411,15 @@ require([
     if (!denetci || !view.extent) return;
     const ex = view.extent;
     const z = Math.max(1, Math.round(view.zoom || 15));
+    // Portlu gönderilir; sw.js yanıtını (GUNCEL_TAMAM) yalnızca port varsa yollar
+    const kanal = new MessageChannel();
+    kanal.port1.onmessage = () => {};
     denetci.postMessage({
       tip: "GUNCEL_ALAN",
       bbox: { minLon: ex.xmin, minLat: ex.ymin, maxLon: ex.xmax, maxLat: ex.ymax },
       minZoom: Math.max(1, z - 1),
       maxZoom: Math.min(19, z + 1)
-    });
+    }, [kanal.port2]);
   }
   function guncelAlaniTazele() {
     if (!navigator.onLine || !("serviceWorker" in navigator)) return;
@@ -371,8 +446,13 @@ require([
     clearTimeout(guncelAlanTimer);
     guncelAlanTimer = setTimeout(guncelAlaniGonder, 1200);
   });
-  // Çevrimdışıyken rozet üzerindeki karo sayısı periyodik yenilenir
-  setInterval(() => { if (!navigator.onLine) karoSayisiAl(sayi => cevrimiGuncelle(sayi)); }, 20000);
+  // Çevrimdışıyken rozet üzerindeki karo sayısı periyodik yenilenir;
+  // döngü boş Zamana başlar, ilk açılışı yavaşlatmaz
+  function karoSayisiDongusu() {
+    setInterval(() => { if (!navigator.onLine) karoSayisiAl(sayi => cevrimiGuncelle(sayi)); }, 20000);
+  }
+  if ("requestIdleCallback" in window) requestIdleCallback(karoSayisiDongusu, { timeout: 8000 });
+  else karoSayisiDongusu();
 
   // ---------- İşaret (arama / konum) ----------
   let seciliIsaret = null;
@@ -403,6 +483,8 @@ require([
     aramaGirdi.value = "";
     aramaTemizle.hidden = true;
     aramaSonuclari.hidden = true;
+    aramaGirdi.setAttribute("aria-expanded", "false");
+    aramaGirdi.removeAttribute("aria-activedescendant");
     aramaSonuclari.innerHTML = "";
     if (seciliIsaret) { konumLayer.remove(seciliIsaret); seciliIsaret = null; }
   }
@@ -458,6 +540,8 @@ require([
               isaretKoy(pt, [200, 30, 30, 1], "Arama sonucu", adres);
               view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: 800 });
               aramaSonuclari.hidden = true;
+              aramaGirdi.setAttribute("aria-expanded", "false");
+              aramaGirdi.removeAttribute("aria-activedescendant");
               duyur(adres + " seçildi");
             });
             aramaSonuclari.appendChild(btn);
@@ -503,6 +587,7 @@ require([
   aramaSonuclari.addEventListener("keydown", e => {
     if (e.key === "Escape") {
       aramaSonuclari.hidden = true;
+      aramaGirdi.setAttribute("aria-expanded", "false");
       aramaGirdi.focus();
       return;
     }
@@ -523,7 +608,10 @@ require([
   aramaTemizle.addEventListener("click", temizleArama);
 
   document.addEventListener("click", e => {
-    if (!e.target.closest(".arama-kutu")) aramaSonuclari.hidden = true;
+    if (!e.target.closest(".arama-kutu") && !aramaSonuclari.hidden) {
+      aramaSonuclari.hidden = true;
+      aramaGirdi.setAttribute("aria-expanded", "false");
+    }
   });
 
   // ---------- Konumumu bul + canlı takip ----------
@@ -626,16 +714,17 @@ require([
   });
 
   [
-    [cbBinalar, binalarLayer, "3B Binalar"],
-    [cbYapilar, yapilarLayer, "Yapılar"],
-    [cbNumarataj, numaratajLayer, "Numarataj"],
-    [cbMahalleler, mahallelerLayer, "Mahalleler"],
-    [cbYollar, yollarLayer, "Yollar"]
-  ].forEach(([cb, lyr, ad]) => {
+    [cbBinalar, () => binalarLayer, "3B Binalar"],
+    [cbYapilar, () => yapilarLayer, "Yapılar"],
+    [cbNumarataj, () => numaratajLayer, "Numarataj"],
+    [cbMahalleler, mahallelerKatmani, "Mahalleler"],
+    [cbYollar, yollarKatmani, "Yollar"]
+  ].forEach(([cb, katmanAl, ad]) => {
     cb.addEventListener("change", () => {
       titresim();
-      // Gizli katmanlar ilk kez açıldığında haritaya eklenir ve yüklenir (lazy load)
-      if (cb.checked && !lyr.parent) view.map.add(lyr);
+      // Gizli katmanlar (Mahalleler/Yollar) fabrika ile ilk açılışlarında
+      // tek seferlik oluşturulup haritaya eklenir; sonraki aç/kapa yalnızca visible.
+      const lyr = katmanAl();
       lyr.visible = cb.checked;
       duyur(ad + (cb.checked ? " açıldı" : " kapatıldı"));
     });
@@ -662,23 +751,36 @@ require([
   function durumGuncelle() {
     if (!durumSatiri) return;
     const c = view.camera;
-    const yon = ((c.heading % 360) + 360) % 360;
+    if (!c || !c.position) return;
+    const zoom = view.zoom, egim = c.tilt, yonHam = c.heading;
     const lon = sonDurumLon !== null ? sonDurumLon : c.position.longitude;
     const lat = sonDurumLat !== null ? sonDurumLat : c.position.latitude;
+    // view hazır olmadan (view.when öncesi) bu alanlar undefined olabilir;
+    // hepsi geçerli sayı olmadan hiçbir .toFixed çağrısı yapılmaz
+    if (!Number.isFinite(zoom) || !Number.isFinite(egim) || !Number.isFinite(yonHam) ||
+        !Number.isFinite(lon) || !Number.isFinite(lat)) return;
+    const yon = ((yonHam % 360) + 360) % 360;
     durumSatiri.textContent =
       lat.toFixed(5) + ", " + lon.toFixed(5) +
-      "  ·  zoom " + view.zoom.toFixed(1) +
-      "  ·  eğim " + c.tilt.toFixed(0) + "°" +
+      "  ·  zoom " + zoom.toFixed(1) +
+      "  ·  eğim " + egim.toFixed(0) + "°" +
       "  ·  yön " + yon.toFixed(0) + "°";
   }
   view.on("pointer-move", e => {
     const p = view.toMap({ x: e.x, y: e.y });
-    if (p) { sonDurumLon = p.longitude; sonDurumLat = p.latitude; durumGuncelle(); }
+    if (p && Number.isFinite(p.longitude) && Number.isFinite(p.latitude)) {
+      sonDurumLon = p.longitude;
+      sonDurumLat = p.latitude;
+      durumGuncelle();
+    }
   });
   reactiveUtils.watch(
-    () => [view.zoom, view.camera.tilt, view.camera.heading, view.camera.position.longitude, view.camera.position.latitude],
+    () => [view.zoom, view.camera && view.camera.tilt, view.camera && view.camera.heading, view.camera && view.camera.position && view.camera.position.longitude, view.camera && view.camera.position && view.camera.position.latitude],
     () => durumGuncelle()
   );
+  // Durum satırının ilk güncellemesi boş zamana kaydırılır (ilk açılış boyamasını etkilemez)
+  if ("requestIdleCallback" in window) requestIdleCallback(() => durumGuncelle(), { timeout: 4000 });
+  else durumGuncelle();
 
   // ---------- PWA service worker ----------
   if ("serviceWorker" in navigator) {
@@ -691,6 +793,8 @@ require([
       let yapildi = false;
       try { yapildi = localStorage.getItem("ankara3d-onbellek") === "1"; } catch (_) {}
       if (yapildi) return;
+      // Açılış alanı önbelleği boş zamanda yapılır; ilk açılışı yavaşlatmaz
+      const gonder = () => {
       const kanal = new MessageChannel();
       kanal.port1.onmessage = ev => {
         if (ev.data && ev.data.tip === "ONBELLEKLE_TAMAM") {
@@ -704,6 +808,9 @@ require([
         minZoom: 15,
         maxZoom: 17
       }, [kanal.port2]);
+      };
+      if ("requestIdleCallback" in window) requestIdleCallback(gonder, { timeout: 8000 });
+      else setTimeout(gonder, 3000);
     });
   }
 

@@ -7,7 +7,7 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-nbutton, input, a, .katman-satir, .taban-dugme { touch-action: manipulation; }
+button, input, a, .katman-satir, .taban-dugme { touch-action: manipulation; }
 [hidden] { display: none !important; }
 html, body { height: 100%; width: 100%; max-width: 100vw; overflow: hidden; overflow-x: hidden; }
 body {
@@ -86,7 +86,8 @@ input[type="search"]::-webkit-search-results-decoration,
   appearance: none !important;
   display: none !important;
 }
-  top: calc(100% + 6px);\n>>>>>>> REPLACE
+.arama-sonuclari {
+  position: absolute;
   top: calc(100% + 6px);
   left: 0; right: 0;
   max-height: 264px;
@@ -95,6 +96,9 @@ input[type="search"]::-webkit-search-results-decoration,
   border-radius: var(--yaricap);
   box-shadow: var(--golge);
   z-index: 20;
+  /* Boyama optimizasyonu: ekrandan uzakken içerik boyanmaz (ilk açılış performansı) */
+  content-visibility: auto;
+  contain-intrinsic-size: 220px 264px;
 }
 .arama-sonuc {
   display: flex;
@@ -181,6 +185,9 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* Boyama optimizasyonu: kapalıyken/uzaktayken içerik boyanmaz */
+  content-visibility: auto;
+  contain-intrinsic-size: 220px 260px;
 }
 .katman-satir {
   display: flex;
@@ -272,9 +279,12 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Boyama optimizasyonu: bildirim ekrandan uzaktayken içerik boyanmaz */
+  content-visibility: auto;
+  contain-intrinsic-size: 280px 40px;
 }
 
-/* Yükleniyor göstergesi */
+/* Yükleniyor göstergesi: açılışta anında görünür, haritayı kapatmaz */
 .yukleniyor {
   position: fixed;
   inset: 0;
@@ -282,13 +292,20 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(2px);
   pointer-events: none;
+  /* Açılış katmanı tek seferlik gösterilip kaldırılır; opaklık değişimi katmanlaştırılır */
+  will-change: opacity;
 }
 .yukleniyor__logo { height: 48px; width: auto; }
 .yukleniyor__halka {
   position: absolute;
-  width: 72px; height: 72px;
+  left: 50%;
+  top: 50%;
+  width: 72px;
+  height: 72px;
+  margin: -36px 0 0 -36px;
   border: 3px solid rgba(179, 38, 30, 0.15);
   border-top-color: var(--vurgu);
   border-radius: 50%;
@@ -372,5 +389,9 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
     scroll-behavior: auto !important;
   }
   /* Yükleniyor halkası animasyonsuz da görünür kalsın */
-  .yukleniyor__halka { border: 3px solid rgba(179, 38, 30, 0.35); }
+  .yukleniyor__halka {
+    animation: none;
+    border: 3px solid rgba(179, 38, 30, 0.35);
+    border-top-color: var(--vurgu);
+  }
 }

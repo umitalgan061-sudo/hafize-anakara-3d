@@ -1,5 +1,5 @@
-const AD = "ankara3d-v14";
-const KARO_AD = "ankara3d-karolar-v12";
+const AD = "ankara3d-v20";
+const KARO_AD = "ankara3d-karolar-v17";
 const KARO_SINIRI = 600; // önbellekte tutulacak en çok girdi sayısı (LRU)
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
@@ -37,11 +37,15 @@ function lonLatToTile(lon, lat, z) {
 }
 
 // Alan karo önbellekleme: minZoom–maxZoom arasındaki tüm uydu karoları önbelleğe alır.
+// onlyHighFirst=true ise en yüksek zoom (açılış görünümü) ÖNCE önbelleklenir;
 // sadeceEksik=true ise önbellekte zaten olan karolar ağdan yeniden çekilmez.
-async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik) {
+async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst) {
   const c = await caches.open(KARO_AD);
   let sayac = 0;
-  for (let z = minZoom; z <= maxZoom; z++) {
+  const zoomlar = [];
+  for (let z = minZoom; z <= maxZoom; z++) zoomlar.push(z);
+  if (onlyHighFirst) zoomlar.reverse(); // z17 (Anıtkabir açılış alanı) ilk önce
+  for (const z of zoomlar) {
     const a = lonLatToTile(bbox.minLon, bbox.maxLat, z);
     const b = lonLatToTile(bbox.maxLon, bbox.minLat, z);
     const istekler = [];
@@ -103,10 +107,12 @@ self.addEventListener("message", e => {
         .then(keys => { e.ports[0].postMessage({ tip: "KARO_SAYISI", sayi: keys.length }); })
     );
   }
+  // Açılış alanı (Anıtkabir çevresi, minZoom 15–17) önbelleklemesi ÖNCELİKLİ yapılır:
+  // en yüksek zoom (açılış görünümü) ilk önce önbelleğe girer
   if (e.data && e.data.tip === "ONBELLEKLE_ALAN" && e.ports && e.ports[0]) {
     const d = e.data;
     e.waitUntil(
-      alanOnbellekle(d.bbox || {}, d.minZoom || 15, d.maxZoom || 17, false)
+      alanOnbellekle(d.bbox || {}, d.minZoom || 15, d.maxZoom || 17, false, true)
         .then(sayi => { e.ports[0].postMessage({ tip: "ONBELLEKLE_TAMAM", sayi: sayi }); })
         .catch(() => { e.ports[0].postMessage({ tip: "ONBELLEKLE_TAMAM", sayi: 0 }); })
     );
@@ -171,7 +177,8 @@ self.addEventListener("fetch", e => {
   // 2) Diğer ArcGIS istekleri (veri sorguları vb.) her zaman ağdan
   if (arcgisSunucusuMu(url)) return;
 
-  // 3) Uygulama kabuğu (aynı origin)
+  // 3) Uygulama kabuğu (aynı origin) — çevrimdışı test senaryosu: navigasyon önbelleği
+  //    hem './' hem 'index.html' anahtarlarıyla eşleşir; sorun yok
   if (url.origin !== location.origin) return;
 
   e.respondWith(

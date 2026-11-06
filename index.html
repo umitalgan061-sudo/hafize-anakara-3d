@@ -12,26 +12,31 @@
   <title>Ankara 3D</title>
   <!-- İlk açılış performansı: ana servislerin DNS/TLS el sıkışması erkenden başlasın -->
   <link rel="preconnect" href="https://js.arcgis.com" crossorigin />
-  <link rel="preconnect" href="https://geocode.arcgis.com" crossorigin />
-  <link rel="preconnect" href="https://baskentcbs.ankara.bel.tr" crossorigin />
-  <link rel="dns-prefetch" href="https://basemaps3d.arcgis.com" />
-  <link rel="dns-prefetch" href="https://server.arcgisonline.com" />
+  <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin />
+  <link rel="preconnect" href="https://basemaps3d.arcgis.com" crossorigin />
+  <link rel="dns-prefetch" href="https://geocode.arcgis.com" />
+  <link rel="dns-prefetch" href="https://baskentcbs.ankara.bel.tr" />
   <link rel="dns-prefetch" href="https://basemaps.arcgis.com" />
+  <!-- Açılış görünümü (Anıtkabir, z16 merkez) için yalnızca en kritik 4 uydu karo erkenden çekilir; fazlası sw.js karo önbelleğinden gelir -->
+  <link rel="preload" as="image" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38746" />
+  <link rel="preload" as="image" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38747" />
+  <link rel="preload" as="image" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38746" />
+  <link rel="preload" as="image" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38747" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 100'%3E%3Cg fill='%23b3261e'%3E%3Crect x='19' y='1' width='2' height='9'/%3E%3Cpath d='M15 11h10l-1.5 5h-7z'/%3E%3Cpath fill-rule='evenodd' d='M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z'/%3E%3Cpath d='M16 34h8l2 62H14z'/%3E%3Crect x='12' y='96' width='16' height='3'/%3E%3C/g%3E%3C/svg%3E" />
   <!-- ArcGIS tema CSS'i ilk boyamayı engellemesin: print medyasıyla yükle, yüklenince 'all' yap -->
   <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" media="print" onload="this.media='all'" />
   <noscript><link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" /></noscript>
   <script src="https://js.arcgis.com/4.32/" fetchpriority="high"></script>
-  <link rel="preload" href="css/uygulama.css" as="style" />
-  <link rel="preload" href="js/uygulama.js" as="script" />
-  <link rel="stylesheet" href="css/uygulama.css" />
+  <link rel="preload" href="css/uygulama.css" as="style" fetchpriority="high" />
+  <link rel="preload" href="js/uygulama.js" as="script" fetchpriority="high" />
+  <link rel="stylesheet" href="css/uygulama.css" fetchpriority="high" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" sizes="180x180" href="ikon/atakule-180.png" />
 </head>
 <body>
   <a class="atla-link" href="#viewDiv">Haritaya geç</a>
   <div id="viewDiv" tabindex="-1" aria-label="Ankara 3D harita görünümü"></div>
-  <div id="yukleniyor" class="yukleniyor" role="progressbar" aria-label="Harita yükleniyor" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0">
+  <div id="yukleniyor" class="yukleniyor" role="progressbar" aria-label="Harita yükleniyor" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0">
     <span class="gorsel-gizli">Harita yükleniyor</span>
     <svg viewBox="0 0 40 100" class="yukleniyor__logo" aria-hidden="true" focusable="false"><g fill="#b3261e"><rect x="19" y="1" width="2" height="9"/><path d="M15 11h10l-1.5 5h-7z"/><path fill-rule="evenodd" d="M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z"/><path d="M16 34h8l2 62H14z"/><rect x="12" y="96" width="16" height="3"/></g></svg>
     <span class="yukleniyor__halka"></span>
@@ -89,6 +94,6 @@
   <div id="duyuru" class="gorsel-gizli" role="status" aria-live="polite"></div>
   <div class="durum-satiri" id="durum-satiri" aria-hidden="true"></div>
 
-  <script src="js/uygulama.js"></script>
+  <script src="js/uygulama.js" fetchpriority="high"></script>
 </body>
 </html>
