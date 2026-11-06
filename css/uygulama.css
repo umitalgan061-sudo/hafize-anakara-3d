@@ -394,7 +394,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   top: -56px;
   left: 12px;
   z-index: 50;
-  padding: 10px 14px;
+  /* 44x44 dokunma hedefi (WCAG 2.5.8 / sahip kuralı): 0.9rem metin + 2x14px padding ≥ 44px */
+  padding: 14px;
   background: var(--metin);
   color: #fff;
   border-radius: 8px;
