@@ -186,7 +186,9 @@ require([
     container: "viewDiv",
     map: new WebScene({
       basemap: "hybrid",
-      layers: [binalarLayer, yapilarLayer, numaratajLayer, mahallelerLayer, yollarLayer, konumLayer]
+      // Gizli katmanlar (Mahalleler/Yollar) ilk açılışta yüklenmez;
+      // ilk açıldıklarında haritaya eklenir (ilk açılış performansı)
+      layers: [binalarLayer, yapilarLayer, numaratajLayer, konumLayer]
     }),
     camera: {
       position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
@@ -223,6 +225,19 @@ require([
     gosterBildirim("Harita yüklenemedi", () => location.reload());
   });
   setTimeout(yukleniyoruKapat, 9000);
+
+  // Yükleniyor göstergesi gerçek ilerlemeyle bağlanır (görsel sade kalır, ekran okuyucu duyurusu güncellenir)
+  const yukluDuyuru = document.querySelector("#yukleniyor .gorsel-gizli");
+  let yuklenenSayisi = 0;
+  [[numaratajLayer, "Numarataj"], [yapilarLayer, "Yapılar"], [binalarLayer, "3B binalar"]].forEach(([lyr, ad]) => {
+    reactiveUtils.watch(() => lyr.loadStatus, s => {
+      if (s === "loaded") {
+        yuklenenSayisi++;
+        if (yukluDuyuru) yukluDuyuru.textContent = "Yükleniyor — " + ad + " (" + yuklenenSayisi + "/3)";
+        duyur(ad + " yüklendi");
+      }
+    });
+  });
 
   // Katman yüklenemezse kurtarma akışı: tek satır uyarı + "Yeniden dene"
   const basarisizKatmanlar = new Set();
@@ -584,6 +599,9 @@ require([
     [cbYollar, yollarLayer, "Yollar"]
   ].forEach(([cb, lyr, ad]) => {
     cb.addEventListener("change", () => {
+      titresim();
+      // Gizli katmanlar ilk kez açıldığında haritaya eklenir ve yüklenir (lazy load)
+      if (cb.checked && !lyr.parent) view.map.add(lyr);
       lyr.visible = cb.checked;
       duyur(ad + (cb.checked ? " açıldı" : " kapatıldı"));
     });
