@@ -1,5 +1,5 @@
-const AD = "ankara3d-v20";
-const KARO_AD = "ankara3d-karolar-v17";
+const AD = "ankara3d-v21";
+const KARO_AD = "ankara3d-karolar-v18";
 const KARO_SINIRI = 600; // önbellekte tutulacak en çok girdi sayısı (LRU)
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
@@ -40,10 +40,14 @@ function lonLatToTile(lon, lat, z) {
 // onlyHighFirst=true ise en yüksek zoom (açılış görünümü) ÖNCE önbelleklenir;
 // sadeceEksik=true ise önbellekte zaten olan karolar ağdan yeniden çekilmez.
 async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst) {
+  if (!bbox || typeof bbox.minLon !== "number" || typeof bbox.maxLon !== "number" ||
+      typeof bbox.minLat !== "number" || typeof bbox.maxLat !== "number") return 0;
   const c = await caches.open(KARO_AD);
   let sayac = 0;
   const zoomlar = [];
-  for (let z = minZoom; z <= maxZoom; z++) zoomlar.push(z);
+  const zMin = Math.max(1, Math.min(19, minZoom | 0));
+  const zMax = Math.max(zMin, Math.min(19, maxZoom | 0));
+  for (let z = zMin; z <= zMax; z++) zoomlar.push(z);
   if (onlyHighFirst) zoomlar.reverse(); // z17 (Anıtkabir açılış alanı) ilk önce
   for (const z of zoomlar) {
     const a = lonLatToTile(bbox.minLon, bbox.maxLat, z);
@@ -77,6 +81,13 @@ async function karoSinirla() {
   }
 }
 
+// Port üzerinden yanıtı garanti et: hata olsa bile istemci beklemesin
+function portYanitla(port, mesaj) {
+  try {
+    if (port) port.postMessage(mesaj);
+  } catch (_) {}
+}
+
 self.addEventListener("install", e => {
   e.waitUntil(
     caches.open(AD)
@@ -99,41 +110,49 @@ self.addEventListener("activate", e => {
 });
 
 self.addEventListener("message", e => {
-  if (e.data === "SKIP_WAITING") { self.skipWaiting(); return; }
-  if (e.data && e.data.tip === "KARO_SAYISI" && e.ports && e.ports[0]) {
+  const port = e.ports && e.ports[0];
+  const veri = e.data || {};
+
+  if (veri === "SKIP_WAITING" || veri.tip === "SKIP_WAITING") { self.skipWaiting(); return; }
+
+  if (veri.tip === "KARO_SAYISI") {
     e.waitUntil(
       caches.open(KARO_AD)
         .then(c => c.keys())
-        .then(keys => { e.ports[0].postMessage({ tip: "KARO_SAYISI", sayi: keys.length }); })
+        .then(keys => portYanitla(port, { tip: "KARO_SAYISI", sayi: keys.length }))
+        .catch(() => portYanitla(port, { tip: "KARO_SAYISI", sayi: 0 }))
     );
+    return;
   }
+
   // Açılış alanı (Anıtkabir çevresi, minZoom 15–17) önbelleklemesi ÖNCELİKLİ yapılır:
   // en yüksek zoom (açılış görünümü) ilk önce önbelleğe girer
-  if (e.data && e.data.tip === "ONBELLEKLE_ALAN" && e.ports && e.ports[0]) {
-    const d = e.data;
+  if (veri.tip === "ONBELLEKLE_ALAN") {
     e.waitUntil(
-      alanOnbellekle(d.bbox || {}, d.minZoom || 15, d.maxZoom || 17, false, true)
-        .then(sayi => { e.ports[0].postMessage({ tip: "ONBELLEKLE_TAMAM", sayi: sayi }); })
-        .catch(() => { e.ports[0].postMessage({ tip: "ONBELLEKLE_TAMAM", sayi: 0 }); })
+      alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false, true)
+        .then(sayi => portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: sayi }))
+        .catch(() => portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: 0 }))
     );
+    return;
   }
+
   // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir (kurtarma akışı)
-  if (e.data && e.data.tip === "TAZELE_ALAN" && e.ports && e.ports[0]) {
-    const d = e.data;
+  if (veri.tip === "TAZELE_ALAN") {
     e.waitUntil(
-      alanOnbellekle(d.bbox || {}, d.minZoom || 15, d.maxZoom || 17, false)
-        .then(sayi => { e.ports[0].postMessage({ tip: "TAZELE_TAMAM", sayi: sayi }); })
-        .catch(() => { e.ports[0].postMessage({ tip: "TAZELE_TAMAM", sayi: 0 }); })
+      alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false)
+        .then(sayi => portYanitla(port, { tip: "TAZELE_TAMAM", sayi: sayi }))
+        .catch(() => portYanitla(port, { tip: "TAZELE_TAMAM", sayi: 0 }))
     );
+    return;
   }
+
   // Harita durunca güncel görünür alanın karoları arka planda önbelleğe alınır;
   // yalnızca eksik karolar çekilir, ağ yoksa sessizce geçilir
-  if (e.data && e.data.tip === "GUNCEL_ALAN" && e.ports && e.ports[0]) {
-    const d = e.data;
+  if (veri.tip === "GUNCEL_ALAN") {
     e.waitUntil(
-      alanOnbellekle(d.bbox || {}, d.minZoom || 15, d.maxZoom || 17, true)
-        .then(sayi => { e.ports[0].postMessage({ tip: "GUNCEL_TAMAM", sayi: sayi }); })
-        .catch(() => { e.ports[0].postMessage({ tip: "GUNCEL_TAMAM", sayi: 0 }); })
+      alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, true)
+        .then(sayi => portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: sayi }))
+        .catch(() => portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: 0 }))
     );
   }
 });
@@ -142,8 +161,9 @@ self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
 
-  // 1) Harita karoları + vektör taban kaynakları: önbellekten anında sun,
-  //    arka planda ağdan tazele (stale-while-revalidate); ağ yoksa eski önbellek açılır
+  // 1) Harita karoları + vektör taban kaynakları: önce önbellekten anında sun,
+  //    varsa arka planda ağdan tazele (stale-while-revalidate); önbellekte yoksa
+  //    ağdan çek, ağ yoksa/bozuksa önbelleği son kez dene, yoksa 504
   if (karoIstegiMi(url) || vektorKaynagiMi(url)) {
     e.respondWith(
       caches.open(KARO_AD).then(async c => {
@@ -153,7 +173,7 @@ self.addEventListener("fetch", e => {
           fetch(e.request)
             .then(r => {
               if (r.ok || r.type === "opaque") {
-                c.put(e.request, r.clone()).then(karoSinirla);
+                c.put(e.request, r.clone()).then(karoSinirla).catch(() => {});
               }
             })
             .catch(() => {});
@@ -163,10 +183,13 @@ self.addEventListener("fetch", e => {
           const resp = await fetch(e.request);
           if (resp.ok || resp.type === "opaque") {
             await c.put(e.request, resp.clone());
-            karoSinirla();
+            karoSinirla().catch(() => {});
           }
           return resp;
         } catch (err) {
+          // Ağ yokken 504 yerine önbellek dönüşünü son kez dene
+          const tekrar = await c.match(e.request);
+          if (tekrar) return tekrar;
           return new Response("", { status: 504 });
         }
       })
@@ -177,8 +200,7 @@ self.addEventListener("fetch", e => {
   // 2) Diğer ArcGIS istekleri (veri sorguları vb.) her zaman ağdan
   if (arcgisSunucusuMu(url)) return;
 
-  // 3) Uygulama kabuğu (aynı origin) — çevrimdışı test senaryosu: navigasyon önbelleği
-  //    hem './' hem 'index.html' anahtarlarıyla eşleşir; sorun yok
+  // 3) Uygulama kabuğu (aynı origin) — çevrimdışı navigasyon kurtarma
   if (url.origin !== location.origin) return;
 
   e.respondWith(
@@ -186,7 +208,7 @@ self.addEventListener("fetch", e => {
       // Navigasyon: önce önbellekten aç (çevrimdışı kurtarma), arka planda ağı önbelleğe güncelle
       if (e.request.mode === "navigate") {
         fetch(e.request)
-          .then(resp => { if (resp.ok) caches.open(AD).then(c => c.put("index.html", resp)); })
+          .then(resp => { if (resp.ok) caches.open(AD).then(c => c.put("index.html", resp)).catch(() => {}); })
           .catch(() => {});
         return hit || fetch(e.request).catch(() => caches.match("index.html"));
       }
@@ -194,7 +216,7 @@ self.addEventListener("fetch", e => {
       return fetch(e.request).then(resp => {
         if (resp.ok && /\.(css|js|json|png|svg)$/.test(url.pathname)) {
           const kopya = resp.clone();
-          caches.open(AD).then(c => c.put(e.request, kopya));
+          caches.open(AD).then(c => c.put(e.request, kopya)).catch(() => {});
         }
         return resp;
       }).catch(() => {

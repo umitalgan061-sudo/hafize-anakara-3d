@@ -36,7 +36,7 @@ require([
       const btn = document.createElement("button");
       btn.type = "button";
       btn.textContent = "Yeniden dene";
-      btn.style.cssText = "margin-left:10px;background:none;border:none;color:#ffb4ab;font:inherit;font-weight:600;cursor:pointer;text-decoration:underline;padding:2px 4px;";
+      btn.style.cssText = "margin-left:10px;min-width:44px;min-height:44px;background:none;border:none;color:#ffb4ab;font:inherit;font-weight:600;cursor:pointer;text-decoration:underline;padding:2px 8px;";
       btn.addEventListener("click", () => {
         el.hidden = true;
         clearTimeout(el._timer);
@@ -251,7 +251,14 @@ require([
     .then(() => {
       console.log("Yükleme adımı 3/3 3B Binalar: " + Math.round(performance.now() - zincirBaslangic) + " ms — zincir tamam");
     })
-    .catch(err => console.error("Katman yükleme zinciri hatası:", err));
+    .catch(err => {
+      console.error("Katman yükleme zinciri hatası:", err);
+      // Zincir kırılırsa (örn. uçak modunda veri servislerine erişilemezse)
+      // tek satır uyarı + Yeniden dene akışına girer; zincir catch'i tutarlı çalışır
+      [numaratajLayer, yapilarLayer, binalarLayer].forEach(l => basarisizKatmanlar.add(l));
+      if (!navigator.onLine) gosterBildirim("Çevrimdışı — katmanlar önbellekten deneniyor", katmanlariYenidenDene);
+      else gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
+    });
 
   // 3B bina katmanı katman listesinde en sonda; kabul denetimi renderer'ını
   // harita üzerinden okur, bu yüzden baştan haritaya ekli kalır
@@ -413,7 +420,11 @@ require([
     const z = Math.max(1, Math.round(view.zoom || 15));
     // Portlu gönderilir; sw.js yanıtını (GUNCEL_TAMAM) yalnızca port varsa yollar
     const kanal = new MessageChannel();
-    kanal.port1.onmessage = () => {};
+    kanal.port1.onmessage = ev => {
+      if (ev.data && ev.data.tip === "GUNCEL_TAMAM") {
+        console.log("GUNCEL_TAMAM: " + (ev.data.sayi || 0) + " eksik karo önbelleğe alındı");
+      }
+    };
     denetci.postMessage({
       tip: "GUNCEL_ALAN",
       bbox: { minLon: ex.xmin, minLat: ex.ymin, maxLon: ex.xmax, maxLat: ex.ymax },
@@ -731,6 +742,9 @@ require([
   });
 
   function tabanSec(taban) {
+    // Çevrimdışı taban geçişi: vektör taban kaynakları ve karolar önbellekten
+    // sunulur; kullanıcı tek satır bildirimle bilgilendirilir
+    if (!navigator.onLine) gosterBildirim("Çevrimdışı — taban önbellekten açıldı");
     view.map.basemap = taban;
     tabanUydu.setAttribute("aria-pressed", String(taban === "hybrid"));
     tabanHarita.setAttribute("aria-pressed", String(taban === "streets-vector"));
@@ -860,6 +874,17 @@ require([
   } else if (btnKurulum) {
     btnKurulum.hidden = true;
   }
+
+  // Test/teşhis kancası (zararsız): arayüzü kirletmeden çevrimdışı akışlarını
+  // ve sw mesajlarını elle tetlemeye yarar; üretim arayüzünde hiçbir etkisi yok
+  window.__cevrimiTest = {
+    cevrimdasi: () => !navigator.onLine,
+    karoSayisi: cb => karoSayisiAl(cb),
+    guncelAlaniGonder: guncelAlaniGonder,
+    guncelAlaniTazele: guncelAlaniTazele,
+    katmanlariYenidenDene: katmanlariYenidenDene,
+    bildirim: m => gosterBildirim(m)
+  };
 
   console.log("Ankara 3D hazır.");
 });
