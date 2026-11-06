@@ -474,6 +474,20 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.bina-karti__baslik-satir { display: flex; align-items: center; min-width: 0; }
+/* Çoklu seçim sayacı rozeti (7. adım sözleşmesi): başlık yanına küçük '2/3' rozeti; JS doldurmadıkça [hidden] ile gizli kalır */
+.bina-karti__sayac {
+  flex-shrink: 0;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #f6e3e2;
+  color: var(--vurgu);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
 .bina-karti__satir {
   font-size: 0.85rem;
   line-height: 1.35;

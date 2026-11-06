@@ -738,6 +738,7 @@ require([
   // ---------- Anıtkabir'e dön ----------
   document.getElementById("btn-anitkabir").addEventListener("click", () => {
     titresim();
+    binaKartiKapat(false); // kart açıksa kapatır, düğme kendi işlevini yapar
     view.goTo({
       position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
       heading: 355,
@@ -749,6 +750,7 @@ require([
   const kuzeySimge = document.getElementById("kuzey-simge");
   document.getElementById("btn-kuzey").addEventListener("click", () => {
     titresim();
+    binaKartiKapat(false); // kart açıksa kapatır, düğme kendi işlevini yapar
     view.goTo({ heading: 0 }, { duration: 600 });
   });
   reactiveUtils.watch(() => view.camera && view.camera.heading, h => {
@@ -1053,6 +1055,28 @@ require([
   window.binaKartiKapat = binaKartiKapat;
   // Sözleşme global'i: yükseklik/kat tahmini de window'da (fonksiyon bildirimi yukarı taşınır)
   window.yukseklikTahmin = yukseklikTahmin;
+  // 7. adım: aynı noktada birden çok sonuç varsa döngüsel geçiş (sözleşme global'i window.sonrakiSecim)
+  let sonHitTestSonuclari = [];
+  let sonHitTestIndeks = -1;
+  function sayacGuncelle() {
+    const sayac = document.getElementById("bina-karti-sayac");
+    if (!sayac) return;
+    if (sonHitTestSonuclari.length > 1) {
+      sayac.hidden = false;
+      sayac.textContent = (sonHitTestIndeks + 1) + "/" + sonHitTestSonuclari.length;
+    } else {
+      sayac.hidden = true;
+    }
+  }
+  function sonrakiSecim() {
+    if (!sonHitTestSonuclari.length) return;
+    sonHitTestIndeks = (sonHitTestIndeks + 1) % sonHitTestSonuclari.length;
+    secimIsle(sonHitTestSonuclari[sonHitTestIndeks]);
+    sayacGuncelle();
+    const katmanAdi = sonHitTestSonuclari[sonHitTestIndeks].graphic.layer.title || "";
+    duyur((sonHitTestIndeks + 1) + ". sonuç seçildi" + (katmanAdi ? ": " + katmanAdi : ""));
+  }
+  window.sonrakiSecim = sonrakiSecim;
 
   // Global (sözleşme): mesh/polygon geometrisinden yükseklik (m) ve ~3 m/kattan kat tahmini üretir;
   // geçersiz/boş geometride { yukseklik: null, kat: null } döner, asla hata atmaz
@@ -1127,17 +1151,25 @@ require([
         const oncelik = [numaratajLayer, yapilarLayer, binalarLayer];
         const uyusanlar = (response.results || []).filter(r =>
           r.graphic && oncelik.includes(r.graphic.layer) && r.graphic.layer.visible !== false);
+        sonHitTestSonuclari = uyusanlar;
         const sonuc = oncelik
           .map(l => uyusanlar.find(r => r.graphic.layer === l))
           .find(Boolean);
         if (!sonuc) { binaKartiKapat(false); return; }
+        sonHitTestIndeks = uyusanlar.indexOf(sonuc);
         secimIsle(sonuc);
+        sayacGuncelle();
       }).catch(() => {});
     } catch (err) { console.warn("Bina seçimi hatası (ele alındı):", err); }
   }
 
   // Harita tıklaması: Yapılar / 3B Binalar / Numarataj grafik yakalanırsa kart açılır, boş alanda kart kapanır
   view.on("click", hitTestSec);
+  // Uzun basma (hold) aynı seçim akışına bağlanır; çift dokunuş zoom ile çakışmaz (ayrı olay)
+  view.on("hold", hitTestSec);
+
+  // Uzun basma (hold): mobilde aynı seçim akışına bağlanır; çift dokunuş zumu tetiklemez
+  view.on("hold", hitTestSec);
 
   // Klavye: harita (viewDiv) veya gövde odaktayken Enter ekran merkezindeki nesneyi seçer
   document.addEventListener("keydown", e => {
@@ -1146,6 +1178,8 @@ require([
     const viewDiv = document.getElementById("viewDiv");
     if (aktif === viewDiv || aktif === document.body) {
       e.preventDefault();
+      // Kart açıkken ve aynı noktada birden çok sonuç varsa Enter sıradaki sonuca döngüsel geçer
+      if (binaKarti && !binaKarti.hidden && sonHitTestSonuclari.length > 1) { sonrakiSecim(); return; }
       const w = view.container ? view.container.clientWidth : window.innerWidth;
       const h = view.container ? view.container.clientHeight : window.innerHeight;
       hitTestSec({ x: w / 2, y: h / 2 });
