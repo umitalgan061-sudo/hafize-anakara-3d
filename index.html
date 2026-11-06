@@ -22,6 +22,9 @@
   <link rel="dns-prefetch" href="https://baskentcbs.ankara.bel.tr" />
   <link rel="dns-prefetch" href="https://basemaps3d.arcgis.com" />
   <link rel="dns-prefetch" href="https://js.arcgis.com" />
+  <link rel="dns-prefetch" href="https://server.arcgisonline.com" />
+  <link rel="dns-prefetch" href="https://basemaps.arcgis.com" />
+  <link rel="dns-prefetch" href="https://geocode.arcgis.com" />
   <!-- CORS fetch'leri (veri katmanları + geocode) erken crossorigin bağlantısıyla açılır; TLS el sıkışması yinelenmez -->
   <link rel="preconnect" href="https://baskentcbs.ankara.bel.tr" crossorigin />
   <link rel="preconnect" href="https://geocode.arcgis.com" crossorigin />
@@ -30,10 +33,10 @@
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/0?f=json" />
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/2?f=json" />
   <!-- Açılış görünümü (Anıtkabir, z16 merkez) için yalnızca en kritik 4 uydu karo erkenden çekilir; fazlası sw.js karo önbelleğinden gelir -->
-  <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38746" />
-  <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38747" />
-  <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38746" />
-  <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38747" />
+  <link rel="preload" as="image" crossorigin fetchpriority="high" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38746" />
+  <link rel="preload" as="image" crossorigin fetchpriority="high" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38747" />
+  <link rel="preload" as="image" crossorigin fetchpriority="high" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38746" />
+  <link rel="preload" as="image" crossorigin fetchpriority="high" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38747" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 100'%3E%3Cg fill='%23b3261e'%3E%3Crect x='19' y='1' width='2' height='9'/%3E%3Cpath d='M15 11h10l-1.5 5h-7z'/%3E%3Cpath fill-rule='evenodd' d='M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z'/%3E%3Cpath d='M16 34h8l2 62H14z'/%3E%3Crect x='12' y='96' width='16' height='3'/%3E%3C/g%3E%3C/svg%3E" />
   <!-- ArcGIS tema CSS'i ilk boyamayı engellemesin: print medyasıyla yükle, yüklenince 'all' yap -->
   <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" media="print" onload="this.media='all'" />

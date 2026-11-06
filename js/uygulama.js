@@ -286,7 +286,7 @@ require([
       // Hangi yol önce tetiklenirse tetiklensin tek bildirim: bildirim gösterilmiş
       // katmanlar bildirilmisKatmanlar'da işaretli; bu catch hepsini işaretler, yuklemeHatasiIzle yinelenmez
       const yeniVar = [numaratajLayer, yapilarLayer, binalarLayer].some(l => !bildirilmisKatmanlar.has(l));
-      [numaratajLayer, yapilarLayer, bizarLayer].forEach(l => { basarisizKatmanlar.add(l); bildirilmisKatmanlar.add(l); });
+      [numaratajLayer, yapilarLayer, binalarLayer].forEach(l => { basarisizKatmanlar.add(l); bildirilmisKatmanlar.add(l); });
       if (!yeniVar) return;
       if (!navigator.onLine) gosterBildirim("Çevrimdışı — katmanlar önbellekten deneniyor", katmanlariYenidenDene);
       else gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);

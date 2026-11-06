@@ -155,8 +155,8 @@ input[type="search"]::-webkit-search-results-decoration,
   box-shadow: var(--golge);
   backdrop-filter: blur(16px);
   max-width: calc(100vw - 16px);
-  /* Boyama optimizasyonu: hap çubuk yerleşimi sabit, dış düzeni etkilemez */
-  contain: layout style;
+  /* Boyama optimizasyonu: hap çubuk yerleşimi sabit, dış düzeni etkilemez, dışarı boyanmaz */
+  contain: layout style paint;
 }
 .kontrol-dugme {
   width: 56px;
@@ -206,9 +206,10 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   display: flex;
   flex-direction: column;
   gap: 4px;
-  /* Boyama optimizasyonu: kapalıyken/uzaktayken içerik boyanmaz */
+  /* Boyama optimizasyonu: kapalıyken/uzaktayken içerik boyanmaz; kart taşmaz, dışarı boyanmaz */
   content-visibility: auto;
   contain-intrinsic-size: 220px 260px;
+  contain: layout style paint;
 }
 .katman-satir {
   display: flex;
@@ -305,9 +306,10 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* Boyama optimizasyonu: bildirim ekrandan uzaktayken içerik boyanmaz */
+  /* Boyama optimizasyonu: bildirim ekrandan uzaktayken içerik boyanmaz; dışarı boyanmaz */
   content-visibility: auto;
   contain-intrinsic-size: 280px 40px;
+  contain: layout paint;
 }
 .bildirim span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Kurtarma düğmesi: tek satırda, en az 44x44 dokunma hedefi */
@@ -344,7 +346,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   /* Açılış katmanı tek seferlik gösterilip kaldırılır; opaklık değişimi katmanlaştırılır */
   will-change: opacity;
   /* Boyama kapsamı: açılış overlay'i harita katmanlarıyla boyanmayı paylaşmaz */
-  contain: layout paint;
+  contain: layout style paint;
 }
 .yukleniyor__logo { height: 48px; width: auto; }
 .yukleniyor__halka {
@@ -384,6 +386,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   /* Boyama optimizasyonu: ekrandan uzaktayken içerik boyanmaz (ilk açılış performansı) */
   content-visibility: auto;
   contain-intrinsic-size: 260px 24px;
+  contain: layout paint;
 }
 @media (max-width: 720px) {
   .durum-satiri { display: none; }
@@ -480,9 +483,10 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   flex-direction: column;
   gap: 4px;
   animation: bina-karti-gir 0.18s ease-out;
-  /* Boyama optimizasyonu: kapalıyken/uzaktayken içerik boyanmaz */
+  /* Boyama optimizasyonu: kapalıyken/uzaktayken içerik boyanmaz; kart taşmaz, dışarı boyanmaz */
   content-visibility: auto;
   contain-intrinsic-size: 260px 140px;
+  contain: layout style paint;
 }
 .bina-karti__baslik {
   font-weight: 600;
