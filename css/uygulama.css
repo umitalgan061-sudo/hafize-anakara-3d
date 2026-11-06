@@ -280,6 +280,10 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
+  /* Boyama optimizasyonu: rozet üst bant düzenini dışarıdan izole eder, dışarı boyanmaz */
+  contain: layout style paint;
+  content-visibility: auto;
+  contain-intrinsic-size: 90px 24px;
 }
 @media (max-width: 600px) {
   .cevrimo-gosterge { padding: 3px 7px; font-size: 0.68rem; }

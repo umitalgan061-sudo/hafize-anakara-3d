@@ -37,6 +37,12 @@
   <link rel="preload" as="image" crossorigin fetchpriority="high" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38747" />
   <link rel="preload" as="image" crossorigin fetchpriority="high" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38746" />
   <link rel="preload" as="image" crossorigin fetchpriority="high" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38747" />
+  <!-- Çevrimdışı 'Harita' (streets-vector) taban geçişi için vektör taban kaynakları erkenden başlar:
+       stil kökü (root.json) + glyph/sprite klasörleri preload edilir; sw.js v26 bunları önbelleğe alır -->
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer?f=json" />
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/styles/root.json" />
+  <link rel="preload" as="fetch" crossorigin href="https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/sprites/sprite.json" />
+  <link rel="preload" as="fetch" crossorigin href="https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/fonts/AdelleSans_W_Bold/0-255.pbf" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 100'%3E%3Cg fill='%23b3261e'%3E%3Crect x='19' y='1' width='2' height='9'/%3E%3Cpath d='M15 11h10l-1.5 5h-7z'/%3E%3Cpath fill-rule='evenodd' d='M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z'/%3E%3Cpath d='M16 34h8l2 62H14z'/%3E%3Crect x='12' y='96' width='16' height='3'/%3E%3C/g%3E%3C/svg%3E" />
   <!-- ArcGIS tema CSS'i ilk boyamayı engellemesin: print medyasıyla yükle, yüklenince 'all' yap -->
   <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" media="print" onload="this.media='all'" />

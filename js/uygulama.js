@@ -272,7 +272,13 @@ require([
     })
     .then(() => {
       console.log("Yükleme adımı 2/3 Yapılar: " + Math.round(performance.now() - zincirBaslangic) + " ms");
-      return binalarLayer.load();
+      // Sözleşme: 3B bina yüklemesi view hazır olana + boş zamana kadar ertelenir;
+      // Anıtkabir açılış görünümü <2 sn hedefine kilitlenir. Zincir sırası ve catch akışı korunur.
+      return view.when().then(() => new Promise(resolve => {
+        const baslat = () => resolve(binalarLayer.load());
+        if ("requestIdleCallback" in window) requestIdleCallback(baslat, { timeout: 2500 });
+        else setTimeout(baslat, 0);
+      }));
     })
     .then(() => {
       console.log("Yükleme adımı 3/3 3B Binalar — zincir tamam: " + Math.round(performance.now() - zincirBaslangic) + " ms");

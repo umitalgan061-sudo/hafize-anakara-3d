@@ -1,5 +1,5 @@
-const AD = "ankara3d-v25";
-const KARO_AD = "ankara3d-karolar-v22";
+const AD = "ankara3d-v26";
+const KARO_AD = "ankara3d-karolar-v23";
 const KARO_SINIRI = 600; // önbellekte tutulacak en çok girdi sayısı (LRU)
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
@@ -19,7 +19,8 @@ function karoIstegiMi(url) {
   return arcgisSunucusuMu(url) && /\/tile\/\d+\/\d+\/\d+/.test(url.pathname);
 }
 
-// Vektör taban kaynakları (style json, glyph, sprite, pbf) — "Harita" tabanı çevrimdışı için
+// Vektör taban kaynakları (streets-vector): VectorTileServer karoları + style json,
+// glyph, sprite, font dosyaları — "Harita" tabanı çevrimdışı çalışır
 function vektorKaynagiMi(url) {
   if (!arcgisSunucusuMu(url) || karoIstegiMi(url)) return false;
   if (/\/(query|applyEdits|legend)/i.test(url.pathname)) return false;
