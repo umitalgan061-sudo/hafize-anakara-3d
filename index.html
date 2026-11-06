@@ -25,9 +25,7 @@
   <link rel="dns-prefetch" href="https://server.arcgisonline.com" />
   <link rel="dns-prefetch" href="https://basemaps.arcgis.com" />
   <link rel="dns-prefetch" href="https://geocode.arcgis.com" />
-  <!-- CORS fetch'leri (veri katmanları + geocode) erken crossorigin bağlantısıyla açılır; TLS el sıkışması yinelenmez -->
-  <link rel="preconnect" href="https://baskentcbs.ankara.bel.tr" crossorigin />
-  <link rel="preconnect" href="https://geocode.arcgis.com" crossorigin />
+  <!-- baskentcbs.ankara.bel.tr ve geocode.arcgis.com için crossorigin preconnect zaten yukarıda tanımlı — birebir yinelenmez -->
   <!-- Yükleme zincirinin ilk halkaları (Numarataj → Yapılar) için servis ve katman meta verisi erkenden çekilir; AMD yükleyici çalıştığında istek zaten tamamlanmış olur (ilk açılış <2 sn hedefine katkı) -->
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer?f=json" />
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/0?f=json" />
