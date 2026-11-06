@@ -483,6 +483,8 @@ require([
     aramaGirdi.value = "";
     aramaTemizle.hidden = true;
     aramaSonuclari.hidden = true;
+    aramaGirdi.setAttribute("aria-expanded", "false");
+    aramaGirdi.removeAttribute("aria-activedescendant");
     aramaSonuclari.innerHTML = "";
     if (seciliIsaret) { konumLayer.remove(seciliIsaret); seciliIsaret = null; }
   }
@@ -538,6 +540,8 @@ require([
               isaretKoy(pt, [200, 30, 30, 1], "Arama sonucu", adres);
               view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: 800 });
               aramaSonuclari.hidden = true;
+              aramaGirdi.setAttribute("aria-expanded", "false");
+              aramaGirdi.removeAttribute("aria-activedescendant");
               duyur(adres + " seçildi");
             });
             aramaSonuclari.appendChild(btn);
@@ -583,6 +587,7 @@ require([
   aramaSonuclari.addEventListener("keydown", e => {
     if (e.key === "Escape") {
       aramaSonuclari.hidden = true;
+      aramaGirdi.setAttribute("aria-expanded", "false");
       aramaGirdi.focus();
       return;
     }
@@ -603,7 +608,10 @@ require([
   aramaTemizle.addEventListener("click", temizleArama);
 
   document.addEventListener("click", e => {
-    if (!e.target.closest(".arama-kutu")) aramaSonuclari.hidden = true;
+    if (!e.target.closest(".arama-kutu") && !aramaSonuclari.hidden) {
+      aramaSonuclari.hidden = true;
+      aramaGirdi.setAttribute("aria-expanded", "false");
+    }
   });
 
   // ---------- Konumumu bul + canlı takip ----------
