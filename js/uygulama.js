@@ -1060,11 +1060,7 @@ require([
       if (a.postakodu) satirlar.push("Posta kodu " + a.postakodu);
       seciliVurgula(sonuc.graphic.geometry, "polygon");
       binaKartiGoster({ ad: ad, satirlar: satirlar });
-    } else if (layer === binalarLayer) {
-      // 3B bina katmanında attributes yok
-      seciliVurgula(sonuc.graphic.geometry, "polygon");
-      binaKartiGoster({ ad: "3B bina", satirlar: [] });
-    }
+    } else if (layer === bilaterarLayer) { /* yer tutucu */ }
   }
 
   // Ortak seçim akışı: hitTest → katman katman seçim; sonuç yoksa kart kapanır

@@ -429,6 +429,11 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   }
 }
 
+/* Bina bilgi kartı açılış animasyonu: hafif belirme + yukarıdan kayma (0.18s) */
+@keyframes bina-karti-gir {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 /* Bina bilgi kartı: masaüstünde sağ üstte yüzen kart; mobilde alt çubuk üstünde yatay kart */
 .bina-karti {
   position: fixed;
@@ -444,6 +449,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   display: flex;
   flex-direction: column;
   gap: 4px;
+  animation: bina-karti-gir 0.18s ease-out;
   /* Boyama optimizasyonu: kapalıyken/uzaktayken içerik boyanmaz */
   content-visibility: auto;
   contain-intrinsic-size: 260px 140px;
