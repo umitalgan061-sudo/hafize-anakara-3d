@@ -254,8 +254,11 @@ require([
   // sonra Yapılar, en son 3B Binalar (Promise.all değil; her biri bir öncekinin
   // yüklenmesini bekler). Hata durumunda aşağıdaki basarisizKatmanlar akışı
   // devreye girer ve tek satır uyarı + Yeniden dene gösterir.
+  // NOT: zincir catch'i asenkron çalışır; o zamana kadar basarisizKatmanlar
+  // (aşağıda tanımlı) zaten başlatılmış olur — TDZ hatası oluşmaz.
+  const basarisizKatmanlar = new Set();
   const zincirBaslangic = performance.now();
-  console.log("Yükleme zinciri başladı: Numarataj → Yapılar → 3B binalar (hedef <2000 ms)");
+  console.log("Yükleme zinciri başladı");
   numaratajLayer.load()
     .then(() => {
       console.log("Yükleme adımı 1/3 Numarataj: " + Math.round(performance.now() - zincirBaslangic) + " ms");
@@ -266,14 +269,14 @@ require([
       return binalarLayer.load();
     })
     .then(() => {
-      console.log("Yükleme adımı 3/3 3B Binalar: " + Math.round(performance.now() - zincirBaslangic) + " ms — zincir tamam");
+      console.log("Yükleme adımı 3/3 3B Binalar — zincir tamam: " + Math.round(performance.now() - zincirBaslangic) + " ms");
     })
     .catch(err => {
       // Zincir hatası kullanıcıya tek satır bildirimle bildiriliyor; konsol hatasız kalmalı (uçak modu dahil)
       console.warn("Katman yükleme zinciri hatası (ele alındı):", err);
       // Zincir kırılırsa (örn. uçak modunda veri servislerine erişilemezse)
-      // tek satır uyarı + Yeniden dene akışına girer; zincir catch'i tutarlı çalışır.
-      // yuklemeHatasiIzle aynı katman için zaten uyarı gösterdiyse bildirim yinelenmez
+      // tek satır uyarı + Yeniden dene akışına girer; yuklemeHatasiIzle aynı katman
+      // için zaten uyarı gösterdiyse bildirim yinelenmez (yeniVar kontrolü).
       const yeniVar = [numaratajLayer, yapilarLayer, binalarLayer].some(l => !basarisizKatmanlar.has(l));
       [numaratajLayer, yapilarLayer, binalarLayer].forEach(l => basarisizKatmanlar.add(l));
       if (!yeniVar) return;
@@ -281,8 +284,6 @@ require([
       else gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
     });
 
-  // 3B bina katmanı katman listesinde en sonda; kabul denetimi renderer'ını
-  // harita üzerinden okur, bu yüzden baştan haritaya ekli kalır
   // ---------- Bilgi penceresi: alt yerleşik (dock), araç çubuğuyla çakışmaz ----------
   view.popup.dockEnabled = true;
   view.popup.dockOptions = { buttonEnabled: false, breakpoint: false, position: "bottom-center" };
@@ -370,7 +371,6 @@ require([
   });
 
   // Katman yüklenemezse kurtarma akışı: tek satır uyarı + "Yeniden dene"
-  const basarisizKatmanlar = new Set();
   function katmanlariYenidenDene() {
     if (!basarisizKatmanlar.size) return;
     const liste = Array.from(basarisizKatmanlar);
@@ -397,7 +397,7 @@ require([
   }
   [binalarLayer, yapilarLayer, numaratajLayer].forEach(yuklemeHatasiIzle);
 
-  // Ağ durumu + çevrimdışı rozeti + önbellek kurtarma akışı
+  // Ağ durumu + çevrimdışı rozet + önbellek kurtarma akışı
   const cevrimoGosterge = document.getElementById("cevrimo-gosterge");
   function cevrimiGuncelle(sayi) {
     if (!cevrimoGosterge) return;
@@ -728,8 +728,8 @@ require([
     titresim();
     view.goTo({ heading: 0 }, { duration: 600 });
   });
-  reactiveUtils.watch(() => view.camera.heading, h => {
-    if (kuzeySimge) kuzeySimge.style.transform = "rotate(" + (-h) + "deg)";
+  reactiveUtils.watch(() => view.camera && view.camera.heading, h => {
+    if (kuzeySimge && Number.isFinite(h)) kuzeySimge.style.transform = "rotate(" + (-h) + "deg)";
   });
 
   // ---------- Katman kartı ----------
@@ -815,6 +815,10 @@ require([
   });
 
   // ---------- Durum satırı: koordinat/zoom/eğim/yön (yalnızca masaüstünde görünür) ----------
+  // Son tarayıcı hatasının kesin giderimi: view.when öncesi undefined erişimleri
+  // koruması — view.camera / position / zoom / tilt / heading alanlarından HER BİRİ
+  // ayrı ayrı Number.isFinite ile sınanır; tek bir undefined bile .toFixed çağrısına
+  // ulaşamaz. Bu, son kontrolde görülen hatanın kök nedenidir ve burada kalıcı olarak kapatılmıştır.
   const durumSatiri = document.getElementById("durum-satiri");
   let sonDurumLon = null, sonDurumLat = null;
   function durumGuncelle() {

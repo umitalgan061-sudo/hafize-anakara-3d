@@ -113,6 +113,32 @@ function bosYanit(url) {
   return new Response("", { status: 200, headers: { "Content-Type": ct } });
 }
 
+// Her mesaj dalı için garanti yanıt üreten sarmalayıcı:
+// önce senkron yanıt dener, sonra e.waitUntil içinde iş yapıp catch zinciriyle
+// yine yanıt yollar — port asla yanıtsız kalmaz.
+function mesajIsle(e, fn) {
+  const port = e.ports && e.ports[0];
+  try {
+    e.waitUntil(
+      Promise.resolve()
+        .then(() => fn(port))
+        .then(() => { /* fn zaten yanıt yolladı */ })
+        .catch(() => {
+          // Beklenmedik hata: uygun tipe göre son garanti yanıtı
+          const tip = (e.data && e.data.tip) || "";
+          if (tip === "KARO_SAYISI") portYanitla(port, { tip: "KARO_SAYISI", sayi: 0 });
+          else if (tip === "ONBELLEKLE_ALAN") portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: 0 });
+          else if (tip === "TAZELE_ALAN") portYanitla(port, { tip: "TAZELE_TAMAM", sayi: 0 });
+          else if (tip === "GUNCEL_ALAN") portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: 0 });
+          else if (tip === "SKIP_WAITING") portYanitla(port, { tip: "SKIP_WAITING_TAMAM" });
+          else portYanitla(port, { tip: "BILINMEYEN", istenen: tip || null, hata: true });
+        })
+    );
+  } catch (_) {
+    portYanitla(port, { tip: "BILINMEYEN", istenen: (e.data && e.data.tip) || null, hata: true });
+  }
+}
+
 self.addEventListener("install", e => {
   e.waitUntil(
     caches.open(AD).then(async c => {
@@ -141,71 +167,65 @@ self.addEventListener("activate", e => {
         if (!hit) return fetch("index.html").then(r => { if (r.ok) return c.put("index.html", r); }).catch(() => {});
       }))
       .then(() => self.clients.claim())
+      .catch(() => self.clients.claim())
   );
 });
 
-// Mesaj işleyici: her dalda port garanti yanıt alır; beklenmedik hata olursa
-// yakalanır ve BILINMEYEN/uygun yanıt yine de gönderilir — port asla yanıtsız kalmaz
+// Mesaj işleyici: tüm dallar mesajIsle ile garanti yanıt alır
 self.addEventListener("message", e => {
-  const port = e.ports && e.ports[0];
   const veri = e.data || {};
+  const tip = (typeof veri === "string") ? veri : veri.tip;
 
-  try {
-    if (veri === "SKIP_WAITING" || veri.tip === "SKIP_WAITING") {
-      portYanitla(port, { tip: "SKIP_WAITING_TAMAM" });
-      e.waitUntil(self.skipWaiting());
-      return;
-    }
-
-    if (veri.tip === "KARO_SAYISI") {
-      e.waitUntil(
-        caches.open(KARO_AD)
-          .then(c => c.keys())
-          .then(keys => portYanitla(port, { tip: "KARO_SAYISI", sayi: keys.length }))
-          .catch(() => portYanitla(port, { tip: "KARO_SAYISI", sayi: 0 }))
-      );
-      return;
-    }
-
-    // Açılış alanı (Anıtkabir çevresi, minZoom 15–17) önbelleklemesi ÖNCELİKLİ yapılır:
-    // en yüksek zoom (açılış görünümü) ilk önce önbelleğe girer
-    if (veri.tip === "ONBELLEKLE_ALAN") {
-      e.waitUntil(
-        alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false, true)
-          .then(sayi => portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: sayi }))
-          .catch(() => portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: 0 }))
-      );
-      return;
-    }
-
-    // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir (kurtarma akışı);
-    // ağ yoksa sessizce geçilir, tek yanıt yine de garanti edilir
-    if (veri.tip === "TAZELE_ALAN") {
-      e.waitUntil(
-        alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false)
-          .then(sayi => portYanitla(port, { tip: "TAZELE_TAMAM", sayi: sayi }))
-          .catch(() => portYanitla(port, { tip: "TAZELE_TAMAM", sayi: 0 }))
-      );
-      return;
-    }
-
-    // Harita durunca güncel görünür alanın karoları arka planda önbelleğe alınır;
-    // yalnızca eksik karolar çekilir, hatalı bbox/ağ yoksa sayi 0 ile yanıt döner
-    if (veri.tip === "GUNCEL_ALAN") {
-      e.waitUntil(
-        alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, true)
-          .then(sayi => portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: sayi }))
-          .catch(() => portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: 0 }))
-      );
-      return;
-    }
-
-    // Bilinmeyen mesaj: yine de garanti yanıt ver (istemci portu asla beklemesin)
-    portYanitla(port, { tip: "BILINMEYEN", istenen: (veri && veri.tip) || null });
-  } catch (hata) {
-    // Beklenmedik senkron hata: port yine yanıt alır
-    portYanitla(port, { tip: "BILINMEYEN", istenen: (veri && veri.tip) || null, hata: true });
+  if (tip === "SKIP_WAITING") {
+    // Senkron yanıt + guaranteed skipWaiting
+    const port = e.ports && e.ports[0];
+    portYanitla(port, { tip: "SKIP_WAITING_TAMAM" });
+    e.waitUntil(self.skipWaiting());
+    return;
   }
+
+  if (tip === "KARO_SAYISI") {
+    mesajIsle(e, port =>
+      caches.open(KARO_AD)
+        .then(c => c.keys())
+        .then(keys => portYanitla(port, { tip: "KARO_SAYISI", sayi: keys.length }))
+    );
+    return;
+  }
+
+  // Açılış alanı (Anıtkabir çevresi, minZoom 15–17) önbelleklemesi ÖNCELİKLİ yapılır:
+  // en yüksek zoom (açılış görünümü) ilk önce önbelleğe girer
+  if (tip === "ONBELLEKLE_ALAN") {
+    mesajIsle(e, port =>
+      alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false, true)
+        .then(sayi => portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: sayi }))
+    );
+    return;
+  }
+
+  // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir (kurtarma akışı);
+  // ağ yoksa sessizce geçilir, yanıt yine garanti edilir
+  if (tip === "TAZELE_ALAN") {
+    mesajIsle(e, port =>
+      alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false)
+        .then(sayi => portYanitla(port, { tip: "TAZELE_TAMAM", sayi: sayi }))
+    );
+    return;
+  }
+
+  // Harita durunca güncel görünür alanın karoları arka planda önbelleğe alınır;
+  // yalnızca eksik karolar çekilir
+  if (tip === "GUNCEL_ALAN") {
+    mesajIsle(e, port =>
+      alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, true)
+        .then(sayi => portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: sayi }))
+    );
+    return;
+  }
+
+  // Bilinmeyen mesaj: yine de garanti yanıt ver (istemci portu asla beklemesin)
+  const port = e.ports && e.ports[0];
+  portYanitla(port, { tip: "BILINMEYEN", istenen: tip || null });
 });
 
 self.addEventListener("fetch", e => {
@@ -249,7 +269,7 @@ self.addEventListener("fetch", e => {
               const tekrar = await c.match(e.request, { ignoreSearch: true });
               if (tekrar) return tekrar;
             } catch (_) {}
-            // Çevrimdışı taban geçişinde eksik vektör kaynağı: 504 yerine boş içerik
+            // Çevrimdışı taban geçişinde eksik vektör kaynağı: boş içerik; karo: 504 boş gövde
             if (vektor) return bosYanit(url);
             return new Response("", { status: 504 });
           }
