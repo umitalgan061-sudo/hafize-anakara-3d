@@ -47,6 +47,9 @@ require([
     // Katman kartı açıkken bildirim onun üstüne binmesin (masaüstü ve mobil)
     const kart = document.getElementById("katman-karti");
     el.classList.toggle("bildirim--kart-ustunde", !!(kart && !kart.hidden));
+    // Bina kartı açıkken de bildirim onun üstüne binmesin (mobilde alt kartla çakışır)
+    const binaKartiEl = document.getElementById("bina-karti");
+    el.classList.toggle("bildirim--bina-karti-ustunde", !!(binaKartiEl && !binaKartiEl.hidden));
     el.hidden = false;
     clearTimeout(el._timer);
     el._timer = setTimeout(() => { el.hidden = true; }, onRetry ? 8000 : 3000);
@@ -615,6 +618,7 @@ require([
               aramaGirdi.removeAttribute("aria-activedescendant");
             });
             btn.addEventListener("click", () => {
+              binaKartiKapat(false); // yeni arama seçimi eskiyi kapatır
               const pt = new Point({ longitude: c.location.x, latitude: c.location.y });
               isaretKoy(pt, [200, 30, 30, 1], "Arama sonucu", adres);
               view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: 800 });
@@ -702,6 +706,7 @@ require([
   const btnKonum = document.getElementById("btn-konum");
   let watchId = null;
   function konumaGit(pt) {
+    binaKartiKapat(false); // konuma uçuşunda eski bina kartı kapanır
     isaretKoy(pt, [30, 100, 200, 1], "Konumunuz", "");
     view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: 800 });
   }
@@ -733,6 +738,7 @@ require([
   // ---------- Anıtkabir'e dön ----------
   document.getElementById("btn-anitkabir").addEventListener("click", () => {
     titresim();
+    binaKartiKapat(false); // kart açıksa kapatır, düğme kendi işlevini yapar
     view.goTo({
       position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
       heading: 355,
@@ -744,6 +750,7 @@ require([
   const kuzeySimge = document.getElementById("kuzey-simge");
   document.getElementById("btn-kuzey").addEventListener("click", () => {
     titresim();
+    binaKartiKapat(false); // kart açıksa kapatır, düğme kendi işlevini yapar
     view.goTo({ heading: 0 }, { duration: 600 });
   });
   reactiveUtils.watch(() => view.camera && view.camera.heading, h => {
@@ -765,6 +772,7 @@ require([
   btnKatmanlar.addEventListener("click", () => {
     titresim();
     const acilacak = katmanKarti.hidden;
+    if (acilacak) binaKartiKapat(false); // bina kartı açıksa kapat: ikisi altta üst üste binmesin
     katmanKarti.hidden = !acilacak;
     btnKatmanlar.setAttribute("aria-expanded", String(acilacak));
     if (acilacak) {
@@ -786,7 +794,7 @@ require([
     }
   });
   document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && !katmanKarti.hidden) { katmanKartiKapat(); return; }
+    if (e.key === "Escape" && !katmanKarti.hidden) { katmanKartiKapat(); e.stopImmediatePropagation(); return; }
     // Kart açıkken Tab/Shift+Tab kart içinde döngüsel kalsın
     if (e.key === "Tab" && !katmanKarti.hidden) {
       const odaklilar = katmanKarti.querySelectorAll("input, button");
@@ -962,6 +970,248 @@ require([
     katmanlariYenidenDene: katmanlariYenidenDene,
     bildirim: m => gosterBildirim(m)
   };
+
+  // ---------- Bina bilgi kartı: seçim, vurgu, erişilebilir diyalog (WCAG 2.1 AA) ----------
+  const binaKarti = document.getElementById("bina-karti");
+  const binaKartiBaslik = binaKarti ? binaKarti.querySelector(".bina-karti__baslik") : null;
+  // Sözleşme: satırlar konteyneri .bina-karti__satirlar (ajans 4 index.html'i böyle kuruyor);
+  // eski tek satır varsa ona geri düşülür — ikisi birden asla karıştırılmaz
+  const binaKartiSatirlar = binaKarti ? binaKarti.querySelector(".bina-karti__satirlar") : null;
+  const binaKartiTekSatir = binaKarti ? binaKarti.querySelector(".bina-karti__satir") : null;
+  const binaKartiKapatBtn = document.getElementById("bina-karti-kapat");
+  let seciliVurguGraphic = null;
+
+  // Global (sözleşme): geometriyi kırmızı vurguyla işaretler, eskiyi her zaman temizler.
+  // tip "point" ise kırmızı daire (PointSymbol3D), "polygon" ise kırmızı MeshSymbol3D
+  function seciliVurgula(geometry, tip) {
+    if (seciliVurguGraphic) { view.graphics.remove(seciliVurguGraphic); seciliVurguGraphic = null; }
+    if (!geometry) return;
+    let symbol;
+    if (tip === "point") {
+      symbol = new PointSymbol3D({
+        symbolLayers: [new IconSymbol3DLayer({
+          resource: { primitive: "circle" },
+          material: { color: [179, 38, 30, 1] },
+          size: 18,
+          outline: { color: [255, 255, 255, 1], width: 2 }
+        })]
+      });
+    } else {
+      symbol = new MeshSymbol3D({
+        symbolLayers: [{
+          type: "fill",
+          material: { color: [179, 38, 30, 0.85], colorMixMode: "replace" },
+          edges: new SolidEdges3D({ color: [179, 38, 30, 1], size: 1.5 })
+        }]
+      });
+    }
+    seciliVurguGraphic = new Graphic({ geometry: geometry, symbol: symbol });
+    view.graphics.add(seciliVurguGraphic);
+  }
+
+  // Global (sözleşme): kartı doldurur, açar, ekran okuyucuya duyurur, odağı kapama düğmesine taşır.
+  // icerik: { ad: string, satirlar: string[] } — satırlar createElement ile eklenir (asla innerHTML)
+  function binaKartiGoster(icerik) {
+    if (!binaKarti) return;
+    // Bina kartı açılınca katman kartı kapalı kalsın (mobilde ikisi altta üst üste biner)
+    katmanKartiKapat();
+    const bl = document.getElementById("bildirim");
+    if (bl && !bl.hidden) bl.classList.add("bildirim--bina-karti-ustunde");
+    const ad = (icerik && icerik.ad) || "Yapı";
+    const satirlar = (icerik && Array.isArray(icerik.satirlar)) ? icerik.satirlar.filter(s => s) : [];
+    if (binaKartiBaslik) binaKartiBaslik.textContent = ad;
+    if (binaKartiSatirlar) {
+      while (binaKartiSatirlar.firstChild) binaKartiSatirlar.removeChild(binaKartiSatirlar.firstChild);
+      satirlar.forEach(s => {
+        const satir = document.createElement("div");
+        satir.className = "bina-karti__satir";
+        satir.textContent = s;
+        binaKartiSatirlar.appendChild(satir);
+      });
+    } else if (binaKartiTekSatir) {
+      binaKartiTekSatir.textContent = satirlar.join(" · ");
+    }
+    binaKarti.hidden = false;
+    // Bildirim açıksa bina kartının üstüne kaydır: hiçbir şey üst üste binmez (çevrimdışı bildirimi dahil)
+    const bildirimEl = document.getElementById("bildirim");
+    if (bildirimEl && !bildirimEl.hidden) bildirimEl.classList.add("bildirim--bina-karti-ustunde");
+    duyur("Seçili: " + ad + (satirlar.length ? ", " + satirlar.join(", ") : ""));
+    if (binaKartiKapatBtn) binaKartiKapatBtn.focus();
+  }
+
+  // Global (sözleşme): kartı kapatır, vurguyu temizler; Esc'te odak viewDiv'e döner
+  function binaKartiKapat(odakDon) {
+    if (!binaKarti || binaKarti.hidden) return;
+    binaKarti.hidden = true;
+    // Kart kapanınca bildirim üstte-binme sınıfını bırakır, normal konuma döner
+    const bildirimEl = document.getElementById("bildirim");
+    if (bildirimEl) bildirimEl.classList.remove("bildirim--bina-karti-ustunde");
+    if (seciliVurguGraphic) { view.graphics.remove(seciliVurguGraphic); seciliVurguGraphic = null; }
+    const odakKartta = binaKarti.contains(document.activeElement);
+    if (odakDon === true || (odakDon !== false && odakKartta)) view.focus();
+  }
+  window.seciliVurgula = seciliVurgula;
+  window.binaKartiGoster = binaKartiGoster;
+  window.binaKartiKapat = binaKartiKapat;
+  // Sözleşme global'i: yükseklik/kat tahmini de window'da (fonksiyon bildirimi yukarı taşınır)
+  window.yukseklikTahmin = yukseklikTahmin;
+  // 7. adım: aynı noktada birden çok sonuç varsa döngüsel geçiş (sözleşme global'i window.sonrakiSecim)
+  let sonHitTestSonuclari = [];
+  let sonHitTestIndeks = -1;
+  function sayacGuncelle() {
+    const sayac = document.getElementById("bina-karti-sayac");
+    if (!sayac) return;
+    if (sonHitTestSonuclari.length > 1) {
+      sayac.hidden = false;
+      sayac.textContent = (sonHitTestIndeks + 1) + "/" + sonHitTestSonuclari.length;
+    } else {
+      sayac.hidden = true;
+    }
+  }
+  function sonrakiSecim() {
+    if (!sonHitTestSonuclari.length) return;
+    sonHitTestIndeks = (sonHitTestIndeks + 1) % sonHitTestSonuclari.length;
+    secimIsle(sonHitTestSonuclari[sonHitTestIndeks]);
+    sayacGuncelle();
+    const katmanAdi = sonHitTestSonuclari[sonHitTestIndeks].graphic.layer.title || "";
+    duyur((sonHitTestIndeks + 1) + ". sonuç seçildi" + (katmanAdi ? ": " + katmanAdi : ""));
+  }
+  window.sonrakiSecim = sonrakiSecim;
+
+  // Global (sözleşme): mesh/polygon geometrisinden yükseklik (m) ve ~3 m/kattan kat tahmini üretir;
+  // geçersiz/boş geometride { yukseklik: null, kat: null } döner, asla hata atmaz
+  function yukseklikTahmin(geometry) {
+    const bos = { yukseklik: null, kat: null };
+    try {
+      if (!geometry) return bos;
+      let zmin = Infinity, zmax = -Infinity;
+      const zEkle = z => { if (Number.isFinite(z)) { if (z < zmin) zmin = z; if (z > zmax) zmax = z; } };
+      const halka = ring => {
+        if (!Array.isArray(ring)) return;
+        for (const p of ring) {
+          if (Array.isArray(p)) zEkle(p[2]);
+          else if (p && Number.isFinite(p.z)) zEkle(p.z);
+        }
+      };
+      if (geometry.vertexAttributes && geometry.vertexAttributes.position) {
+        const pos = geometry.vertexAttributes.position;
+        for (let i = 0; i + 2 < pos.length; i += 3) zEkle(pos[i + 2]);
+      } else if (geometry.rings) geometry.rings.forEach(halka);
+      else if (geometry.paths) geometry.paths.forEach(halka);
+      else if (geometry.z !== undefined) zEkle(geometry.z);
+      if (!Number.isFinite(zmin) || !Number.isFinite(zmax)) return bos;
+      const yukseklik = Math.round((zmax - zmin) * 10) / 10;
+      if (yukseklik <= 0) return bos;
+      return { yukseklik: yukseklik, kat: Math.max(1, Math.round(yukseklik / 3)) };
+    } catch (err) { return bos; }
+  }
+
+  // Katmana göre seçim: Yapı (çok satır), Numarataj (No + adres), 3B bina (yükseklik + kat)
+  function secimIsle(sonuc) {
+    // Seçim bilgi kartı açılınca yerleşik popup kapanır (mobilde altta üst üste binmez, bilgi tek kartta)
+    if (view.popup) view.popup.close();
+    // Katman kartı da kapanır: tek seçim akışı, hiçbir panel üst üste binmez
+    katmanKartiKapat();
+    const layer = sonuc.graphic.layer;
+    const a = sonuc.graphic.attributes || {};
+    if (layer === numaratajLayer) {
+      const ad = "No " + (a.kapino != null && a.kapino !== "" ? a.kapino : "—");
+      const satirlar = [];
+      if (a.ad) satirlar.push(a.ad);
+      seciliVurgula(sonuc.graphic.geometry, "point");
+      binaKartiGoster({ ad: ad, satirlar: satirlar });
+    } else if (layer === yapilarLayer) {
+      const ad = a.ad || "Yapı";
+      const satirlar = [];
+      // Boş değerler atlanır: yalnızca gerçekten veri varsa satır yazılır
+      if (Number.isFinite(a.zeminustukatsayisi)) satirlar.push(a.zeminustukatsayisi + " kat");
+      if (Number.isFinite(a.zeminaltikatsayisi) && a.zeminaltikatsayisi > 0) satirlar.push("Bodrum " + a.zeminaltikatsayisi);
+      if (Number.isFinite(a.bagimsizbolumsayi)) satirlar.push(a.bagimsizbolumsayi + " bağımsız bölüm");
+      if (a.postakodu) satirlar.push("Posta kodu " + a.postakodu);
+      seciliVurgula(sonuc.graphic.geometry, "polygon");
+      binaKartiGoster({ ad: ad, satirlar: satirlar });
+    } else if (layer === binalarLayer) {
+      // 3B bina: başlık ad yoksa '3B Bina'; yükseklik ve kat tahmini satır olarak eklenir (null ise yazılmaz)
+      const ad = a.ad || "3B Bina";
+      const tahmin = yukseklikTahmin(sonuc.graphic.geometry);
+      const satirlar = [];
+      if (tahmin && Number.isFinite(tahmin.yukseklik)) satirlar.push("Yükseklik ~" + tahmin.yukseklik.toFixed(1) + " m");
+      if (tahmin && Number.isFinite(tahmin.kat)) satirlar.push("Tahmini " + tahmin.kat + " kat");
+      seciliVurgula(sonuc.graphic.geometry, "polygon");
+      binaKartiGoster({ ad: ad, satirlar: satirlar });
+    }
+  }
+
+  // Ortak seçim akışı: hitTest → katman katman seçim; sonuç yoksa kart kapanır
+  function hitTestSec(e) {
+    try {
+      view.hitTest(e).then(response => {
+        // Sözleşme önceliği: Numarataj > Yapılar > 3B Binalar —
+        // sonuçlar katman önceliğine göre dizilir, ilk öncelikli olan seçilir
+        const oncelik = [numaratajLayer, yapilarLayer, binalarLayer];
+        const uyusanlar = (response.results || []).filter(r =>
+          r.graphic && oncelik.includes(r.graphic.layer) && r.graphic.layer.visible !== false);
+        sonHitTestSonuclari = uyusanlar;
+        const sonuc = oncelik
+          .map(l => uyusanlar.find(r => r.graphic.layer === l))
+          .find(Boolean);
+        if (!sonuc) { binaKartiKapat(false); return; }
+        sonHitTestIndeks = uyusanlar.indexOf(sonuc);
+        secimIsle(sonuc);
+        sayacGuncelle();
+      }).catch(() => {});
+    } catch (err) { console.warn("Bina seçimi hatası (ele alındı):", err); }
+  }
+
+  // Harita tıklaması: Yapılar / 3B Binalar / Numarataj grafik yakalanırsa kart açılır, boş alanda kart kapanır
+  view.on("click", hitTestSec);
+  // Uzun basma (hold) aynı tek seçim akışına bağlanır; çift dokunuş zumu tetiklemez (ayrı olay)
+  // NOT: bu olay TEK KEZ bağlanır — yinelenirse aynı dokunuşta kart iki kez işlenir
+  view.on("hold", hitTestSec);
+
+  // Klavye: harita (viewDiv) veya gövde odaktayken Enter ekran merkezindeki nesneyi seçer
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Enter") return;
+    const aktif = document.activeElement;
+    const viewDiv = document.getElementById("viewDiv");
+    // Kart açıkken ve aynı noktada birden çok sonuç varsa Enter sıradaki sonuca
+    // döngüsel geçer — odak haritada, gövdede YA DA kartın içindeyken çalışır
+    // (kart açılınca odak kapama düğmesine taşınır; aksi hâlde Enter kartı kapatır, döngü çalışmaz)
+    if (binaKarti && !binaKarti.hidden && sonHitTestSonuclari.length > 1 &&
+        (aktif === viewDiv || aktif === document.body || binaKarti.contains(aktif))) {
+      e.preventDefault();
+      sonrakiSecim();
+      return;
+    }
+    if (aktif === viewDiv || aktif === document.body) {
+      e.preventDefault();
+      const w = view.container ? view.container.clientWidth : window.innerWidth;
+      const h = view.container ? view.container.clientHeight : window.innerHeight;
+      hitTestSec({ x: w / 2, y: h / 2 });
+    }
+  });
+
+  if (binaKartiKapatBtn) binaKartiKapatBtn.addEventListener("click", () => binaKartiKapat(true));
+
+  // Kart açıkken Esc kapatır (odak viewDiv'e döner), Tab/Shift+Tab kart içinde kısır döngü
+  document.addEventListener("keydown", e => {
+    if (!binaKarti || binaKarti.hidden) return;
+    if (e.key === "Escape") { e.preventDefault(); binaKartiKapat(true); return; }
+    if (e.key === "Tab") {
+      const odaklilar = binaKarti.querySelectorAll("button, [href], input, [tabindex]:not([tabindex='-1'])");
+      if (!odaklilar.length) { e.preventDefault(); return; }
+      const ilk = odaklilar[0], son = odaklilar[odaklilar.length - 1];
+      if (e.shiftKey && document.activeElement === ilk) { e.preventDefault(); son.focus(); }
+      else if (!e.shiftKey && document.activeElement === son) { e.preventDefault(); ilk.focus(); }
+    }
+  });
+
+  // Kart dışına (harita dışı UI'ye) dokununca kapanır; harita tıklamaları view.on('click')'te ele alınır
+  document.addEventListener("click", e => {
+    if (binaKarti && !binaKarti.hidden && !e.target.closest("#bina-karti") && !e.target.closest("#viewDiv")) {
+      binaKartiKapat(true);
+    }
+  });
 
   console.log("Ankara 3D hazır.");
 });

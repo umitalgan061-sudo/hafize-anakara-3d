@@ -91,6 +91,16 @@
     </div>
   </div>
 
+  <!-- Sözleşme (6. adım): kart kimliği #bina-karti, başlık #bina-karti-baslik (.bina-karti__baslik), açıklama #bina-karti-aciklama.gorsel-gizli, satır kapsayıcı .bina-karti__satirlar, kapama #bina-karti-kapat; role=dialog aria-modal=false, aria-labelledby/aria-describedby; Esc/dışarı dokunuş/Tab döngüsü js/uygulama.js'tedir; içerik yalnızca createElement ile doldurulur -->
+  <div id="bina-karti" class="bina-karti" role="dialog" aria-modal="false" aria-labelledby="bina-karti-baslik" aria-describedby="bina-karti-aciklama" hidden>
+    <span class="bina-karti__baslik" id="bina-karti-baslik"></span>
+    <!-- Çoklu seçim sayacı rozeti (7. adım): aynı noktada birden çok sonuç varsa '2/3' gösterir; js/uygulama.js doldurur, yoksa gizli kalır -->
+    <span class="bina-karti__sayac" id="bina-karti-sayac" hidden></span>
+    <span id="bina-karti-aciklama" class="gorsel-gizli">Seçili yapı veya kapı numarası bilgileri. Kapatmak için Esc tuşuna basın.</span>
+    <div class="bina-karti__satirlar"></div>
+    <button type="button" id="bina-karti-kapat" aria-label="Bilgi kartını kapat" title="Kapat">✕</button>
+  </div>
+
   <div id="bildirim" class="bildirim" role="status" aria-live="polite" hidden></div>
   <div id="duyuru" class="gorsel-gizli" role="status" aria-live="polite"></div>
   <div class="durum-satiri" id="durum-satiri" aria-hidden="true"></div>

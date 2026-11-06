@@ -271,7 +271,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .cevrimo-gosterge { padding: 3px 7px; font-size: 0.68rem; }
 }
 
-/* Bildirim: tek satır (nowrap + ellipsis); kurtarma düğmesi varsa 8 sn kalır, yoksa 3 sn */
+/* Bina kartı açıkken bildirim onun üstüne binsin: hiçbir şey üst üste binmez (masaüstü ve mobil) */
+.bildirim--bina-karti-ustunde { bottom: calc(76px + 200px + env(safe-area-inset-bottom)); }
 .bildirim {
   position: fixed;
   left: 50%;
@@ -384,6 +385,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .katman-karti { bottom: calc(70px + env(safe-area-inset-bottom)); }
   .bildirim { bottom: calc(70px + env(safe-area-inset-bottom)); }
   .bildirim--kart-ustunde { bottom: calc(70px + 320px + env(safe-area-inset-bottom)); }
+  .bildirim--bina-karti-ustunde { bottom: calc(70px + 200px + env(safe-area-inset-bottom)); }
 }
 
 /* Klavye kullanıcıları için atla bağlantısı: odakta görünür */
@@ -427,4 +429,116 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
     border: 3px solid rgba(179, 38, 30, 0.35);
     border-top-color: var(--vurgu);
   }
+}
+
+/* Bina bilgi kartı açılış animasyonu: hafif belirme + yukarıdan kayma (0.18s) */
+@keyframes bina-karti-gir {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Mobil kart için animasyon: alttan hafif kayma */
+@keyframes bina-karti-gir-mobil {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* reduced-motion: kart animasyonsuz açılır (global kural animasyonu zaten keser; bu blok garantidir) */
+@media (prefers-reduced-motion: reduce) {
+  .bina-karti { animation: none !important; }
+}
+/* Bina bilgi kartı: masaüstünde sağ üstte yüzen kart; mobilde alt çubuk üstünde yatay kart */
+.bina-karti {
+  position: fixed;
+  top: 76px;
+  right: 12px;
+  z-index: 25;
+  width: 260px;
+  max-width: calc(100vw - 24px);
+  padding: 12px;
+  background: #fff;
+  border-radius: var(--yaricap);
+  box-shadow: var(--golge);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: bina-karti-gir 0.18s ease-out;
+  /* Boyama optimizasyonu: kapalıyken/uzaktayken içerik boyanmaz */
+  content-visibility: auto;
+  contain-intrinsic-size: 260px 140px;
+}
+.bina-karti__baslik {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--metin);
+  padding-right: 44px; /* kapama düğmesiyle çakışmasın */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bina-karti__baslik-satir { display: flex; align-items: center; min-width: 0; }
+/* Çoklu seçim sayacı rozeti (7. adım sözleşmesi): başlık yanına küçük '2/3' rozeti; JS doldurmadıkça [hidden] ile gizli kalır */
+.bina-karti__sayac {
+  flex-shrink: 0;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #f6e3e2;
+  color: var(--vurgu);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.bina-karti__satir {
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--metin);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Sözleşme: satır kapsayıcısı dikey dizilir; mobil yatay kartta taşmayı önler */
+.bina-karti__satirlar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+}
+/* Kapama düğmesi: en az 44x44 dokunma hedefi, --vurgu odak halkası (WCAG) */
+#bina-karti-kapat {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+}
+#bina-karti-kapat:hover { background: #f2f2f2; color: var(--metin); }
+#bina-karti-kapat:active { background: #e5e5e5; }
+#bina-karti-kapat:focus-visible { outline: 3px solid var(--vurgu); outline-offset: 2px; border-radius: 50%; }
+
+@media (max-width: 600px) {
+  /* Mobil: alt ortada yatay kart, alt çubukla çakışmaz (bottom: alt çubuk üstü + güvenli alan) */
+  .bina-karti {
+    top: auto;
+    right: 12px;
+    left: 12px;
+    bottom: calc(70px + env(safe-area-inset-bottom));
+    width: auto;
+    max-width: calc(100vw - 24px);
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 12px;
+    padding: 10px 12px;
+  }
+  .bina-karti__baslik { flex: 1 1 100%; padding-right: 44px; }
+  .bina-karti__satirlar { flex: 1 1 100%; flex-direction: row; flex-wrap: wrap; gap: 2px 12px; }
+  .bina-karti__satir { flex: 0 1 auto; max-width: 100%; }
 }
