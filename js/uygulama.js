@@ -187,8 +187,9 @@ require([
     map: new WebScene({
       basemap: "hybrid",
       // Gizli katmanlar (Mahalleler/Yollar) ilk açılışta yüklenmez;
-      // ilk açıldıklarında haritaya eklenir (ilk açılış performansı)
-      layers: [binalarLayer, yapilarLayer, numaratajLayer, konumLayer]
+      // ilk açıldıklarında haritaya eklenir (ilk açılış performansı).
+      // Yükleme önceliği: Numarataj → Yapılar → 3B Binalar en son
+      layers: [numaratajLayer, yapilarLayer, binalarLayer, konumLayer]
     }),
     camera: {
       position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
@@ -225,6 +226,14 @@ require([
     gosterBildirim("Harita yüklenemedi", () => location.reload());
   });
   setTimeout(yukleniyoruKapat, 9000);
+
+  // İlk açılış süresi ölçümü (hedef: Anıtkabir görünümü 2 sn altında)
+  const acilisBaslangic = performance.now();
+  view.when(() => {
+    const sure = Math.round(performance.now() - acilisBaslangic);
+    if (sure > 2000) console.warn("Açılış hedefi aşıldı: " + sure + " ms");
+    else console.log("Açılış süresi: " + sure + " ms");
+  });
 
   // Yükleniyor göstergesi gerçek ilerlemeyle bağlanır (görsel sade kalır, ekran okuyucu duyurusu güncellenir)
   const yukluDuyuru = document.querySelector("#yukleniyor .gorsel-gizli");
