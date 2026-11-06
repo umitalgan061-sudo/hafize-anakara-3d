@@ -44,14 +44,10 @@ require([
       });
       el.appendChild(btn);
     }
-YENİ
     // Katman kartı açıkken bildirim onun üstüne binmesin (masaüstü ve mobil)
     const kart = document.getElementById("katman-karti");
     el.classList.toggle("bildirim--kart-ustunde", !!(kart && !kart.hidden));
     // Bina kartı açıkken de bildirim onun üstüne binmesin (mobilde alt kartla çakışır)
-    const binaK = document.getElementById("bina-karti");
-    el.classList.toggle("bildirim--bina-karti-ustunde", !!(binaK && !binaK.hidden));
-    // Bina kartı açıkken (mobilde altta) bildirim onun üstüne binmesin
     const binaKartiEl = document.getElementById("bina-karti");
     el.classList.toggle("bildirim--bina-karti-ustunde", !!(binaKartiEl && !binaKartiEl.hidden));
     el.hidden = false;
@@ -773,11 +769,9 @@ YENİ
 
   btnKatmanlar.addEventListener("click", () => {
     titresim();
-YENİ
     const acilacak = katmanKarti.hidden;
-    if (acilacak) binaKartiKapat(false); // mobilde bina kartıyla altta üst üste binmesin
+    if (acilacak) binaKartiKapat(false); // bina kartı açıksa kapat: ikisi altta üst üste binmesin
     katmanKarti.hidden = !acilacak;
-    if (acilacak) binaKartiKapat(false); // bina kartı açıksa kapat: ikisi altta üst üste binmesin\n>>>>>>>YENİ
     btnKatmanlar.setAttribute("aria-expanded", String(acilacak));
     if (acilacak) {
       const ilk = katmanKarti.querySelector("input");
@@ -1015,7 +1009,6 @@ YENİ
 
   // Global (sözleşme): kartı doldurur, açar, ekran okuyucuya duyurur, odağı kapama düğmesine taşır.
   // icerik: { ad: string, satirlar: string[] } — satırlar createElement ile eklenir (asla innerHTML)
-YENİ
   function binaKartiGoster(icerik) {
     if (!binaKarti) return;
     // Bina kartı açılınca katman kartı kapalı kalsın (mobilde ikisi altta üst üste biner)
@@ -1058,6 +1051,8 @@ YENİ
   window.seciliVurgula = seciliVurgula;
   window.binaKartiGoster = binaKartiGoster;
   window.binaKartiKapat = binaKartiKapat;
+  // Sözleşme global'i: yükseklik/kat tahmini de window'da (fonksiyon bildirimi yukarı taşınır)
+  window.yukseklikTahmin = yukseklikTahmin;
 
   // Global (sözleşme): mesh/polygon geometrisinden yükseklik (m) ve ~3 m/kattan kat tahmini üretir;
   // geçersiz/boş geometride { yukseklik: null, kat: null } döner, asla hata atmaz
@@ -1091,6 +1086,8 @@ YENİ
   function secimIsle(sonuc) {
     // Seçim bilgi kartı açılınca yerleşik popup kapanır (mobilde altta üst üste binmez, bilgi tek kartta)
     if (view.popup) view.popup.close();
+    // Katman kartı da kapanır: tek seçim akışı, hiçbir panel üst üste binmez
+    katmanKartiKapat();
     const layer = sonuc.graphic.layer;
     const a = sonuc.graphic.attributes || {};
     if (layer === numaratajLayer) {
@@ -1129,7 +1126,7 @@ YENİ
         // sonuçlar katman önceliğine göre dizilir, ilk öncelikli olan seçilir
         const oncelik = [numaratajLayer, yapilarLayer, binalarLayer];
         const uyusanlar = (response.results || []).filter(r =>
-          r.graphic && oncelik.includes(r.graphic.layer));
+          r.graphic && oncelik.includes(r.graphic.layer) && r.graphic.layer.visible !== false);
         const sonuc = oncelik
           .map(l => uyusanlar.find(r => r.graphic.layer === l))
           .find(Boolean);

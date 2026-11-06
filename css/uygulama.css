@@ -384,7 +384,6 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .kontrol-dugme span { font-size: 10px; }
   .katman-karti { bottom: calc(70px + env(safe-area-inset-bottom)); }
   .bildirim { bottom: calc(70px + env(safe-area-inset-bottom)); }
-YENİ
   .bildirim--kart-ustunde { bottom: calc(70px + 320px + env(safe-area-inset-bottom)); }
   .bildirim--bina-karti-ustunde { bottom: calc(70px + 200px + env(safe-area-inset-bottom)); }
 }
