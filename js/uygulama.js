@@ -145,38 +145,59 @@ require([
     }
   });
 
-  const mahallelerLayer = new FeatureLayer({
-    url: MAKS_URL + "/3",
-    title: "Mahalleler",
-    visible: false,
-    outFields: ["ad"],
-    labelingInfo: [{
-      labelExpressionInfo: { expression: "$feature.ad" },
-      labelPlacement: "center-center",
-      symbol: new LabelSymbol3D({
-        symbolLayers: [new TextSymbol3DLayer({
-          material: { color: [20, 20, 20, 1] },
-          halo: { color: [255, 255, 255, 0.9], size: 1 },
-          size: 12,
-          font: { family: "system-ui", weight: "bold" }
-        })]
-      }),
-      minScale: 20000
-    }],
-    labelsVisible: true,
-    popupTemplate: {
-      title: "{ad}",
-      content: [{ type: "fields", fieldInfos: [{ fieldName: "ad", label: "Mahalle" }] }]
+  // Mahalleler ve Yollar katmanları GİZLİDİR: açılışta FeatureLayer OLUŞTURULMAZ
+  // (metadata/veri isteği atılmaz — ilk açılış performansı). İlk açıldıklarında
+  // bu factory'lerle tek seferlik oluşturulur, haritaya eklenir ve yalnızca
+  // loadStatus watch ile hata akışına girer; yükleme zincirine (3 adım) DAHİL DEĞİLDİR.
+  let _mahallelerLayer = null;
+  let _yollarLayer = null;
+  function mahallelerKatmani() {
+    if (!_mahallelerLayer) {
+      _mahallelerLayer = new FeatureLayer({
+        url: MAKS_URL + "/3",
+        title: "Mahalleler",
+        visible: false,
+        outFields: ["ad"],
+        labelingInfo: [{
+          labelExpressionInfo: { expression: "$feature.ad" },
+          labelPlacement: "center-center",
+          symbol: new LabelSymbol3D({
+            symbolLayers: [new TextSymbol3DLayer({
+              material: { color: [20, 20, 20, 1] },
+              halo: { color: [255, 255, 255, 0.9], size: 1 },
+              size: 12,
+              font: { family: "system-ui", weight: "bold" }
+            })]
+          }),
+          minScale: 20000
+        }],
+        labelsVisible: true,
+        popupTemplate: {
+          title: "{ad}",
+          content: [{ type: "fields", fieldInfos: [{ fieldName: "ad", label: "Mahalle" }] }]
+        }
+      });
+      view.map.add(_mahallelerLayer);
+      yuklemeHatasiIzle(_mahallelerLayer);
+      console.log("Mahalleler katmanı ilk açılışta oluşturuldu (lazy)");
     }
-  });
-
-  const yollarLayer = new FeatureLayer({
-    url: MAKS_URL + "/1",
-    title: "Yollar",
-    visible: false,
-    outFields: ["ad"],
-    popupTemplate: { title: "{ad}", content: [{ type: "fields", fieldInfos: [{ fieldName: "ad", label: "Yol" }] }] }
-  });
+    return _mahallelerLayer;
+  }
+  function yollarKatmani() {
+    if (!_yollarLayer) {
+      _yollarLayer = new FeatureLayer({
+        url: MAKS_URL + "/1",
+        title: "Yollar",
+        visible: false,
+        outFields: ["ad"],
+        popupTemplate: { title: "{ad}", content: [{ type: "fields", fieldInfos: [{ fieldName: "ad", label: "Yol" }] }] }
+      });
+      view.map.add(_yollarLayer);
+      yuklemeHatasiIzle(_yollarLayer);
+      console.log("Yollar katmanı ilk açılışta oluşturuldu (lazy)");
+    }
+    return _yollarLayer;
+  }
 
   const konumLayer = new GraphicsLayer({ title: "Konum" });
 
@@ -299,7 +320,7 @@ require([
     });
     duyur("Katmanlar yeniden yükleniyor");
   }
-  [binalarLayer, yapilarLayer, numaratajLayer, mahallelerLayer, yollarLayer].forEach(lyr => {
+  function yuklemeHatasiIzle(lyr) {
     reactiveUtils.watch(() => lyr.loadStatus, status => {
       if (status === "failed") {
         basarisizKatmanlar.add(lyr);
@@ -309,7 +330,8 @@ require([
         basarisizKatmanlar.delete(lyr);
       }
     });
-  });
+  }
+  [binalarLayer, yapilarLayer, numaratajLayer].forEach(yuklemeHatasiIzle);
 
   // Ağ durumu + çevrimdışı rozeti + önbellek kurtarma akışı
   const cevrimoGosterge = document.getElementById("cevrimo-gosterge");
@@ -653,20 +675,17 @@ require([
   });
 
   [
-    [cbBinalar, binalarLayer, "3B Binalar"],
-    [cbYapilar, yapilarLayer, "Yapılar"],
-    [cbNumarataj, numaratajLayer, "Numarataj"],
-    [cbMahalleler, mahallelerLayer, "Mahalleler"],
-    [cbYollar, yollarLayer, "Yollar"]
-  ].forEach(([cb, lyr, ad]) => {
+    [cbBinalar, () => binalarLayer, "3B Binalar"],
+    [cbYapilar, () => yapilarLayer, "Yapılar"],
+    [cbNumarataj, () => numaratajLayer, "Numarataj"],
+    [cbMahalleler, mahallelerKatmani, "Mahalleler"],
+    [cbYollar, yollarKatmani, "Yollar"]
+  ].forEach(([cb, katmanAl, ad]) => {
     cb.addEventListener("change", () => {
       titresim();
-      // Gizli katmanlar (Mahalleler/Yollar) ilk açılışta haritada YOKTUR;
-      // yalnızca ilk kez açıldıklarında haritaya eklenir (lazy load — açılış performansı)
-      if (cb.checked && !lyr.parent) {
-        view.map.add(lyr);
-        console.log("Katman ilk açılışta eklendi (lazy): " + ad);
-      }
+      // Gizli katmanlar (Mahalleler/Yollar) fabrika ile ilk açılışlarında
+      // tek seferlik oluşturulup haritaya eklenir; sonraki aç/kapa yalnızca visible.
+      const lyr = katmanAl();
       lyr.visible = cb.checked;
       duyur(ad + (cb.checked ? " açıldı" : " kapatıldı"));
     });

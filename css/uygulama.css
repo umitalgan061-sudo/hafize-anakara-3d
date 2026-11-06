@@ -96,6 +96,9 @@ input[type="search"]::-webkit-search-results-decoration,
   border-radius: var(--yaricap);
   box-shadow: var(--golge);
   z-index: 20;
+  /* Boyama optimizasyonu: ekrandan uzakken içerik boyanmaz (ilk açılış performansı) */
+  content-visibility: auto;
+  contain-intrinsic-size: 220px 264px;
 }
 .arama-sonuc {
   display: flex;
@@ -182,6 +185,9 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* Boyama optimizasyonu: kapalıyken/uzaktayken içerik boyanmaz */
+  content-visibility: auto;
+  contain-intrinsic-size: 220px 260px;
 }
 .katman-satir {
   display: flex;
@@ -273,6 +279,9 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Boyama optimizasyonu: bildirim ekrandan uzaktayken içerik boyanmaz */
+  content-visibility: auto;
+  contain-intrinsic-size: 280px 40px;
 }
 
 /* Yükleniyor göstergesi: açılışta anında görünür, haritayı kapatmaz */
@@ -286,6 +295,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(2px);
   pointer-events: none;
+  /* Açılış katmanı tek seferlik gösterilip kaldırılır; opaklık değişimi katmanlaştırılır */
+  will-change: opacity;
 }
 .yukleniyor__logo { height: 48px; width: auto; }
 .yukleniyor__halka {
