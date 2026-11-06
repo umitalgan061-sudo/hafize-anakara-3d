@@ -372,6 +372,13 @@ require([
 
   // Katman yüklenemezse kurtarma akışı: tek satır uyarı + "Yeniden dene"
   function katmanlariYenidenDene() {
+    // Çevrimdışıyken kurtarma düğmesi: ağ yoksa ağ isteği atma, tek satır
+    // bildirimi yenile ve kullanıcıyı bilgilendir (uçak-modu senaryosu)
+    if (!navigator.onLine) {
+      gosterBildirim("Çevrimdışı — önbellekten deneniyor", katmanlariYenidenDene);
+      duyur("Hâlâ çevrimdışı, önbellekteki veriler gösteriliyor");
+      return;
+    }
     if (!basarisizKatmanlar.size) return;
     const liste = Array.from(basarisizKatmanlar);
     basarisizKatmanlar.clear();
@@ -449,6 +456,17 @@ require([
     // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir (kurtarma akışı)
     guncelAlaniTazele();
   });
+  // Uçak modunda açılış: SW kontrolü daha sonra ele geçebilir (controllerchange);
+  // o zaman rozet/karo sayısı ve tek satır kurtarma akışı yine de guaranteed yenilenir
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!navigator.onLine) {
+        karoSayisiAl(sayi => cevrimiGuncelle(sayi));
+        gosterBildirim("Çevrimdışı — önbellekten açılıyor", katmanlariYenidenDene);
+        duyur("Çevrimdışı modda açıldı, önbellekteki alan gösteriliyor");
+      }
+    });
+  }
 
   // Harita durunca güncel görünür alanın karoları SW'ye önbelleğe bildirilir (yalnızca eksikler çekilir)
   let guncelAlanTimer = null;
