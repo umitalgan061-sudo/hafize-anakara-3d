@@ -86,8 +86,7 @@ input[type="search"]::-webkit-search-results-decoration,
   appearance: none !important;
   display: none !important;
 }
-.arama-sonuclari {
-  position: absolute;\n  overscroll-behavior: contain;\n>>>>>>> REPLACE
+  top: calc(100% + 6px);\n>>>>>>> REPLACE
   top: calc(100% + 6px);
   left: 0; right: 0;
   max-height: 264px;
