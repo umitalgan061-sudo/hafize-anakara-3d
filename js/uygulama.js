@@ -252,10 +252,14 @@ require([
       console.log("Yükleme adımı 3/3 3B Binalar: " + Math.round(performance.now() - zincirBaslangic) + " ms — zincir tamam");
     })
     .catch(err => {
-      console.error("Katman yükleme zinciri hatası:", err);
+      // Zincir hatası kullanıcıya tek satır bildirimle bildiriliyor; konsol hatasız kalmalı (uçak modu dahil)
+      console.warn("Katman yükleme zinciri hatası (ele alındı):", err);
       // Zincir kırılırsa (örn. uçak modunda veri servislerine erişilemezse)
-      // tek satır uyarı + Yeniden dene akışına girer; zincir catch'i tutarlı çalışır
+      // tek satır uyarı + Yeniden dene akışına girer; zincir catch'i tutarlı çalışır.
+      // yuklemeHatasiIzle aynı katman için zaten uyarı gösterdiyse bildirim yinelenmez
+      const yeniVar = [numaratajLayer, yapilarLayer, binalarLayer].some(l => !basarisizKatmanlar.has(l));
       [numaratajLayer, yapilarLayer, binalarLayer].forEach(l => basarisizKatmanlar.add(l));
+      if (!yeniVar) return;
       if (!navigator.onLine) gosterBildirim("Çevrimdışı — katmanlar önbellekten deneniyor", katmanlariYenidenDene);
       else gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
     });
@@ -358,7 +362,7 @@ require([
       if (status === "failed") {
         basarisizKatmanlar.add(lyr);
         gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
-        console.error(lyr.title, "yükleme hatası:", lyr.loadError);
+        console.warn(lyr.title, "yükleme hatası (ele alındı):", lyr.loadError);
       } else if (status === "loaded") {
         basarisizKatmanlar.delete(lyr);
       }
@@ -393,8 +397,13 @@ require([
   }
   cevrimiGuncelle();
   if (!navigator.onLine) {
-    // Sayfa zaten çevrimdışı açıldıysa rozet hemen karo sayısıyla görünsün
-    navigator.serviceWorker.ready.then(() => karoSayisiAl(sayi => cevrimiGuncelle(sayi)));
+    // Sayfa zaten çevrimdışı açıldıysa (uçak modu): service worker hazır olunca
+    // rozet karo sayısıyla güncellenir ve tek satır kurtarma bildirimi çıkar
+    navigator.serviceWorker.ready.then(() => {
+      karoSayisiAl(sayi => cevrimiGuncelle(sayi));
+      gosterBildirim("Çevrimdışı — önbellekten açılıyor", katmanlariYenidenDene);
+      duyur("Çevrimdışı modda açıldı, önbellekteki alan gösteriliyor");
+    });
   }
   window.addEventListener("offline", () => {
     karoSayisiAl(sayi => cevrimiGuncelle(sayi));
@@ -563,7 +572,7 @@ require([
         duyur(veri.candidates && veri.candidates.length ? veri.candidates.length + " sonuç bulundu" : "Sonuç bulunamadı");
       })
       .catch(err => {
-        console.error("Arama hatası:", err);
+        console.warn("Arama hatası (ele alındı):", err);
         if (err && err.name === "AbortError") gosterBildirim("Arama zaman aşımına uğradı");
         else if (!navigator.onLine) gosterBildirim("Çevrimdışı — arama yapılamadı");
         else gosterBildirim("Arama başarısız oldu");
@@ -576,6 +585,11 @@ require([
     aramaTimer = setTimeout(() => {
       const q = aramaGirdi.value.trim();
       if (q.length >= 2) aramaYap(q);
+      else if (q.length === 0) {
+        // Girdi boşaldıysa eski sonuç listesi açık kalmasın
+        aramaSonuclari.hidden = true;
+        aramaGirdi.setAttribute("aria-expanded", "false");
+      }
     }, 500);
   });
 

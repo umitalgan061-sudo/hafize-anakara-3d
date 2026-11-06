@@ -154,7 +154,11 @@ self.addEventListener("message", e => {
         .then(sayi => portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: sayi }))
         .catch(() => portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: 0 }))
     );
+    return;
   }
+
+  // Bilinmeyen mesaj: yine de garanti yanıt ver (istemci portu asla beklemesin)
+  portYanitla(port, { tip: "BILINMEYEN", istenen: veri.tip || null });
 });
 
 self.addEventListener("fetch", e => {
@@ -167,7 +171,7 @@ self.addEventListener("fetch", e => {
   if (karoIstegiMi(url) || vektorKaynagiMi(url)) {
     e.respondWith(
       caches.open(KARO_AD).then(async c => {
-        const hit = await c.match(e.request);
+        const hit = await c.match(e.request, { ignoreSearch: true });
         if (hit) {
           // Çevrimiçiysek arka planda güncelle; ağ yoksa sessizce geç
           fetch(e.request)
@@ -188,7 +192,7 @@ self.addEventListener("fetch", e => {
           return resp;
         } catch (err) {
           // Ağ yokken 504 yerine önbellek dönüşünü son kez dene
-          const tekrar = await c.match(e.request);
+          const tekrar = await c.match(e.request, { ignoreSearch: true });
           if (tekrar) return tekrar;
           return new Response("", { status: 504 });
         }
@@ -205,7 +209,7 @@ self.addEventListener("fetch", e => {
 
   e.respondWith(
     caches.match(e.request, { ignoreSearch: e.request.mode === "navigate" }).then(hit => {
-      // Navigasyon: önce önbellekten aç (çevrimdışı kurtarma), arka planda ağı önbelleğe güncelle
+      // Navigasyon: önce önbellekten aç (uçak modunda açılış kurtarma), arka planda ağı önbelleğe güncelle
       if (e.request.mode === "navigate") {
         fetch(e.request)
           .then(resp => { if (resp.ok) caches.open(AD).then(c => c.put("index.html", resp)).catch(() => {}); })

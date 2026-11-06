@@ -11,12 +11,14 @@ button, input, a, .katman-satir, .taban-dugme { touch-action: manipulation; -web
 /* [hidden] her zaman kazanır: hiçbir display kuralı ezemez (katman kartı/rozet/bildirim kapanması için kritik) */
 [hidden] { display: none !important; }
 /* Flex satır elemanları asla kapsayıcının dışına taşmaz (390px yatay taşma sıfır) */
-.ust-bant > * { min-width: 0; }
+.ust-bant > *, .alt-cubuk > *, .taban-secimi > * { min-width: 0; }
 html, body { height: 100%; width: 100%; max-width: 100vw; overflow: hidden; overflow-x: hidden; }
 body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--metin);
   background: #fff;
+  /* Çekip bırakma yenilemesini kapat: harita tek ekrandır, sayfa kaymaz */
+  overscroll-behavior: none;
 }
 
 #viewDiv { position: fixed; inset: 0; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; z-index: 0; }
@@ -35,6 +37,7 @@ body {
   border-radius: var(--yaricap);
   box-shadow: var(--golge);
   backdrop-filter: blur(8px);
+  max-width: calc(100vw - 24px);
 }
 .ust-bant__logo {
   display: flex;
@@ -245,7 +248,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .kurulum-dugme svg { width: 20px; height: 20px; }
 }
 
-/* Çevrimdışı rozeti: yalnızca ağ yokken görünür */
+/* Çevrimdışı rozeti: yalnızca ağ yokken görünür (hidden ile kontrol edilir), tek satır */
 .cevrimo-gosterge {
   flex-shrink: 1;
   min-width: 0;
@@ -265,13 +268,16 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .cevrimo-gosterge { padding: 3px 7px; font-size: 0.68rem; }
 }
 
-/* Bildirim */
+/* Bildirim: tek satır (nowrap + ellipsis); kurtarma düğmesi varsa 8 sn kalır, yoksa 3 sn */
 .bildirim {
   position: fixed;
   left: 50%;
   bottom: calc(84px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   max-width: calc(100vw - 24px);
   padding: 10px 16px;
   background: #1f1f1f;
@@ -286,8 +292,26 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   content-visibility: auto;
   contain-intrinsic-size: 280px 40px;
 }
+.bildirim span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Kurtarma düğmesi: tek satırda, en az 44x44 dokunma hedefi */
+.bildirim button {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -10px -8px -10px 0;
+  padding: 2px 8px;
+  background: none;
+  border: none;
+  color: #ffb4ab;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bildirim button:focus-visible { outline: 3px solid #ffb4ab; outline-offset: 1px; border-radius: 4px; }
 
-/* Yükleniyor göstergesi: açılışta anında görünür, haritayı kapatmaz */
+/* Yükleniyor göstergesi: açılışta anında görünür, haritayı kapatmaz (tıklanmaz, yarı saydam) */
 .yukleniyor {
   position: fixed;
   inset: 0;
