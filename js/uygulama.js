@@ -1165,10 +1165,8 @@ require([
 
   // Harita tıklaması: Yapılar / 3B Binalar / Numarataj grafik yakalanırsa kart açılır, boş alanda kart kapanır
   view.on("click", hitTestSec);
-  // Uzun basma (hold) aynı seçim akışına bağlanır; çift dokunuş zoom ile çakışmaz (ayrı olay)
-  view.on("hold", hitTestSec);
-
-  // Uzun basma (hold): mobilde aynı seçim akışına bağlanır; çift dokunuş zumu tetiklemez
+  // Uzun basma (hold) aynı tek seçim akışına bağlanır; çift dokunuş zumu tetiklemez (ayrı olay)
+  // NOT: bu olay TEK KEZ bağlanır — yinelenirse aynı dokunuşta kart iki kez işlenir
   view.on("hold", hitTestSec);
 
   // Klavye: harita (viewDiv) veya gövde odaktayken Enter ekran merkezindeki nesneyi seçer
@@ -1176,10 +1174,17 @@ require([
     if (e.key !== "Enter") return;
     const aktif = document.activeElement;
     const viewDiv = document.getElementById("viewDiv");
+    // Kart açıkken ve aynı noktada birden çok sonuç varsa Enter sıradaki sonuca
+    // döngüsel geçer — odak haritada, gövdede YA DA kartın içindeyken çalışır
+    // (kart açılınca odak kapama düğmesine taşınır; aksi hâlde Enter kartı kapatır, döngü çalışmaz)
+    if (binaKarti && !binaKarti.hidden && sonHitTestSonuclari.length > 1 &&
+        (aktif === viewDiv || aktif === document.body || binaKarti.contains(aktif))) {
+      e.preventDefault();
+      sonrakiSecim();
+      return;
+    }
     if (aktif === viewDiv || aktif === document.body) {
       e.preventDefault();
-      // Kart açıkken ve aynı noktada birden çok sonuç varsa Enter sıradaki sonuca döngüsel geçer
-      if (binaKarti && !binaKarti.hidden && sonHitTestSonuclari.length > 1) { sonrakiSecim(); return; }
       const w = view.container ? view.container.clientWidth : window.innerWidth;
       const h = view.container ? view.container.clientHeight : window.innerHeight;
       hitTestSec({ x: w / 2, y: h / 2 });
