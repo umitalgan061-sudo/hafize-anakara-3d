@@ -52,7 +52,15 @@ body {
 .ust-bant__baslik { font-weight: 600; font-size: 1rem; color: var(--metin); white-space: nowrap; }
 
 /* Arama */
-.arama-kutu { position: relative; flex: 1; display: flex; align-items: center; min-width: 0; }
+.arama-kutu {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  /* Boyama optimizasyonu: arama kutusu düzeni dışarıdan izole, dışarı boyanmaz */
+  contain: layout style;
+}
 #arama-girdi {
   width: 100%;
   height: 44px;
@@ -232,6 +240,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
 /* PWA kurulum düğmesi (üst bant, sağda) */
 .kurulum-dugme {
   flex-shrink: 0;
+  contain: layout style;
   display: flex;
   align-items: center;
   gap: 6px;

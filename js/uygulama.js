@@ -262,6 +262,7 @@ require([
   // NOT: zincir catch'i asenkron çalışır; o zamana kadar basarisizKatmanlar
   // (aşağıda tanımlı) zaten başlatılmış olur — TDZ hatası oluşmaz.
   const basarisizKatmanlar = new Set();
+  const bildirilmisKatmanlar = new Set();
   const zincirBaslangic = performance.now();
   console.log("Yükleme zinciri başladı");
   numaratajLayer.load()
@@ -282,8 +283,10 @@ require([
       // Zincir kırılırsa (örn. uçak modunda veri servislerine erişilemezse)
       // tek satır uyarı + Yeniden dene akışına girer; yuklemeHatasiIzle aynı katman
       // için zaten uyarı gösterdiyse bildirim yinelenmez (yeniVar kontrolü).
-      const yeniVar = [numaratajLayer, yapilarLayer, binalarLayer].some(l => !basarisizKatmanlar.has(l));
-      [numaratajLayer, yapilarLayer, binalarLayer].forEach(l => basarisizKatmanlar.add(l));
+      // Hangi yol önce tetiklenirse tetiklensin tek bildirim: bildirim gösterilmiş
+      // katmanlar bildirilmisKatmanlar'da işaretli; bu catch hepsini işaretler, yuklemeHatasiIzle yinelenmez
+      const yeniVar = [numaratajLayer, yapilarLayer, binalarLayer].some(l => !bildirilmisKatmanlar.has(l));
+      [numaratajLayer, yapilarLayer, bizarLayer].forEach(l => { basarisizKatmanlar.add(l); bildirilmisKatmanlar.add(l); });
       if (!yeniVar) return;
       if (!navigator.onLine) gosterBildirim("Çevrimdışı — katmanlar önbellekten deneniyor", katmanlariYenidenDene);
       else gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
@@ -395,10 +398,13 @@ require([
     if (!basarisizKatmanlar.size) return;
     const liste = Array.from(basarisizKatmanlar);
     basarisizKatmanlar.clear();
+    bildirilmisKatmanlar.clear(); // yeniden denemede tekrar bildirime izin ver
     liste.forEach(lyr => {
       lyr.load().catch(() => {
         basarisizKatmanlar.add(lyr);
-        gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
+        bildirilmisKatmanlar.add(lyr);
+        if (!navigator.onLine) gosterBildirim("Çevrimdışı — katmanlar önbellekten deneniyor", katmanlariYenidenDene);
+        else gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
       });
     });
     duyur("Katmanlar yeniden yükleniyor");
@@ -407,11 +413,17 @@ require([
     reactiveUtils.watch(() => lyr.loadStatus, status => {
       if (status === "failed") {
         basarisizKatmanlar.add(lyr);
-        gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
-        duyur("Bazı katmanlar yüklenemedi");
+        // Yinelenen bildirim yok: zincir catch'i bu katman için zaten uyardıysa sessiz kal
+        if (!bildirilmisKatmanlar.has(lyr)) {
+          bildirilmisKatmanlar.add(lyr);
+          if (!navigator.onLine) gosterBildirim("Çevrimdışı — katmanlar önbellekten deneniyor", katmanlariYenidenDene);
+          else gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
+          duyur("Bazı katmanlar yüklenemedi");
+        }
         console.warn(lyr.title, "yükleme hatası (ele alındı):", lyr.loadError);
       } else if (status === "loaded") {
         basarisizKatmanlar.delete(lyr);
+        bildirilmisKatmanlar.delete(lyr);
       }
     });
   }
@@ -1087,6 +1099,10 @@ require([
     duyur((sonHitTestIndeks + 1) + ". sonuç seçildi" + (katmanAdi ? ": " + katmanAdi : ""));
   }
   window.sonrakiSecim = sonrakiSecim;
+  // Sözleşme global'leri eksiksiz: tüm yardımcılar window'da kalır
+  window.gosterBildirim = gosterBildirim;
+  window.duyur = duyur;
+  window.katmanKartiKapat = katmanKartiKapat;
 
   // Global (sözleşme): mesh/polygon geometrisinden yükseklik (m) ve ~3 m/kattan kat tahmini üretir;
   // geçersiz/boş geometride { yukseklik: null, kat: null } döner, asla hata atmaz

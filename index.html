@@ -22,6 +22,13 @@
   <link rel="dns-prefetch" href="https://baskentcbs.ankara.bel.tr" />
   <link rel="dns-prefetch" href="https://basemaps3d.arcgis.com" />
   <link rel="dns-prefetch" href="https://js.arcgis.com" />
+  <!-- CORS fetch'leri (veri katmanları + geocode) erken crossorigin bağlantısıyla açılır; TLS el sıkışması yinelenmez -->
+  <link rel="preconnect" href="https://baskentcbs.ankara.bel.tr" crossorigin />
+  <link rel="preconnect" href="https://geocode.arcgis.com" crossorigin />
+  <!-- Yükleme zincirinin ilk halkaları (Numarataj → Yapılar) için servis ve katman meta verisi erkenden çekilir; AMD yükleyici çalıştığında istek zaten tamamlanmış olur (ilk açılış <2 sn hedefine katkı) -->
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer?f=json" />
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/0?f=json" />
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/2?f=json" />
   <!-- Açılış görünümü (Anıtkabir, z16 merkez) için yalnızca en kritik 4 uydu karo erkenden çekilir; fazlası sw.js karo önbelleğinden gelir -->
   <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38746" />
   <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38747" />

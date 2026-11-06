@@ -1,5 +1,5 @@
-const AD = "ankara3d-v23";
-const KARO_AD = "ankara3d-karolar-v20";
+const AD = "ankara3d-v24";
+const KARO_AD = "ankara3d-karolar-v21";
 const KARO_SINIRI = 600; // önbellekte tutulacak en çok girdi sayısı (LRU)
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
@@ -203,8 +203,8 @@ self.addEventListener("message", e => {
     return;
   }
 
-  // Açılış alanı (Anıtkabir çevresi, minZoom 15–17) önbelleklemesi ÖNCELİKLİ yapılır:
-  // en yüksek zoom (açılış görünümü) ilk önce önbelleğe girer
+  // Açılış alanı (Anıtkabir çevresi, bbox 32.815,39.895–32.865,39.945, z15-17)
+  // önbelleklemesi ÖNCELİKLİ yapılır: en yüksek zoom (z17, açılış görünümü) ilk önce önbelleğe girer
   if (tip === "ONBELLEKLE_ALAN") {
     mesajIsle(e, port =>
       alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false, true)
