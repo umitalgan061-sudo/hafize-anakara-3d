@@ -1,5 +1,5 @@
-const AD = "ankara3d-v21";
-const KARO_AD = "ankara3d-karolar-v18";
+const AD = "ankara3d-v22";
+const KARO_AD = "ankara3d-karolar-v19";
 const KARO_SINIRI = 600; // önbellekte tutulacak en çok girdi sayısı (LRU)
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
@@ -36,17 +36,26 @@ function lonLatToTile(lon, lat, z) {
   return { x, y };
 }
 
+// Gerçek LRU yazımı: önce sil, sonra ekle — anahtar sıranın SONUNA taşınır,
+// böylece keys()[0] her zaman en eski (silinecek ilk) girdi olur
+async function karoYaz(c, anahtar, yanit) {
+  try { await c.delete(anahtar); } catch (_) {}
+  await c.put(anahtar, yanit);
+}
+
 // Alan karo önbellekleme: minZoom–maxZoom arasındaki tüm uydu karoları önbelleğe alır.
 // onlyHighFirst=true ise en yüksek zoom (açılış görünümü) ÖNCE önbelleklenir;
 // sadeceEksik=true ise önbellekte zaten olan karolar ağdan yeniden çekilmez.
 async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst) {
   if (!bbox || typeof bbox.minLon !== "number" || typeof bbox.maxLon !== "number" ||
-      typeof bbox.minLat !== "number" || typeof bbox.maxLat !== "number") return 0;
+      typeof bbox.minLat !== "number" || typeof bbox.maxLat !== "number" ||
+      !Number.isFinite(bbox.minLon) || !Number.isFinite(bbox.maxLon) ||
+      !Number.isFinite(bbox.minLat) || !Number.isFinite(bbox.maxLat)) return 0;
   const c = await caches.open(KARO_AD);
   let sayac = 0;
   const zoomlar = [];
-  const zMin = Math.max(1, Math.min(19, minZoom | 0));
-  const zMax = Math.max(zMin, Math.min(19, maxZoom | 0));
+  const zMin = Math.max(1, Math.min(19, Math.floor(minZoom) || 1));
+  const zMax = Math.max(zMin, Math.min(19, Math.floor(maxZoom) || zMin));
   for (let z = zMin; z <= zMax; z++) zoomlar.push(z);
   if (onlyHighFirst) zoomlar.reverse(); // z17 (Anıtkabir açılış alanı) ilk önce
   for (const z of zoomlar) {
@@ -60,7 +69,7 @@ async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst
           if (sadeceEksik && await c.match(u)) return;
           try {
             const r = await fetch(u);
-            if (r.ok) { sayac++; await c.put(u, r); }
+            if (r.ok) { sayac++; await karoYaz(c, u, r); }
           } catch (_) {}
         })());
       }
@@ -120,61 +129,68 @@ self.addEventListener("activate", e => {
   );
 });
 
+// Mesaj işleyici: her dalda port garanti yanıt alır; beklenmedik hata olursa
+// yakalanır ve BILINMEYEN/uygun yanıt yine de gönderilir — port asla yanıtsız kalmaz
 self.addEventListener("message", e => {
   const port = e.ports && e.ports[0];
   const veri = e.data || {};
 
-  if (veri === "SKIP_WAITING" || veri.tip === "SKIP_WAITING") {
-    portYanitla(port, { tip: "SKIP_WAITING_TAMAM" });
-    e.waitUntil(self.skipWaiting());
-    return;
-  }
+  try {
+    if (veri === "SKIP_WAITING" || veri.tip === "SKIP_WAITING") {
+      portYanitla(port, { tip: "SKIP_WAITING_TAMAM" });
+      e.waitUntil(self.skipWaiting());
+      return;
+    }
 
-  if (veri.tip === "KARO_SAYISI") {
-    e.waitUntil(
-      caches.open(KARO_AD)
-        .then(c => c.keys())
-        .then(keys => portYanitla(port, { tip: "KARO_SAYISI", sayi: keys.length }))
-        .catch(() => portYanitla(port, { tip: "KARO_SAYISI", sayi: 0 }))
-    );
-    return;
-  }
+    if (veri.tip === "KARO_SAYISI") {
+      e.waitUntil(
+        caches.open(KARO_AD)
+          .then(c => c.keys())
+          .then(keys => portYanitla(port, { tip: "KARO_SAYISI", sayi: keys.length }))
+          .catch(() => portYanitla(port, { tip: "KARO_SAYISI", sayi: 0 }))
+      );
+      return;
+    }
 
-  // Açılış alanı (Anıtkabir çevresi, minZoom 15–17) önbelleklemesi ÖNCELİKLİ yapılır:
-  // en yüksek zoom (açılış görünümü) ilk önce önbelleğe girer
-  if (veri.tip === "ONBELLEKLE_ALAN") {
-    e.waitUntil(
-      alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false, true)
-        .then(sayi => portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: sayi }))
-        .catch(() => portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: 0 }))
-    );
-    return;
-  }
+    // Açılış alanı (Anıtkabir çevresi, minZoom 15–17) önbelleklemesi ÖNCELİKLİ yapılır:
+    // en yüksek zoom (açılış görünümü) ilk önce önbelleğe girer
+    if (veri.tip === "ONBELLEKLE_ALAN") {
+      e.waitUntil(
+        alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false, true)
+          .then(sayi => portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: sayi }))
+          .catch(() => portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: 0 }))
+      );
+      return;
+    }
 
-  // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir (kurtarma akışı);
-  // ağ yoksa sessizce geçilir, tek yanıt yine de garanti edilir
-  if (veri.tip === "TAZELE_ALAN") {
-    e.waitUntil(
-      alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false)
-        .then(sayi => portYanitla(port, { tip: "TAZELE_TAMAM", sayi: sayi }))
-        .catch(() => portYanitla(port, { tip: "TAZELE_TAMAM", sayi: 0 }))
-    );
-    return;
-  }
+    // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir (kurtarma akışı);
+    // ağ yoksa sessizce geçilir, tek yanıt yine de garanti edilir
+    if (veri.tip === "TAZELE_ALAN") {
+      e.waitUntil(
+        alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false)
+          .then(sayi => portYanitla(port, { tip: "TAZELE_TAMAM", sayi: sayi }))
+          .catch(() => portYanitla(port, { tip: "TAZELE_TAMAM", sayi: 0 }))
+      );
+      return;
+    }
 
-  // Harita durunca güncel görünür alanın karoları arka planda önbelleğe alınır;
-  // yalnızca eksik karolar çekilir, ağ yoksa sessizce geçilir
-  if (veri.tip === "GUNCEL_ALAN") {
-    e.waitUntil(
-      alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, true)
-        .then(sayi => portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: sayi }))
-        .catch(() => portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: 0 }))
-    );
-    return;
-  }
+    // Harita durunca güncel görünür alanın karoları arka planda önbelleğe alınır;
+    // yalnızca eksik karolar çekilir, hatalı bbox/ağ yoksa sayi 0 ile yanıt döner
+    if (veri.tip === "GUNCEL_ALAN") {
+      e.waitUntil(
+        alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, true)
+          .then(sayi => portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: sayi }))
+          .catch(() => portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: 0 }))
+      );
+      return;
+    }
 
-  // Bilinmeyen mesaj: yine de garanti yanıt ver (istemci portu asla beklemesin)
-  portYanitla(port, { tip: "BILINMEYEN", istenen: veri.tip || null });
+    // Bilinmeyen mesaj: yine de garanti yanıt ver (istemci portu asla beklemesin)
+    portYanitla(port, { tip: "BILINMEYEN", istenen: (veri && veri.tip) || null });
+  } catch (hata) {
+    // Beklenmedik synchronous hata: port yine yanıt alır
+    portYanitla(port, { tip: "BILINMEYEN", istenen: (veri && veri.tip) || null, hata: true });
+  }
 });
 
 self.addEventListener("fetch", e => {
@@ -191,11 +207,11 @@ self.addEventListener("fetch", e => {
       caches.open(KARO_AD).then(async c => {
         const hit = await c.match(e.request, { ignoreSearch: true });
         if (hit) {
-          // Çevrimiçiysek arka planda güncelle; ağ yoksa sessizce geç
+          // Çevrimiçiysek arka planda güncelle (LRU sırası tazelenir); ağ yoksa sessizce geç
           fetch(e.request)
             .then(r => {
               if (r.ok || r.type === "opaque") {
-                c.put(e.request, r.clone()).then(karoSinirla).catch(() => {});
+                karoYaz(c, e.request, r.clone()).then(karoSinirla).catch(() => {});
               }
             })
             .catch(() => {});
@@ -204,7 +220,7 @@ self.addEventListener("fetch", e => {
         try {
           const resp = await fetch(e.request);
           if (resp.ok || resp.type === "opaque") {
-            await c.put(e.request, resp.clone());
+            await karoYaz(c, e.request, resp.clone());
             karoSinirla().catch(() => {});
           }
           return resp;

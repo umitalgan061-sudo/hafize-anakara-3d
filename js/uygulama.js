@@ -68,6 +68,13 @@ require([
     console.warn("Yakalanmamış promise reddi (ele alındı):", e.reason);
     e.preventDefault();
   });
+  // Konsol hatasız kuralı: beklenmedik çalışma zamanı hataları (senkron hatalar dahil)
+  // konsolu kırmızıya boyamasın — preventDefault konsol error çıktısını bastırır,
+  // warn ile ele alındığı bildirilir
+  window.addEventListener("error", e => {
+    console.warn("Yakalanmamış hata (ele alındı):", e.message);
+    e.preventDefault();
+  });
 
   // Azaltılmış hareket tercihi: kamera uçuşları anlık olur
   const hareketAzalt = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -425,7 +432,8 @@ require([
     cevrimiGuncelle();
     // Rozet/karo sayısı tazelensin (çevrimiçi dönüşünde son durum görünsün)
     karoSayisiAl(sayi => cevrimiGuncelle(sayi));
-    gosterBildirim("Çevrimiçi");
+    // Tek satır kurtarma akışı: önce eksik katmanlar, sonra görünür alanın karoları
+    gosterBildirim("Çevrimiçi — eksikler tazeleniyor", katmanlariYenidenDene);
     duyur("Çevrimiçi oldunuz, eksik katmanlar yeniden deneniyor");
     katmanlariYenidenDene();
     // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir (kurtarma akışı)
