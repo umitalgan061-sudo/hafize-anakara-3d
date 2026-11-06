@@ -751,21 +751,31 @@ require([
   function durumGuncelle() {
     if (!durumSatiri) return;
     const c = view.camera;
-    const yon = ((c.heading % 360) + 360) % 360;
+    if (!c || !c.position) return;
+    const zoom = view.zoom, egim = c.tilt, yonHam = c.heading;
     const lon = sonDurumLon !== null ? sonDurumLon : c.position.longitude;
     const lat = sonDurumLat !== null ? sonDurumLat : c.position.latitude;
+    // view hazır olmadan (view.when öncesi) bu alanlar undefined olabilir;
+    // hepsi geçerli sayı olmadan hiçbir .toFixed çağrısı yapılmaz
+    if (!Number.isFinite(zoom) || !Number.isFinite(egim) || !Number.isFinite(yonHam) ||
+        !Number.isFinite(lon) || !Number.isFinite(lat)) return;
+    const yon = ((yonHam % 360) + 360) % 360;
     durumSatiri.textContent =
       lat.toFixed(5) + ", " + lon.toFixed(5) +
-      "  ·  zoom " + view.zoom.toFixed(1) +
-      "  ·  eğim " + c.tilt.toFixed(0) + "°" +
+      "  ·  zoom " + zoom.toFixed(1) +
+      "  ·  eğim " + egim.toFixed(0) + "°" +
       "  ·  yön " + yon.toFixed(0) + "°";
   }
   view.on("pointer-move", e => {
     const p = view.toMap({ x: e.x, y: e.y });
-    if (p) { sonDurumLon = p.longitude; sonDurumLat = p.latitude; durumGuncelle(); }
+    if (p && Number.isFinite(p.longitude) && Number.isFinite(p.latitude)) {
+      sonDurumLon = p.longitude;
+      sonDurumLat = p.latitude;
+      durumGuncelle();
+    }
   });
   reactiveUtils.watch(
-    () => [view.zoom, view.camera.tilt, view.camera.heading, view.camera.position.longitude, view.camera.position.latitude],
+    () => [view.zoom, view.camera && view.camera.tilt, view.camera && view.camera.heading, view.camera && view.camera.position && view.camera.position.longitude, view.camera && view.camera.position && view.camera.position.latitude],
     () => durumGuncelle()
   );
   // Durum satırının ilk güncellemesi boş zamana kaydırılır (ilk açılış boyamasını etkilemez)
