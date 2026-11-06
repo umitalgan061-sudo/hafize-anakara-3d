@@ -428,3 +428,77 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
     border-top-color: var(--vurgu);
   }
 }
+
+/* Bina bilgi kartı: masaüstünde sağ üstte yüzen kart; mobilde alt çubuk üstünde yatay kart */
+.bina-karti {
+  position: fixed;
+  top: 76px;
+  right: 12px;
+  z-index: 25;
+  width: 260px;
+  max-width: calc(100vw - 24px);
+  padding: 12px;
+  background: #fff;
+  border-radius: var(--yaricap);
+  box-shadow: var(--golge);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* Boyama optimizasyonu: kapalıyken/uzaktayken içerik boyanmaz */
+  content-visibility: auto;
+  contain-intrinsic-size: 260px 140px;
+}
+.bina-karti__baslik {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--metin);
+  padding-right: 44px; /* kapama düğmesiyle çakışmasın */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bina-karti__satir {
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--metin);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Kapama düğmesi: en az 44x44 dokunma hedefi, --vurgu odak halkası (WCAG) */
+#bina-karti-kapat {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+}
+#bina-karti-kapat:hover { background: #f2f2f2; color: var(--metin); }
+#bina-karti-kapat:active { background: #e5e5e5; }
+#bina-karti-kapat:focus-visible { outline: 3px solid var(--vurgu); outline-offset: 2px; border-radius: 50%; }
+
+@media (max-width: 600px) {
+  /* Mobil: alt ortada yatay kart, alt çubukla çakışmaz (bottom: alt çubuk üstü + güvenli alan) */
+  .bina-karti {
+    top: auto;
+    right: 12px;
+    left: 12px;
+    bottom: calc(70px + env(safe-area-inset-bottom));
+    width: auto;
+    max-width: calc(100vw - 24px);
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 12px;
+    padding: 10px 12px;
+  }
+  .bina-karti__baslik { flex: 1 1 100%; padding-right: 44px; }
+  .bina-karti__satir { flex: 0 1 auto; max-width: 100%; }
+}

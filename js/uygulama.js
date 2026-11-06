@@ -963,6 +963,92 @@ require([
     bildirim: m => gosterBildirim(m)
   };
 
+  // ---------- Bina bilgi kartı: seçim, vurgu, erişilebilir diyalog (WCAG 2.1 AA) ----------
+  const binaKarti = document.getElementById("bina-karti");
+  const binaKartiBaslik = binaKarti ? binaKarti.querySelector(".bina-karti__baslik") : null;
+  const binaKartiSatir = binaKarti ? binaKarti.querySelector(".bina-karti__satir") : null;
+  const binaKartiKapatBtn = document.getElementById("bina-karti-kapat");
+  let seciliVurguGraphic = null;
+
+  // Global (sözleşme): geometriyi kırmızı vurguyla işaretler, eskiyi temizler
+  function seciliVurgula(geometry) {
+    if (seciliVurguGraphic) { view.graphics.remove(seciliVurguGraphic); seciliVurguGraphic = null; }
+    if (!geometry) return;
+    seciliVurguGraphic = new Graphic({
+      geometry: geometry,
+      symbol: new MeshSymbol3D({
+        symbolLayers: [{
+          type: "fill",
+          material: { color: [179, 38, 30, 0.85], colorMixMode: "replace" },
+          edges: new SolidEdges3D({ color: [179, 38, 30, 1], size: 1.5 })
+        }]
+      })
+    });
+    view.graphics.add(seciliVurguGraphic);
+  }
+
+  // Global (sözleşme): kartı doldurur, açar, ekran okuyucuya duyurur, odağı kapama düğmesine taşır
+  function binaKartiGoster(icerik) {
+    if (!binaKarti) return;
+    const ad = (icerik && icerik.ad) || "Yapı";
+    const detay = (icerik && icerik.detay) || "";
+    if (binaKartiBaslik) binaKartiBaslik.textContent = ad;
+    if (binaKartiSatir) binaKartiSatir.textContent = detay;
+    binaKarti.hidden = false;
+    duyur("Seçili bina: " + ad + (detay ? ", " + detay : ""));
+    if (binaKartiKapatBtn) binaKartiKapatBtn.focus();
+  }
+
+  // Global (sözleşme): kartı kapatır, vurguyu temizler; Esc'te odak viewDiv'e döner
+  function binaKartiKapat(odakDon) {
+    if (!binaKarti || binaKarti.hidden) return;
+    binaKarti.hidden = true;
+    if (seciliVurguGraphic) { view.graphics.remove(seciliVurguGraphic); seciliVurguGraphic = null; }
+    const odakKartta = binaKarti.contains(document.activeElement);
+    if (odakDon === true || (odakDon !== false && odakKartta)) view.focus();
+  }
+  window.seciliVurgula = seciliVurgula;
+  window.binaKartiGoster = binaKartiGoster;
+  window.binaKartiKapat = binaKartiKapat;
+
+  // Harita tıklaması: Yapılar / 3B Binalar grafik yakalanırsa kart açılır, boş alanda kart kapanır
+  view.on("click", e => {
+    try {
+      view.hitTest(e).then(response => {
+        const sonuc = (response.results || []).find(r =>
+          r.graphic && (r.graphic.layer === yapilarLayer || r.graphic.layer === binalarLayer));
+        if (!sonuc) { binaKartiKapat(false); return; }
+        const a = sonuc.graphic.attributes || {};
+        const ad = a.ad || "Yapı";
+        const detay = Number.isFinite(a.zeminustukatsayisi) ? a.zeminustukatsayisi + " kat" : "";
+        seciliVurgula(sonuc.graphic.geometry);
+        binaKartiGoster({ ad: ad, detay: detay });
+      }).catch(() => {});
+    } catch (err) { console.warn("Bina seçimi hatası (ele alındı):", err); }
+  });
+
+  if (binaKartiKapatBtn) binaKartiKapatBtn.addEventListener("click", () => binaKartiKapat(true));
+
+  // Kart açıkken Esc kapatır (odak viewDiv'e döner), Tab/Shift+Tab kart içinde kısır döngü
+  document.addEventListener("keydown", e => {
+    if (!binaKarti || binaKarti.hidden) return;
+    if (e.key === "Escape") { e.preventDefault(); binaKartiKapat(true); return; }
+    if (e.key === "Tab") {
+      const odaklilar = binaKarti.querySelectorAll("button, [href], input, [tabindex]:not([tabindex='-1'])");
+      if (!odaklilar.length) { e.preventDefault(); return; }
+      const ilk = odaklilar[0], son = odaklilar[odaklilar.length - 1];
+      if (e.shiftKey && document.activeElement === ilk) { e.preventDefault(); son.focus(); }
+      else if (!e.shiftKey && document.activeElement === son) { e.preventDefault(); ilk.focus(); }
+    }
+  });
+
+  // Kart dışına (harita dışı UI'ye) dokununca kapanır; harita tıklamaları view.on('click')'te ele alınır
+  document.addEventListener("click", e => {
+    if (binaKarti && !binaKarti.hidden && !e.target.closest("#bina-karti") && !e.target.closest("#viewDiv")) {
+      binaKartiKapat(true);
+    }
+  });
+
   console.log("Ankara 3D hazır.");
 });
 // Sayfa hazırlığı: script body sonunda yüklendiği için DOM zaten hazır;
