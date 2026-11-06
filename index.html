@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#ffffff" />
+  <meta name="color-scheme" content="light" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -14,14 +15,14 @@
   <link rel="preconnect" href="https://js.arcgis.com" crossorigin />
   <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin />
   <link rel="preconnect" href="https://basemaps3d.arcgis.com" crossorigin />
-  <link rel="dns-prefetch" href="https://geocode.arcgis.com" />
-  <link rel="dns-prefetch" href="https://baskentcbs.ankara.bel.tr" />
-  <link rel="dns-prefetch" href="https://basemaps.arcgis.com" />
+  <link rel="preconnect" href="https://basemaps.arcgis.com" crossorigin />
+  <link rel="preconnect" href="https://geocode.arcgis.com" crossorigin />
+  <link rel="preconnect" href="https://baskentcbs.ankara.bel.tr" crossorigin />
   <!-- Açılış görünümü (Anıtkabir, z16 merkez) için yalnızca en kritik 4 uydu karo erkenden çekilir; fazlası sw.js karo önbelleğinden gelir -->
-  <link rel="preload" as="image" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38746" />
-  <link rel="preload" as="image" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38747" />
-  <link rel="preload" as="image" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38746" />
-  <link rel="preload" as="image" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38747" />
+  <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38746" />
+  <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38747" />
+  <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38746" />
+  <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38747" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 100'%3E%3Cg fill='%23b3261e'%3E%3Crect x='19' y='1' width='2' height='9'/%3E%3Cpath d='M15 11h10l-1.5 5h-7z'/%3E%3Cpath fill-rule='evenodd' d='M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z'/%3E%3Cpath d='M16 34h8l2 62H14z'/%3E%3Crect x='12' y='96' width='16' height='3'/%3E%3C/g%3E%3C/svg%3E" />
   <!-- ArcGIS tema CSS'i ilk boyamayı engellemesin: print medyasıyla yükle, yüklenince 'all' yap -->
   <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" media="print" onload="this.media='all'" />
@@ -42,12 +43,12 @@
     <span class="yukleniyor__halka"></span>
   </div>
 
-  <header class="ust-bant">
+  <header class="ust-bant" id="ust-bant">
     <a class="ust-bant__logo" href="#" aria-label="Ankara 3D">
       <svg role="img" aria-label="Atakule" viewBox="0 0 40 100"><g fill="#b3261e"><rect x="19" y="1" width="2" height="9"/><path d="M15 11h10l-1.5 5h-7z"/><path fill-rule="evenodd" d="M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z"/><path d="M16 34h8l2 62H14z"/><rect x="12" y="96" width="16" height="3"/></g></svg>
       <span class="ust-bant__baslik">Ankara 3D</span>
     </a>
-    <div class="arama-kutu">
+    <div class="arama-kutu" role="search">
       <input type="search" id="arama-girdi" placeholder="Adres ara" aria-label="Adres ara" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" role="combobox" aria-expanded="false" aria-controls="arama-sonuclari" aria-autocomplete="list" />
       <button type="button" id="arama-temizle" aria-label="Aramayı temizle" title="Temizle" hidden>✕</button>
       <div id="arama-sonuclari" class="arama-sonuclari" role="listbox" aria-label="Arama sonuçları" hidden></div>
@@ -59,7 +60,7 @@
     <span id="cevrimo-gosterge" class="cevrimo-gosterge" role="status" aria-live="polite" hidden>Çevrimdışı</span>
   </header>
 
-  <div class="alt-cubuk" role="group" aria-label="Harita kontrolleri">
+  <div class="alt-cubuk" id="alt-cubuk" role="group" aria-label="Harita kontrolleri">
     <button type="button" class="kontrol-dugme" id="btn-konum" aria-label="Konumumu bul" title="Konumumu bul">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
       <span>Konum</span>

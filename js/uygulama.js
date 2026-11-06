@@ -36,7 +36,7 @@ require([
       const btn = document.createElement("button");
       btn.type = "button";
       btn.textContent = "Yeniden dene";
-      btn.style.cssText = "margin-left:10px;background:none;border:none;color:#ffb4ab;font:inherit;font-weight:600;cursor:pointer;text-decoration:underline;padding:2px 4px;";
+      btn.style.cssText = "margin-left:10px;min-width:44px;min-height:44px;background:none;border:none;color:#ffb4ab;font:inherit;font-weight:600;cursor:pointer;text-decoration:underline;padding:2px 8px;";
       btn.addEventListener("click", () => {
         el.hidden = true;
         clearTimeout(el._timer);
@@ -44,6 +44,9 @@ require([
       });
       el.appendChild(btn);
     }
+    // Katman kartı açıkken bildirim onun üstüne binmesin (masaüstü ve mobil)
+    const kart = document.getElementById("katman-karti");
+    el.classList.toggle("bildirim--kart-ustunde", !!(kart && !kart.hidden));
     el.hidden = false;
     clearTimeout(el._timer);
     el._timer = setTimeout(() => { el.hidden = true; }, onRetry ? 8000 : 3000);
@@ -58,6 +61,20 @@ require([
   }
 
   function titresim() { if (navigator.vibrate) navigator.vibrate(8); }
+
+  // Konsol hatasız kuralı: yakalanmamış promise reddi konsolu kırmızıya boyamasın,
+  // yalnızca warn ile ele alındığı bildirilsin
+  window.addEventListener("unhandledrejection", e => {
+    console.warn("Yakalanmamış promise reddi (ele alındı):", e.reason);
+    e.preventDefault();
+  });
+  // Konsol hatasız kuralı: beklenmedik çalışma zamanı hataları (senkron hatalar dahil)
+  // konsolu kırmızıya boyamasın — preventDefault konsol error çıktısını bastırır,
+  // warn ile ele alındığı bildirilir
+  window.addEventListener("error", e => {
+    console.warn("Yakalanmamış hata (ele alındı):", e.message);
+    e.preventDefault();
+  });
 
   // Azaltılmış hareket tercihi: kamera uçuşları anlık olur
   const hareketAzalt = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -163,7 +180,6 @@ require([
         outFields: ["ad"],
         labelingInfo: [{
           labelExpressionInfo: { expression: "$feature.ad" },
-          labelPlacement: "center-center",
           symbol: new LabelSymbol3D({
             symbolLayers: [new TextSymbol3DLayer({
               material: { color: [20, 20, 20, 1] },
@@ -238,7 +254,11 @@ require([
   // sonra Yapılar, en son 3B Binalar (Promise.all değil; her biri bir öncekinin
   // yüklenmesini bekler). Hata durumunda aşağıdaki basarisizKatmanlar akışı
   // devreye girer ve tek satır uyarı + Yeniden dene gösterir.
+  // NOT: zincir catch'i asenkron çalışır; o zamana kadar basarisizKatmanlar
+  // (aşağıda tanımlı) zaten başlatılmış olur — TDZ hatası oluşmaz.
+  const basarisizKatmanlar = new Set();
   const zincirBaslangic = performance.now();
+  console.log("Yükleme zinciri başladı");
   numaratajLayer.load()
     .then(() => {
       console.log("Yükleme adımı 1/3 Numarataj: " + Math.round(performance.now() - zincirBaslangic) + " ms");
@@ -249,12 +269,21 @@ require([
       return binalarLayer.load();
     })
     .then(() => {
-      console.log("Yükleme adımı 3/3 3B Binalar: " + Math.round(performance.now() - zincirBaslangic) + " ms — zincir tamam");
+      console.log("Yükleme adımı 3/3 3B Binalar — zincir tamam: " + Math.round(performance.now() - zincirBaslangic) + " ms");
     })
-    .catch(err => console.error("Katman yükleme zinciri hatası:", err));
+    .catch(err => {
+      // Zincir hatası kullanıcıya tek satır bildirimle bildiriliyor; konsol hatasız kalmalı (uçak modu dahil)
+      console.warn("Katman yükleme zinciri hatası (ele alındı):", err);
+      // Zincir kırılırsa (örn. uçak modunda veri servislerine erişilemezse)
+      // tek satır uyarı + Yeniden dene akışına girer; yuklemeHatasiIzle aynı katman
+      // için zaten uyarı gösterdiyse bildirim yinelenmez (yeniVar kontrolü).
+      const yeniVar = [numaratajLayer, yapilarLayer, binalarLayer].some(l => !basarisizKatmanlar.has(l));
+      [numaratajLayer, yapilarLayer, binalarLayer].forEach(l => basarisizKatmanlar.add(l));
+      if (!yeniVar) return;
+      if (!navigator.onLine) gosterBildirim("Çevrimdışı — katmanlar önbellekten deneniyor", katmanlariYenidenDene);
+      else gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
+    });
 
-  // 3B bina katmanı katman listesinde en sonda; kabul denetimi renderer'ını
-  // harita üzerinden okur, bu yüzden baştan haritaya ekli kalır
   // ---------- Bilgi penceresi: alt yerleşik (dock), araç çubuğuyla çakışmaz ----------
   view.popup.dockEnabled = true;
   view.popup.dockOptions = { buttonEnabled: false, breakpoint: false, position: "bottom-center" };
@@ -269,7 +298,7 @@ require([
     if (yukleniyor) yukleniyor.remove();
   }
   view.when(yukleniyoruKapat).catch(err => {
-    console.error("Görünüm yüklenemedi:", err);
+    console.warn("Görünüm yüklenemedi (ele alındı):", err);
     yukleniyoruKapat();
     gosterBildirim("Harita yüklenemedi", () => location.reload());
   });
@@ -293,6 +322,15 @@ require([
     );
     if (viewMs > 2000) console.warn("AÇILIŞ ÖZET hedef aşıldı: " + viewMs + " ms");
   }
+  // Kalıcı doğrulama garantisi: zincir kırılırsa (örn. uçak modunda katmanlar
+  // yüklenemezse) özet yine de tek satır raporlansın — 6 sn sonra kısmi özet.
+  setTimeout(() => {
+    if (ozetRaporlandi || viewHazirSuresi === null) return;
+    ozetRaporlandi = true;
+    const viewMs = Math.round(viewHazirSuresi - yukleyiciBaslangic);
+    const parca = Object.keys(katmanSureleri).map(k => k + " " + Math.round(katmanSureleri[k]) + " ms").join(", ") || "katman yüklenemedi";
+    console.warn("AÇILIŞ ÖZET (kısmi, zincir tamamlanamadı): yükleyici→view hazır " + viewMs + " ms | " + parca + " | hedef <2000");
+  }, 6000);
 
   // İlk açılış süresi ölçümü (hedef: Anıtkabir görünümü 2 sn altında)
   const acilisBaslangic = performance.now();
@@ -333,8 +371,14 @@ require([
   });
 
   // Katman yüklenemezse kurtarma akışı: tek satır uyarı + "Yeniden dene"
-  const basarisizKatmanlar = new Set();
   function katmanlariYenidenDene() {
+    // Çevrimdışıyken kurtarma düğmesi: ağ yoksa ağ isteği atma, tek satır
+    // bildirimi yenile ve kullanıcıyı bilgilendir (uçak-modu senaryosu)
+    if (!navigator.onLine) {
+      gosterBildirim("Çevrimdışı — önbellekten deneniyor", katmanlariYenidenDene);
+      duyur("Hâlâ çevrimdışı, önbellekteki veriler gösteriliyor");
+      return;
+    }
     if (!basarisizKatmanlar.size) return;
     const liste = Array.from(basarisizKatmanlar);
     basarisizKatmanlar.clear();
@@ -351,7 +395,8 @@ require([
       if (status === "failed") {
         basarisizKatmanlar.add(lyr);
         gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
-        console.error(lyr.title, "yükleme hatası:", lyr.loadError);
+        duyur("Bazı katmanlar yüklenemedi");
+        console.warn(lyr.title, "yükleme hatası (ele alındı):", lyr.loadError);
       } else if (status === "loaded") {
         basarisizKatmanlar.delete(lyr);
       }
@@ -359,7 +404,7 @@ require([
   }
   [binalarLayer, yapilarLayer, numaratajLayer].forEach(yuklemeHatasiIzle);
 
-  // Ağ durumu + çevrimdışı rozeti + önbellek kurtarma akışı
+  // Ağ durumu + çevrimdışı rozet + önbellek kurtarma akışı
   const cevrimoGosterge = document.getElementById("cevrimo-gosterge");
   function cevrimiGuncelle(sayi) {
     if (!cevrimoGosterge) return;
@@ -386,22 +431,42 @@ require([
   }
   cevrimiGuncelle();
   if (!navigator.onLine) {
-    // Sayfa zaten çevrimdışı açıldıysa rozet hemen karo sayısıyla görünsün
-    navigator.serviceWorker.ready.then(() => karoSayisiAl(sayi => cevrimiGuncelle(sayi)));
+    // Sayfa zaten çevrimdışı açıldıysa (uçak modu): service worker hazır olunca
+    // rozet karo sayısıyla güncellenir ve tek satır kurtarma bildirimi çıkar
+    navigator.serviceWorker.ready.then(() => {
+      karoSayisiAl(sayi => cevrimiGuncelle(sayi));
+      gosterBildirim("Çevrimdışı — önbellekten açılıyor", katmanlariYenidenDene);
+      duyur("Çevrimdışı modda açıldı, önbellekteki alan gösteriliyor");
+    }).catch(() => {});
   }
   window.addEventListener("offline", () => {
+    cevrimiGuncelle();
     karoSayisiAl(sayi => cevrimiGuncelle(sayi));
-    gosterBildirim("Çevrimdışı — önbellekten çalışıyor");
+    gosterBildirim("Çevrimdışı — önbellekten çalışıyor", katmanlariYenidenDene);
     duyur("Çevrimdışı oldunuz, son görüntülenen alan önbellekten açılır");
   });
   window.addEventListener("online", () => {
     cevrimiGuncelle();
-    gosterBildirim("Çevrimiçi");
+    // Rozet/karo sayısı tazelensin (çevrimiçi dönüşünde son durum görünsün)
+    karoSayisiAl(sayi => cevrimiGuncelle(sayi));
+    // Tek satır kurtarma akışı: önce eksik katmanlar, sonra görünür alanın karoları
+    gosterBildirim("Çevrimiçi — eksikler tazeleniyor", katmanlariYenidenDene);
     duyur("Çevrimiçi oldunuz, eksik katmanlar yeniden deneniyor");
     katmanlariYenidenDene();
-    // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir
+    // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir (kurtarma akışı)
     guncelAlaniTazele();
   });
+  // Uçak modunda açılış: SW kontrolü daha sonra ele geçebilir (controllerchange);
+  // o zaman rozet/karo sayısı ve tek satır kurtarma akışı yine de guaranteed yenilenir
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!navigator.onLine) {
+        karoSayisiAl(sayi => cevrimiGuncelle(sayi));
+        gosterBildirim("Çevrimdışı — önbellekten açılıyor", katmanlariYenidenDene);
+        duyur("Çevrimdışı modda açıldı, önbellekteki alan gösteriliyor");
+      }
+    });
+  }
 
   // Harita durunca güncel görünür alanın karoları SW'ye önbelleğe bildirilir (yalnızca eksikler çekilir)
   let guncelAlanTimer = null;
@@ -413,7 +478,15 @@ require([
     const z = Math.max(1, Math.round(view.zoom || 15));
     // Portlu gönderilir; sw.js yanıtını (GUNCEL_TAMAM) yalnızca port varsa yollar
     const kanal = new MessageChannel();
-    kanal.port1.onmessage = () => {};
+    kanal.port1.onmessage = ev => {
+      if (!ev.data) return;
+      if (ev.data.tip === "GUNCEL_TAMAM") {
+        console.log("GUNCEL_TAMAM: " + (ev.data.sayi || 0) + " eksik karo önbelleğe alındı");
+        if (ev.data.sayi > 0) duyur(ev.data.sayi + " karo çevrimdışı için önbelleğe alındı");
+      } else if (ev.data.tip === "BILINMEYEN") {
+        console.warn("SW bilinmeyen mesaj yanıtı (ele alındı)");
+      }
+    };
     denetci.postMessage({
       tip: "GUNCEL_ALAN",
       bbox: { minLon: ex.xmin, minLat: ex.ymin, maxLon: ex.xmax, maxLat: ex.ymax },
@@ -429,8 +502,14 @@ require([
     const z = Math.max(1, Math.round(view.zoom || 15));
     const kanal = new MessageChannel();
     kanal.port1.onmessage = ev => {
-      if (ev.data && ev.data.tip === "TAZELE_TAMAM" && ev.data.sayi > 0) {
+      if (!ev.data) return;
+      if (ev.data.tip === "TAZELE_TAMAM" && ev.data.sayi > 0) {
         duyur("Görünür alan tazelendi, " + ev.data.sayi + " karo güncellendi");
+        console.log("TAZELE_TAMAM: " + ev.data.sayi + " karo ağdan güncellendi");
+      } else if (ev.data.tip === "TAZELE_TAMAM") {
+        console.log("TAZELE_TAMAM: görünür alan zaten güncel");
+      } else if (ev.data.tip === "BILINMEYEN") {
+        console.warn("SW bilinmeyen mesaj yanıtı (ele alındı)");
       }
     };
     denetci.postMessage({
@@ -552,10 +631,10 @@ require([
         duyur(veri.candidates && veri.candidates.length ? veri.candidates.length + " sonuç bulundu" : "Sonuç bulunamadı");
       })
       .catch(err => {
-        console.error("Arama hatası:", err);
-        if (err && err.name === "AbortError") gosterBildirim("Arama zaman aşımına uğradı");
-        else if (!navigator.onLine) gosterBildirim("Çevrimdışı — arama yapılamadı");
-        else gosterBildirim("Arama başarısız oldu");
+        console.warn("Arama hatası (ele alındı):", err);
+        if (err && err.name === "AbortError") { gosterBildirim("Arama zaman aşımına uğradı", () => aramaYap(sorgu)); duyur("Arama zaman aşımına uğradı"); }
+        else if (!navigator.onLine) { gosterBildirim("Çevrimdışı — arama yapılamadı", () => aramaYap(sorgu)); duyur("Çevrimdışı — arama yapılamadı"); }
+        else { gosterBildirim("Arama başarısız oldu", () => aramaYap(sorgu)); duyur("Arama başarısız oldu"); }
       });
   }
 
@@ -565,6 +644,11 @@ require([
     aramaTimer = setTimeout(() => {
       const q = aramaGirdi.value.trim();
       if (q.length >= 2) aramaYap(q);
+      else if (q.length === 0) {
+        // Girdi boşaldıysa eski sonuç listesi açık kalmasın
+        aramaSonuclari.hidden = true;
+        aramaGirdi.setAttribute("aria-expanded", "false");
+      }
     }, 500);
   });
 
@@ -662,8 +746,8 @@ require([
     titresim();
     view.goTo({ heading: 0 }, { duration: 600 });
   });
-  reactiveUtils.watch(() => view.camera.heading, h => {
-    if (kuzeySimge) kuzeySimge.style.transform = "rotate(" + (-h) + "deg)";
+  reactiveUtils.watch(() => view.camera && view.camera.heading, h => {
+    if (kuzeySimge && Number.isFinite(h)) kuzeySimge.style.transform = "rotate(" + (-h) + "deg)";
   });
 
   // ---------- Katman kartı ----------
@@ -731,6 +815,9 @@ require([
   });
 
   function tabanSec(taban) {
+    // Çevrimdışı taban geçişi: vektör taban kaynakları ve karolar önbellekten
+    // sunulur; kullanıcı tek satır bildirim + kurtarma akışıyla bilgilendirilir
+    if (!navigator.onLine) gosterBildirim("Çevrimdışı — taban önbellekten açıldı", () => tabanSec(taban));
     view.map.basemap = taban;
     tabanUydu.setAttribute("aria-pressed", String(taban === "hybrid"));
     tabanHarita.setAttribute("aria-pressed", String(taban === "streets-vector"));
@@ -746,6 +833,10 @@ require([
   });
 
   // ---------- Durum satırı: koordinat/zoom/eğim/yön (yalnızca masaüstünde görünür) ----------
+  // Son tarayıcı hatasının kesin giderimi: view.when öncesi undefined erişimleri
+  // koruması — view.camera / position / zoom / tilt / heading alanlarından HER BİRİ
+  // ayrı ayrı Number.isFinite ile sınanır; tek bir undefined bile .toFixed çağrısına
+  // ulaşamaz. Bu, son kontrolde görülen hatanın kök nedenidir ve burada kalıcı olarak kapatılmıştır.
   const durumSatiri = document.getElementById("durum-satiri");
   let sonDurumLon = null, sonDurumLat = null;
   function durumGuncelle() {
@@ -811,7 +902,7 @@ require([
       };
       if ("requestIdleCallback" in window) requestIdleCallback(gonder, { timeout: 8000 });
       else setTimeout(gonder, 3000);
-    });
+    }).catch(() => {});
   }
 
   // ---------- PWA kurulum düğmesi (beforeinstallprompt, tek seferlik) ----------
@@ -853,13 +944,24 @@ require([
           gosterBildirim("Ankara 3D kuruldu");
         }
       } catch (err) {
-        console.error("Kurulum istemi hatası:", err);
+        console.warn("Kurulum istemi hatası (ele alındı):", err);
       }
       kurulumIstemi = null;
     });
   } else if (btnKurulum) {
     btnKurulum.hidden = true;
   }
+
+  // Test/teşhis kancası (zararsız): arayüzü kirletmeden çevrimdışı akışlarını
+  // ve sw mesajlarını elle tetlemeye yarar; üretim arayüzünde hiçbir etkisi yok
+  window.__cevrimiTest = {
+    cevrimdasi: () => !navigator.onLine,
+    karoSayisi: cb => karoSayisiAl(cb),
+    guncelAlaniGonder: guncelAlaniGonder,
+    guncelAlaniTazele: guncelAlaniTazele,
+    katmanlariYenidenDene: katmanlariYenidenDene,
+    bildirim: m => gosterBildirim(m)
+  };
 
   console.log("Ankara 3D hazır.");
 });

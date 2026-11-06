@@ -1,6 +1,7 @@
 {
   "name": "Ankara 3D",
   "short_name": "Ankara 3D",
+  "id": "./",
   "lang": "tr",
   "dir": "ltr",
   "start_url": "./",
