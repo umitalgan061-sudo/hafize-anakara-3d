@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Ankara 3D" />
-  <meta name="description" content="Ankara 3D" />
+  <meta name="description" content="Ankara 3D — Anıtkabir görünümüyle açılan tek ekran 3B Ankara haritası; bina, adres ve mahalle katmanları." />
   <title>Ankara 3D</title>
   <!-- İlk açılış performansı: ana servislerin DNS/TLS el sıkışması erkenden başlasın -->
   <link rel="preconnect" href="https://js.arcgis.com" crossorigin />
@@ -18,15 +18,40 @@
   <link rel="preconnect" href="https://basemaps.arcgis.com" crossorigin />
   <link rel="preconnect" href="https://geocode.arcgis.com" crossorigin />
   <link rel="preconnect" href="https://baskentcbs.ankara.bel.tr" crossorigin />
+  <!-- preconnect desteklemeyen eski tarayıcılar için DNS çözümlemesi erkenden başlasın (kritik veri + 3B bina servisleri) -->
+  <link rel="dns-prefetch" href="https://baskentcbs.ankara.bel.tr" />
+  <link rel="dns-prefetch" href="https://basemaps3d.arcgis.com" />
+  <link rel="dns-prefetch" href="https://js.arcgis.com" />
+  <link rel="dns-prefetch" href="https://server.arcgisonline.com" />
+  <link rel="dns-prefetch" href="https://basemaps.arcgis.com" />
+  <link rel="dns-prefetch" href="https://geocode.arcgis.com" />
+  <!-- baskentcbs.ankara.bel.tr ve geocode.arcgis.com için crossorigin preconnect zaten yukarıda tanımlı — birebir yinelenmez -->
+  <!-- Yükleme zincirinin ilk halkaları (Numarataj → Yapılar) için servis ve katman meta verisi erkenden çekilir; AMD yükleyici çalıştığında istek zaten tamamlanmış olur (ilk açılış <2 sn hedefine katkı) -->
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer?f=json" />
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/0?f=json" />
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/2?f=json" />
+  <!-- 7. adım: zincirin SON halkası (3B binalar) view.when + requestIdleCallback ile erteleniyor;
+       SceneServer meta verisi yine de erkenden çekilir — idle callback tetiklenince istek
+       çoktan tamamlanmış olur, açılış Anıtkabir görünümü <2 sn hedefini geciktirmez -->
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://basemaps3d.arcgis.com/arcgis/rest/services/Esri3D_Buildings_v1/SceneServer?f=json" />
   <!-- Açılış görünümü (Anıtkabir, z16 merkez) için yalnızca en kritik 4 uydu karo erkenden çekilir; fazlası sw.js karo önbelleğinden gelir -->
-  <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38746" />
-  <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38747" />
-  <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38746" />
-  <link rel="preload" as="image" crossorigin href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38747" />
+  <link rel="preload" as="image" crossorigin fetchpriority="high" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38746" />
+  <link rel="preload" as="image" crossorigin fetchpriority="high" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24834/38747" />
+  <link rel="preload" as="image" crossorigin fetchpriority="high" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38746" />
+  <link rel="preload" as="image" crossorigin fetchpriority="high" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38747" />
+  <!-- Çevrimdışı 'Harita' (streets-vector) taban geçişi için vektör taban kaynakları erkenden başlar:
+       stil kökü (root.json) + sprite + glyph aralığı + font preload edilir; sw.js v27 bunları önbelleğe alır -->
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer?f=json" />
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/styles/root.json" />
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/sprites/sprite.json" />
+  <link rel="preload" as="fetch" crossorigin href="https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/fonts/AdelleSans_W_Bold/0-255.pbf" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 100'%3E%3Cg fill='%23b3261e'%3E%3Crect x='19' y='1' width='2' height='9'/%3E%3Cpath d='M15 11h10l-1.5 5h-7z'/%3E%3Cpath fill-rule='evenodd' d='M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z'/%3E%3Cpath d='M16 34h8l2 62H14z'/%3E%3Crect x='12' y='96' width='16' height='3'/%3E%3C/g%3E%3C/svg%3E" />
-  <!-- ArcGIS tema CSS'i ilk boyamayı engellemesin: print medyasıyla yükle, yüklenince 'all' yap -->
+  <!-- ArcGIS tema CSS'i ilk boyamayı engellemesin: print medyasıyla yükle, yüklenince 'all' yap (hile korunur) -->
   <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" media="print" onload="this.media='all'" />
   <noscript><link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" /></noscript>
+  <!-- ArcGIS JS 4.32 ana yükleyici betiğinin tam URL'si preload edilir; bu erken ipucu
+       yükleyicinin indirilmesini geciktirmez, tam tersine ilk açılışı hızlandırır -->
+  <link rel="preload" as="script" href="https://js.arcgis.com/4.32/" fetchpriority="high" />
   <script src="https://js.arcgis.com/4.32/" fetchpriority="high"></script>
   <link rel="preload" href="css/uygulama.css" as="style" fetchpriority="high" />
   <link rel="preload" href="js/uygulama.js" as="script" fetchpriority="high" />

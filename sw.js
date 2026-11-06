@@ -1,5 +1,5 @@
-const AD = "ankara3d-v22";
-const KARO_AD = "ankara3d-karolar-v19";
+const AD = "ankara3d-v27";
+const KARO_AD = "ankara3d-karolar-v24";
 const KARO_SINIRI = 600; // önbellekte tutulacak en çok girdi sayısı (LRU)
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
@@ -19,7 +19,8 @@ function karoIstegiMi(url) {
   return arcgisSunucusuMu(url) && /\/tile\/\d+\/\d+\/\d+/.test(url.pathname);
 }
 
-// Vektör taban kaynakları (style json, glyph, sprite, pbf) — "Harita" tabanı çevrimdışı için
+// Vektör taban kaynakları (streets-vector): VectorTileServer karoları + style json,
+// glyph, sprite, font dosyaları — "Harita" tabanı çevrimdışı çalışır
 function vektorKaynagiMi(url) {
   if (!arcgisSunucusuMu(url) || karoIstegiMi(url)) return false;
   if (/\/(query|applyEdits|legend)/i.test(url.pathname)) return false;
@@ -59,6 +60,16 @@ async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst
   const zMax = Math.max(zMin, Math.min(19, Math.floor(maxZoom) || zMin));
   for (let z = zMin; z <= zMax; z++) zoomlar.push(z);
   if (onlyHighFirst) zoomlar.reverse(); // z17 (Anıtkabir açılış alanı) ilk önce
+  // Güvenlik sınırı: tek istekte en çok ~5000 karo planlanır; daha fazlası (yanlış/çok geniş
+  // bbox) kırpılır — sonsuz veya çok uzun önbellekleme döngüsü oluşmaz
+  let plan = 0;
+  for (let i = 0; i < zoomlar.length; i++) {
+    const z = zoomlar[i];
+    const aP = lonLatToTile(bbox.minLon, bbox.maxLat, z);
+    const bP = lonLatToTile(bbox.maxLon, bbox.minLat, z);
+    plan += (bP.x - aP.x + 1) * (bP.y - aP.y + 1);
+    if (plan > 5000) { zoomlar.length = i + 1; break; }
+  }
   for (const z of zoomlar) {
     const a = lonLatToTile(bbox.minLon, bbox.maxLat, z);
     const b = lonLatToTile(bbox.maxLon, bbox.minLat, z);
@@ -161,8 +172,8 @@ self.addEventListener("activate", e => {
   e.waitUntil(
     caches.keys()
       .then(keys => Promise.all(keys.filter(k => k !== AD && k !== KARO_AD).map(k => caches.delete(k).catch(() => {}))))
-      .then(() => caches.open(AD))
-      .then(c => c.match("index.html").then(hit => {
+      .then(() => Promise.all([caches.open(AD), caches.open(KARO_AD)]))
+      .then(([c]) => c.match("index.html").then(hit => {
         // Navigasyon kurtarma garantisi: index.html önbellekte yoksa yeniden koy
         if (!hit) return fetch("index.html").then(r => { if (r.ok) return c.put("index.html", r); }).catch(() => {});
       }))
@@ -193,8 +204,8 @@ self.addEventListener("message", e => {
     return;
   }
 
-  // Açılış alanı (Anıtkabir çevresi, minZoom 15–17) önbelleklemesi ÖNCELİKLİ yapılır:
-  // en yüksek zoom (açılış görünümü) ilk önce önbelleğe girer
+  // Açılış alanı (Anıtkabir çevresi, bbox 32.815,39.895–32.865,39.945, z15-17)
+  // önbelleklemesi ÖNCELİKLİ yapılır: en yüksek zoom (z17, açılış görünümü) ilk önce önbelleğe girer
   if (tip === "ONBELLEKLE_ALAN") {
     mesajIsle(e, port =>
       alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false, true)

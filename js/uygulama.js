@@ -79,17 +79,15 @@ require([
     e.preventDefault();
   });
 
-  // Azaltılmış hareket tercihi: kamera uçuşları anlık olur
-  const hareketAzalt = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  function ucus(hedef, sure) { view.goTo(hedef, { duration: hareketAzalt ? 0 : sure }); }
-
   // ---------- Katmanlar ----------
   // 3B Binalar (Esri SceneServer) — opak buz grisi
   const buildingsUrl = "https://basemaps3d.arcgis.com/arcgis/rest/services/Esri3D_Buildings_v1/SceneServer";
   const binalarLayer = new SceneLayer({
     url: buildingsUrl,
     title: "3B Binalar",
-    visible: true,
+    // Sözleşme: 3B binalar load olana kadar GİZLİ başlar (açılışta gölge gibi görünmez);
+    // loaded watch Below load tamamlanınca görünür yapılır
+    visible: false,
     renderer: new SimpleRenderer({
       symbol: new MeshSymbol3D({
         symbolLayers: [{
@@ -260,6 +258,7 @@ require([
   // NOT: zincir catch'i asenkron çalışır; o zamana kadar basarisizKatmanlar
   // (aşağıda tanımlı) zaten başlatılmış olur — TDZ hatası oluşmaz.
   const basarisizKatmanlar = new Set();
+  const bildirilmisKatmanlar = new Set();
   const zincirBaslangic = performance.now();
   console.log("Yükleme zinciri başladı");
   numaratajLayer.load()
@@ -269,10 +268,18 @@ require([
     })
     .then(() => {
       console.log("Yükleme adımı 2/3 Yapılar: " + Math.round(performance.now() - zincirBaslangic) + " ms");
-      return binalarLayer.load();
+      // Sözleşme: 3B bina yüklemesi view hazır olana + boş zamana kadar ertelenir;
+      // Anıtkabir açılış görünümü <2 sn hedefine kilitlenir. Zincir sırası ve catch akışı korunur.
+      return view.when().then(() => new Promise(resolve => {
+        const baslat = () => resolve(binalarLayer.load());
+        if ("requestIdleCallback" in window) requestIdleCallback(baslat, { timeout: 2500 });
+        else setTimeout(baslat, 0);
+      }));
     })
     .then(() => {
+      const toplam = performance.now() - yukleyiciBaslangic;
       console.log("Yükleme adımı 3/3 3B Binalar — zincir tamam: " + Math.round(performance.now() - zincirBaslangic) + " ms");
+      gerilemeKontrol("zincir tamam", toplam);
     })
     .catch(err => {
       // Zincir hatası kullanıcıya tek satır bildirimle bildiriliyor; konsol hatasız kalmalı (uçak modu dahil)
@@ -280,11 +287,16 @@ require([
       // Zincir kırılırsa (örn. uçak modunda veri servislerine erişilemezse)
       // tek satır uyarı + Yeniden dene akışına girer; yuklemeHatasiIzle aynı katman
       // için zaten uyarı gösterdiyse bildirim yinelenmez (yeniVar kontrolü).
-      const yeniVar = [numaratajLayer, yapilarLayer, binalarLayer].some(l => !basarisizKatmanlar.has(l));
-      [numaratajLayer, yapilarLayer, binalarLayer].forEach(l => basarisizKatmanlar.add(l));
+      // Hangi yol önce tetiklenirse tetiklensin tek bildirim: bildirim gösterilmiş
+      // katmanlar bildirilmisKatmanlar'da işaretli; bu catch hepsini işaretler, yuklemeHatasiIzle yinelenmez
+      const yeniVar = [numaratajLayer, yapilarLayer, binalarLayer].some(l => !bildirilmisKatmanlar.has(l));
+      [numaratajLayer, yapilarLayer, binalarLayer].forEach(l => { basarisizKatmanlar.add(l); bildirilmisKatmanlar.add(l); });
+      // Zincir kırılınca kısmi-başarı (partial success) özeti HER DURUMDA tek satır
+      // loglanır — 6 sn fallback'iyle yinelenmez (ozetRaporlandi ile korumalı)
+      if (!ozetRaporlandi) { ozetRaporlandi = true; kismiOzetLogla(); }
       if (!yeniVar) return;
-      if (!navigator.onLine) gosterBildirim("Çevrimdışı — katmanlar önbellekten deneniyor", katmanlariYenidenDene);
-      else gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
+      if (!navigator.onLine) { gosterBildirim("Çevrimdışı — katmanlar önbellekten deneniyor", katmanlariYenidenDene); duyur("Çevrimdışı — katmanlar önbellekten deneniyor"); }
+      else { gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene); duyur("Bazı katmanlar yüklenemedi"); }
     });
 
   // ---------- Bilgi penceresi: alt yerleşik (dock), araç çubuğuyla çakışmaz ----------
@@ -311,6 +323,23 @@ require([
   const katmanSureleri = {};
   let viewHazirSuresi = null;
   let ozetRaporlandi = false;
+  // Gerileme tespiti (kalıcı): açılış hedefi 2000 ms; aşıldığında HER ZAMAN
+  // console.warn tetiklenir — konsol hatasız kalır (warn kullanılır, error değil)
+  function gerilemeKontrol(kaynak, toplamMs) {
+    if (Number.isFinite(toplamMs) && toplamMs > 2000) {
+      console.warn("GERİLEME (" + kaynak + "): açılış " + Math.round(toplamMs) + " ms — hedef 2000 ms aşıldı");
+    }
+  }
+  // Kısmi-başarı özeti: zincir kırılınca (örn. uçak modunda) yüklü katmanlarla
+  // tek satır rapor; view hazır değilse bile log basılır (hiçbir durum log'suz kalmaz)
+  function kismiOzetLogla() {
+    const viewMs = viewHazirSuresi !== null ? Math.round(viewHazirSuresi - yukleyiciBaslangic) : null;
+    const parca = Object.keys(katmanSureleri).map(k => k + " " + Math.round(katmanSureleri[k]) + " ms").join(", ") || "katman yüklenemedi";
+    console.warn("AÇILIŞ ÖZET (kısmi, zincir tamamlanamadı): " +
+      (viewMs !== null ? "yükleyici→view hazır " + viewMs + " ms | " : "view henüz hazır değil | ") +
+      parca + " | hedef <2000");
+    if (viewMs !== null) gerilemeKontrol("kısmi özet", viewMs);
+  }
   function acilisOzetRaporla() {
     if (ozetRaporlandi || viewHazirSuresi === null) return;
     if (!katmanSureleri["Numarataj"] || !katmanSureleri["Yapılar"] || !katmanSureleri["3B binalar"]) return;
@@ -323,7 +352,7 @@ require([
       ", 3B binalar " + Math.round(katmanSureleri["3B binalar"]) + " ms" +
       " | hedef <2000"
     );
-    if (viewMs > 2000) console.warn("AÇILIŞ ÖZET hedef aşıldı: " + viewMs + " ms");
+    gerilemeKontrol("AÇILIŞ ÖZET", viewMs);
   }
   // Kalıcı doğrulama garantisi: zincir kırılırsa (örn. uçak modunda katmanlar
   // yüklenemezse) özet yine de tek satır raporlansın — 6 sn sonra kısmi özet.
@@ -372,6 +401,14 @@ require([
       }
     });
   });
+  // 3B binalar yüklenene kadar gizli kalır; load tamamlanınca (kullanıcı kapatmadıysa) görünür olur.
+  // Yükleme başarısızsa gizli kalmaya devam eder (uçak modunda gölge/görünmez bina akışı yok).
+  reactiveUtils.watch(() => binalarLayer.loadStatus, s => {
+    if (s === "loaded" && !binalarLayer.visible) {
+      const cb = document.getElementById("cb-binalar");
+      if (cb && cb.checked) binalarLayer.visible = true;
+    }
+  });
 
   // Katman yüklenemezse kurtarma akışı: tek satır uyarı + "Yeniden dene"
   function katmanlariYenidenDene() {
@@ -385,10 +422,13 @@ require([
     if (!basarisizKatmanlar.size) return;
     const liste = Array.from(basarisizKatmanlar);
     basarisizKatmanlar.clear();
+    bildirilmisKatmanlar.clear(); // yeniden denemede tekrar bildirime izin ver
     liste.forEach(lyr => {
       lyr.load().catch(() => {
         basarisizKatmanlar.add(lyr);
-        gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
+        bildirilmisKatmanlar.add(lyr);
+        if (!navigator.onLine) gosterBildirim("Çevrimdışı — katmanlar önbellekten deneniyor", katmanlariYenidenDene);
+        else gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
       });
     });
     duyur("Katmanlar yeniden yükleniyor");
@@ -397,11 +437,17 @@ require([
     reactiveUtils.watch(() => lyr.loadStatus, status => {
       if (status === "failed") {
         basarisizKatmanlar.add(lyr);
-        gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
-        duyur("Bazı katmanlar yüklenemedi");
+        // Yinelenen bildirim yok: zincir catch'i bu katman için zaten uyardıysa sessiz kal
+        if (!bildirilmisKatmanlar.has(lyr)) {
+          bildirilmisKatmanlar.add(lyr);
+          if (!navigator.onLine) gosterBildirim("Çevrimdışı — katmanlar önbellekten deneniyor", katmanlariYenidenDene);
+          else gosterBildirim("Bazı katmanlar yüklenemedi", katmanlariYenidenDene);
+          duyur("Bazı katmanlar yüklenemedi");
+        }
         console.warn(lyr.title, "yükleme hatası (ele alındı):", lyr.loadError);
       } else if (status === "loaded") {
         basarisizKatmanlar.delete(lyr);
+        bildirilmisKatmanlar.delete(lyr);
       }
     });
   }
@@ -1077,6 +1123,10 @@ require([
     duyur((sonHitTestIndeks + 1) + ". sonuç seçildi" + (katmanAdi ? ": " + katmanAdi : ""));
   }
   window.sonrakiSecim = sonrakiSecim;
+  // Sözleşme global'leri eksiksiz: tüm yardımcılar window'da kalır
+  window.gosterBildirim = gosterBildirim;
+  window.duyur = duyur;
+  window.katmanKartiKapat = katmanKartiKapat;
 
   // Global (sözleşme): mesh/polygon geometrisinden yükseklik (m) ve ~3 m/kattan kat tahmini üretir;
   // geçersiz/boş geometride { yukseklik: null, kat: null } döner, asla hata atmaz
