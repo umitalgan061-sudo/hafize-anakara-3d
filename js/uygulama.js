@@ -354,6 +354,48 @@ require([
   });
   setTimeout(yukleniyoruKapat, 9000);
 
+  // ---------- viewDiv görünürlük ölçümü (YALNIZCA log — hiçbir UI değişikliği yapmaz) ----------
+  // Tarayıcı kontrol hatası: telefon açılışında #viewDiv ekranın yalnızca %84'ünde
+  // görünüyordu (hedef ≥%85). viewDiv fixed inset:0 olduğundan gerçek kaplama üst bant +
+  // alt çubuk + (varsa) açık kartlardır; CSS ajanı bunları kompaktlar. Bu fonksiyon
+  // oranı ölçüp warn-only loglar (konsol error-free kuralı korunur; arayüze dokunmaz).
+  function viewDivGorunurlukOlc() {
+    try {
+      const vd = document.getElementById("viewDiv");
+      if (!vd) return;
+      const rect = vd.getBoundingClientRect();
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const alan = rect.width * rect.height;
+      const ekran = vw * vh;
+      if (!Number.isFinite(alan) || !Number.isFinite(ekran) || ekran <= 0 || alan <= 0) return;
+      let kapli = 0;
+      const kaplayanlar = document.querySelectorAll(".ust-bant, .alt-cubuk, .katman-karti, .bina-karti, .bildirim, .arama-sonuclari");
+      kaplayanlar.forEach(el => {
+        try {
+          if (!el || el.hidden) return;
+          const r = el.getBoundingClientRect();
+          if (r.width <= 0 || r.height <= 0) return;
+          const x = Math.max(0, Math.min(rect.right, r.right) - Math.max(rect.left, r.left));
+          const y = Math.max(0, Math.min(rect.bottom, r.bottom) - Math.max(rect.top, r.top));
+          kapli += x * y;
+        } catch (_) {}
+      });
+      const gorunur = (alan - Math.min(kapli, alan)) / ekran;
+      if (!Number.isFinite(gorunur)) return;
+      const yuzde = (gorunur * 100).toFixed(1);
+      if (gorunur < 0.85) console.warn("viewDiv görünürlük " + yuzde + "% (<%85 hedef) — üst bant/alt çubuk kaplaması (CSS ajanında kompaktlanır)");
+      else console.log("viewDiv görünürlük: " + yuzde + "% (hedef ≥%85)");
+    } catch (_) {}
+  }
+  let gorunurlukTimer = null;
+  function gorunurlukOlcZamanli() {
+    clearTimeout(gorunurlukTimer);
+    gorunurlukTimer = setTimeout(viewDivGorunurlukOlc, 250);
+  }
+  view.when(() => { setTimeout(viewDivGorunurlukOlc, 400); });
+  window.addEventListener("resize", gorunurlukOlcZamanli);
+  window.addEventListener("orientationchange", gorunurlukOlcZamanli);
+
   // Kalıcı açılış özeti: view hazır + 3 katman yüklendi anında tek satır rapor
   const katmanSureleri = {};
   let viewHazirSuresi = null;
