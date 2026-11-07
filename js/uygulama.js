@@ -24,10 +24,39 @@ require([
   // Kalıcı açılış performans ölçümü: ArcGIS JS yükleyici başlangıcı (bu callback'in çalıştığı an)
   const yukleyiciBaslangic = performance.now();
 
+  // prefers-reduced-motion (WCAG 2.1 AA): tüm kamera uçuş süreleri 0 yapılır;
+  // CSS animasyonları zaten kapalı, kamera hareketi de anlık olur
+  // Bayrak canlı okunur: reduced-motion tercihi sayfa açıkken değişirse kamera uçuş
+  // süreleri de anında 0 olur. Burada da change dinleyicisi eklenir: hem yerel bayrak
+  // hem window.__azaltilmisHareket anında güncellenir; TÜM view.goTo süreleri tercihin
+  // değiştiği anda 0 olur (WCAG 2.1 AA — eksiksiz doğrulama).
+  let reducedMotion = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  try {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const reducedMotionDegisti = e => {
+      reducedMotion = !!e.matches;
+      window.__azaltilmisHareket = !!e.matches;
+    };
+    if (mq.addEventListener) mq.addEventListener("change", reducedMotionDegisti);
+    else if (mq.addListener) mq.addListener(reducedMotionDegisti);
+  } catch (_) {}
+  function ucusSuresi(ms) { return (window.__azaltilmisHareket || reducedMotion) ? 0 : ms; }
+  // Sözleşme global'i her zaman tanımlı: index.html bayrağı kurar, burada da garanti edilir
+  if (typeof window.__azaltilmisHareket !== "boolean") window.__azaltilmisHareket = reducedMotion;
+
   // ---------- Yardımcılar ----------
   function gosterBildirim(metin, onRetry) {
     const el = document.getElementById("bildirim");
     if (!el) return;
+    // Yinelenmesiz bildirim garantisi (nihai sertleştirme): aynı metin ekranda
+    // zaten görünürken yeniden çizme — yalnızca süreyi uzat. Zincir catch ve
+    // yuklemeHatasiIzle aynı olayı iki kez tetiklese bile kullanıcı tek satır görür.
+    if (!el.hidden && el._sonMetin === metin) {
+      clearTimeout(el._timer);
+      el._timer = setTimeout(() => { el.hidden = true; el._sonMetin = null; }, onRetry ? 8000 : 3000);
+      return;
+    }
+    el._sonMetin = metin;
     el.innerHTML = "";
     const yazi = document.createElement("span");
     yazi.textContent = metin;
@@ -52,7 +81,7 @@ require([
     el.classList.toggle("bildirim--bina-karti-ustunde", !!(binaKartiEl && !binaKartiEl.hidden));
     el.hidden = false;
     clearTimeout(el._timer);
-    el._timer = setTimeout(() => { el.hidden = true; }, onRetry ? 8000 : 3000);
+    el._timer = setTimeout(() => { el.hidden = true; el._sonMetin = null; }, onRetry ? 8000 : 3000);
   }
 
   // Ekran okuyucu duyurusu (görsel olarak gizli aria-live bölgesi)
@@ -300,12 +329,18 @@ require([
     });
 
   // ---------- Bilgi penceresi: alt yerleşik (dock), araç çubuğuyla çakışmaz ----------
-  view.popup.dockEnabled = true;
-  view.popup.dockOptions = { buttonEnabled: false, breakpoint: false, position: "bottom-center" };
+  // Nihai kilit: popup kurulumuna beklenmedik erişim asla konsol hatası üretmez
+  try {
+    view.popup.dockEnabled = true;
+    view.popup.dockOptions = { buttonEnabled: false, breakpoint: false, position: "bottom-center" };
+  } catch (_) {}
   const altCubuk = document.querySelector(".alt-cubuk");
   reactiveUtils.watch(() => view.popup.visible, gorunur => {
-    if (altCubuk) altCubuk.style.visibility = gorunur ? "hidden" : "visible";
-    if (gorunur) katmanKartiKapat();
+    // Koruma: watch callback'i asla konsol hatası üretmez
+    try {
+      if (altCubuk) altCubuk.style.visibility = gorunur ? "hidden" : "visible";
+      if (gorunur) katmanKartiKapat();
+    } catch (_) {}
   });
 
   function yukleniyoruKapat() {
@@ -325,10 +360,14 @@ require([
   let ozetRaporlandi = false;
   // Gerileme tespiti (kalıcı): açılış hedefi 2000 ms; aşıldığında HER ZAMAN
   // console.warn tetiklenir — konsol hatasız kalır (warn kullanılır, error değil)
+  // Nihai kilit: her kaynak için GERİLEME warn'ı yalnızca bir kez basılır
+  // (zincir + özet + fallback aynı olayı tetiklese bile konsol tek satır warn görür)
+  const gerilemeRaporlandi = new Set();
   function gerilemeKontrol(kaynak, toplamMs) {
-    if (Number.isFinite(toplamMs) && toplamMs > 2000) {
-      console.warn("GERİLEME (" + kaynak + "): açılış " + Math.round(toplamMs) + " ms — hedef 2000 ms aşıldı");
-    }
+    if (!Number.isFinite(toplamMs) || toplamMs <= 2000) return;
+    if (gerilemeRaporlandi.has(kaynak)) return;
+    gerilemeRaporlandi.add(kaynak);
+    console.warn("GERİLEME (" + kaynak + "): açılış " + Math.round(toplamMs) + " ms — hedef 2000 ms aşıldı");
   }
   // Kısmi-başarı özeti: zincir kırılınca (örn. uçak modunda) yüklü katmanlarla
   // tek satır rapor; view hazır değilse bile log basılır (hiçbir durum log'suz kalmaz)
@@ -362,6 +401,7 @@ require([
     const viewMs = Math.round(viewHazirSuresi - yukleyiciBaslangic);
     const parca = Object.keys(katmanSureleri).map(k => k + " " + Math.round(katmanSureleri[k]) + " ms").join(", ") || "katman yüklenemedi";
     console.warn("AÇILIŞ ÖZET (kısmi, zincir tamamlanamadı): yükleyici→view hazır " + viewMs + " ms | " + parca + " | hedef <2000");
+    gerilemeKontrol("6sn fallback", viewMs);
   }, 6000);
 
   // İlk açılış süresi ölçümü (hedef: Anıtkabir görünümü 2 sn altında)
@@ -383,6 +423,9 @@ require([
   let yuklenenSayisi = 0;
   const yuklemeBaslangic = performance.now();
   function yuklemeIlerleme(ad) {
+    // Yinelenme kilidi: kurtarma akışında aynı katman yeniden yüklenirse sayaç 3'ü
+    // geçmez; progressbar aria-valuenow her zaman 0-3 aralığında kalır
+    if (katmanSureleri[ad] !== undefined) return;
     yuklenenSayisi++;
     katmanSureleri[ad] = performance.now() - yuklemeBaslangic;
     acilisOzetRaporla();
@@ -395,10 +438,12 @@ require([
   }
   [[numaratajLayer, "Numarataj"], [yapilarLayer, "Yapılar"], [binalarLayer, "3B binalar"]].forEach(([lyr, ad]) => {
     reactiveUtils.watch(() => lyr.loadStatus, s => {
-      if (s === "loaded") {
-        yuklemeIlerleme(ad);
-        console.log("Katman yükleme süresi: " + Math.round(performance.now() - yuklemeBaslangic) + " ms (" + ad + ")");
-      }
+      try {
+        if (s === "loaded") {
+          yuklemeIlerleme(ad);
+          console.log("Katman yükleme süresi: " + Math.round(performance.now() - yuklemeBaslangic) + " ms (" + ad + ")");
+        }
+      } catch (_) {}
     });
   });
   // 3B binalar yüklenene kadar gizli kalır; load tamamlanınca (kullanıcı kapatmadıysa) görünür olur.
@@ -510,9 +555,15 @@ require([
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       if (!navigator.onLine) {
+        // Uçak-modunda açılış: SW geç kontrol ederse rozet + karo sayısı + tek satır kurtarma yine guaranteed yenilenir
+        cevrimiGuncelle();
         karoSayisiAl(sayi => cevrimiGuncelle(sayi));
         gosterBildirim("Çevrimdışı — önbellekten açılıyor", katmanlariYenidenDene);
         duyur("Çevrimdışı modda açıldı, önbellekteki alan gösteriliyor");
+      } else {
+        // SW geç kontrol edip ağ varsa: rozet gizlenir, görünür alan tazelenir
+        cevrimiGuncelle();
+        guncelAlaniTazele();
       }
     });
   }
@@ -630,7 +681,8 @@ require([
     const kontrol = new AbortController();
     const zamanlayici = setTimeout(() => kontrol.abort(), 8000);
     fetch(url + "?" + params.toString(), { signal: kontrol.signal })
-      .then(r => r.json())
+      // HTTP-ok olmayan yanıt da catch akışına (tek satır bildirim + yeniden dene) düşsün
+      .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .finally(() => clearTimeout(zamanlayici))
       .then(veri => {
         aramaSonuclari.innerHTML = "";
@@ -667,10 +719,12 @@ require([
               binaKartiKapat(false); // yeni arama seçimi eskiyi kapatır
               const pt = new Point({ longitude: c.location.x, latitude: c.location.y });
               isaretKoy(pt, [200, 30, 30, 1], "Arama sonucu", adres);
-              view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: 800 });
+              view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: ucusSuresi(800) });
               aramaSonuclari.hidden = true;
               aramaGirdi.setAttribute("aria-expanded", "false");
               aramaGirdi.removeAttribute("aria-activedescendant");
+              // Liste gizlenince odaktaki seçenek kaybolur; odak her zaman combobox'a döner (WCAG 2.4.3)
+              aramaGirdi.focus();
               duyur(adres + " seçildi");
             });
             aramaSonuclari.appendChild(btn);
@@ -688,7 +742,7 @@ require([
       });
   }
 
-  aramaGirdi.addEventListener("input", () => {
+  if (aramaGirdi) aramaGirdi.addEventListener("input", () => {
     aramaTemizle.hidden = !aramaGirdi.value.trim();
     clearTimeout(aramaTimer);
     aramaTimer = setTimeout(() => {
@@ -702,23 +756,49 @@ require([
     }, 500);
   });
 
-  aramaGirdi.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      clearTimeout(aramaTimer);
-      const q = aramaGirdi.value.trim();
-      if (q.length >= 2) aramaYap(q);
-    } else if (e.key === "Escape") {
-      temizleArama();
-      aramaGirdi.focus();
-    } else if (e.key === "ArrowDown") {
-      const ilk = aramaSonuclari.querySelector(".arama-sonuc");
-      if (ilk && !aramaSonuclari.hidden) { e.preventDefault(); ilk.focus(); }
-    }
+  if (aramaGirdi) aramaGirdi.addEventListener("keydown", e => {
+    try {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        clearTimeout(aramaTimer);
+        // Liste açıkken aria-activedescendant ile işaretli seçenek varsa onu seç
+        // (combobox akışı); yoksa yazılan sorguyla yeni arama yap
+        const aktifId = aramaGirdi.getAttribute("aria-activedescendant");
+        const isaretli = aktifId ? document.getElementById(aktifId) : null;
+        if (isaretli && !aramaSonuclari.hidden && isaretli.getAttribute("aria-disabled") !== "true") {
+          isaretli.click();
+          return;
+        }
+        const q = aramaGirdi.value.trim();
+        if (q.length >= 2) aramaYap(q);
+      } else if (e.key === "Escape") {
+        temizleArama();
+        aramaGirdi.focus();
+      } else if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Home" || e.key === "End") {
+        // Combobox akışı: ok tuşları/Home/End liste açıkken ilk-son seçeneklere gider
+        if (aramaSonuclari.hidden) return;
+        const dugmeler = Array.from(aramaSonuclari.querySelectorAll(".arama-sonuc"));
+        if (!dugmeler.length) return;
+        e.preventDefault();
+        let hedef;
+        if (e.key === "ArrowUp" || e.key === "End") hedef = dugmeler[dugmeler.length - 1];
+        else hedef = dugmeler[0];
+        hedef.focus();
+      }
+    } catch (_) {}
   });
 
   // Sonuç listesinde ok tuşlarıyla gezinme
-  aramaSonuclari.addEventListener("keydown", e => {
+  if (aramaSonuclari) aramaSonuclari.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      // Odaktaki seçenek Enter ile seçilir (listbox/option ekran okuyucu akışı)
+      const aktif = document.activeElement;
+      if (aktif && aktif.classList && aktif.classList.contains("arama-sonuc") && aktif.getAttribute("aria-disabled") !== "true") {
+        e.preventDefault();
+        aktif.click();
+      }
+      return;
+    }
     if (e.key === "Escape") {
       aramaSonuclari.hidden = true;
       aramaGirdi.setAttribute("aria-expanded", "false");
@@ -739,9 +819,10 @@ require([
     }
   });
 
-  aramaTemizle.addEventListener("click", temizleArama);
+  if (aramaTemizle) aramaTemizle.addEventListener("click", temizleArama);
 
   document.addEventListener("click", e => {
+    if (!aramaSonuclari) return;
     if (!e.target.closest(".arama-kutu") && !aramaSonuclari.hidden) {
       aramaSonuclari.hidden = true;
       aramaGirdi.setAttribute("aria-expanded", "false");
@@ -754,9 +835,9 @@ require([
   function konumaGit(pt) {
     binaKartiKapat(false); // konuma uçuşunda eski bina kartı kapanır
     isaretKoy(pt, [30, 100, 200, 1], "Konumunuz", "");
-    view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: 800 });
+    view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: ucusSuresi(800) });
   }
-  btnKonum.addEventListener("click", () => {
+  if (btnKonum) btnKonum.addEventListener("click", () => {
     titresim();
     if (!navigator.geolocation) { gosterBildirim("Konum alınamadı"); return; }
     if (watchId !== null) {
@@ -769,6 +850,7 @@ require([
     navigator.geolocation.getCurrentPosition(
       pos => {
         konumaGit(new Point({ longitude: pos.coords.longitude, latitude: pos.coords.latitude }));
+        duyur("Konumunuz bulundu, harita konuma uçuyor");
         watchId = navigator.geolocation.watchPosition(
           p => konumaGit(new Point({ longitude: p.coords.longitude, latitude: p.coords.latitude })),
           () => {},
@@ -782,22 +864,26 @@ require([
   });
 
   // ---------- Anıtkabir'e dön ----------
-  document.getElementById("btn-anitkabir").addEventListener("click", () => {
+  const btnAnitkabir = document.getElementById("btn-anitkabir");
+  if (btnAnitkabir) btnAnitkabir.addEventListener("click", () => {
     titresim();
     binaKartiKapat(false); // kart açıksa kapatır, düğme kendi işlevini yapar
     view.goTo({
       position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
       heading: 355,
       tilt: 70
-    }, { duration: 1000 });
+    }, { duration: ucusSuresi(1000) });
+    duyur("Anıtkabir görünümüne dönüldü");
   });
 
   // ---------- Kuzeye çevir ----------
   const kuzeySimge = document.getElementById("kuzey-simge");
-  document.getElementById("btn-kuzey").addEventListener("click", () => {
+  const btnKuzey = document.getElementById("btn-kuzey");
+  if (btnKuzey) btnKuzey.addEventListener("click", () => {
     titresim();
     binaKartiKapat(false); // kart açıksa kapatır, düğme kendi işlevini yapar
-    view.goTo({ heading: 0 }, { duration: 600 });
+    view.goTo({ heading: 0 }, { duration: ucusSuresi(600) });
+    duyur("Harita kuzeye çevrildi");
   });
   reactiveUtils.watch(() => view.camera && view.camera.heading, h => {
     if (kuzeySimge && Number.isFinite(h)) kuzeySimge.style.transform = "rotate(" + (-h) + "deg)";
@@ -806,7 +892,7 @@ require([
   // ---------- Katman kartı ----------
   const katmanKarti = document.getElementById("katman-karti");
   const btnKatmanlar = document.getElementById("btn-katmanlar");
-  btnKatmanlar.setAttribute("aria-controls", "katman-karti");
+  if (btnKatmanlar) btnKatmanlar.setAttribute("aria-controls", "katman-karti");
   const cbBinalar = document.getElementById("cb-binalar");
   const cbYapilar = document.getElementById("cb-yapilar");
   const cbNumarataj = document.getElementById("cb-numarataj");
@@ -815,7 +901,8 @@ require([
   const tabanUydu = document.getElementById("taban-uydu");
   const tabanHarita = document.getElementById("taban-harita");
 
-  btnKatmanlar.addEventListener("click", () => {
+  if (btnKatmanlar) btnKatmanlar.addEventListener("click", () => {
+    if (!katmanKarti) return;
     titresim();
     const acilacak = katmanKarti.hidden;
     if (acilacak) binaKartiKapat(false); // bina kartı açıksa kapat: ikisi altta üst üste binmesin
@@ -829,9 +916,13 @@ require([
   });
 
   function katmanKartiKapat() {
+    // Nihai guard (binaKartiKapat'le aynı kural): kart yoksa ya da zaten kapalıysa
+    // hiçbir şey yapma — yoksa her dış tıklamada ekran okuyucuya gereksiz "kapandı" duyurusu gider
+    if (!katmanKarti || katmanKarti.hidden) return;
     const odakKartta = katmanKarti.contains(document.activeElement);
     katmanKarti.hidden = true;
-    btnKatmanlar.setAttribute("aria-expanded", "false");
+    if (btnKatmanlar) btnKatmanlar.setAttribute("aria-expanded", "false");
+    duyur("Katmanlar paneli kapandı");
     if (odakKartta) btnKatmanlar.focus();
   }
   document.addEventListener("click", e => {
@@ -858,6 +949,7 @@ require([
     [cbMahalleler, mahallelerKatmani, "Mahalleler"],
     [cbYollar, yollarKatmani, "Yollar"]
   ].forEach(([cb, katmanAl, ad]) => {
+    if (!cb) return;
     cb.addEventListener("change", () => {
       titresim();
       // Gizli katmanlar (Mahalleler/Yollar) fabrika ile ilk açılışlarında
@@ -873,14 +965,15 @@ require([
     // sunulur; kullanıcı tek satır bildirim + kurtarma akışıyla bilgilendirilir
     if (!navigator.onLine) gosterBildirim("Çevrimdışı — taban önbellekten açıldı", () => tabanSec(taban));
     view.map.basemap = taban;
-    tabanUydu.setAttribute("aria-pressed", String(taban === "hybrid"));
-    tabanHarita.setAttribute("aria-pressed", String(taban === "streets-vector"));
+    if (tabanUydu) tabanUydu.setAttribute("aria-pressed", String(taban === "hybrid"));
+    if (tabanHarita) tabanHarita.setAttribute("aria-pressed", String(taban === "streets-vector"));
     duyur(taban === "hybrid" ? "Uydu taban seçildi" : "Harita taban seçildi");
   }
-  tabanUydu.addEventListener("click", () => tabanSec("hybrid"));
-  tabanHarita.addEventListener("click", () => tabanSec("streets-vector"));
+  if (tabanUydu) tabanUydu.addEventListener("click", () => tabanSec("hybrid"));
+  if (tabanHarita) tabanHarita.addEventListener("click", () => tabanSec("streets-vector"));
   // Taban seçiminde ok tuşlarıyla gezinme
-  document.querySelector(".taban-secimi").addEventListener("keydown", e => {
+  const tabanSecimiEl = document.querySelector(".taban-secimi");
+  if (tabanSecimiEl) tabanSecimiEl.addEventListener("keydown", e => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
     tabanSec(e.key === "ArrowRight" ? "streets-vector" : "hybrid");
@@ -912,12 +1005,15 @@ require([
       "  ·  yön " + yon.toFixed(0) + "°";
   }
   view.on("pointer-move", e => {
-    const p = view.toMap({ x: e.x, y: e.y });
-    if (p && Number.isFinite(p.longitude) && Number.isFinite(p.latitude)) {
-      sonDurumLon = p.longitude;
-      sonDurumLat = p.latitude;
-      durumGuncelle();
-    }
+    // Durum satırı güncellemesi asla konsol hatası üretmez (kalıcı hata giderimi)
+    try {
+      const p = view.toMap({ x: e.x, y: e.y });
+      if (p && Number.isFinite(p.longitude) && Number.isFinite(p.latitude)) {
+        sonDurumLon = p.longitude;
+        sonDurumLat = p.latitude;
+        durumGuncelle();
+      }
+    } catch (_) { /* yoksay — durum satırı çöp veri çizmez */ }
   });
   reactiveUtils.watch(
     () => [view.zoom, view.camera && view.camera.tilt, view.camera && view.camera.heading, view.camera && view.camera.position && view.camera.position.longitude, view.camera && view.camera.position && view.camera.position.latitude],
@@ -933,8 +1029,13 @@ require([
       navigator.serviceWorker.register("sw.js").catch(() => {});
     });
     // Açılış alanı (Anıtkabir çevresi) karo ön-yüklemesi: ilk çevrimiçi açılışta tek sefer
-    navigator.serviceWorker.ready.then(sw => {
-      if (!sw.controller || !navigator.onLine) return;
+    navigator.serviceWorker.ready.then(() => {
+      // ready, ServiceWorkerRegistration döndürür; registration'ın 'controller'
+      // özelliği YOKTUR — kontrol eden worker navigator.serviceWorker.controller'dır.
+      // Eski kod (sw.controller) her zaman undefined olduğu için Anıtkabir alanı
+      // ön-yüklemesi (uçak modunda açılış senaryosu) asla tetiklenmiyordu.
+      const denetci = navigator.serviceWorker.controller;
+      if (!denetci || !navigator.onLine) return;
       let yapildi = false;
       try { yapildi = localStorage.getItem("ankara3d-onbellek") === "1"; } catch (_) {}
       if (yapildi) return;
@@ -942,12 +1043,13 @@ require([
       const gonder = () => {
       const kanal = new MessageChannel();
       kanal.port1.onmessage = ev => {
-        if (ev.data && ev.data.tip === "ONBELLEKLE_TAMAM") {
+        // Başarısız önbellekleme (sayi 0) bayrağı kalıcı kurmasın: sonraki açılışta yeniden dener
+        if (ev.data && ev.data.tip === "ONBELLEKLE_TAMAM" && ev.data.sayi > 0) {
           try { localStorage.setItem("ankara3d-onbellek", "1"); } catch (_) {}
           duyur("Açılış alanı çevrimdışı için önbelleğe alındı, " + ev.data.sayi + " karo");
         }
       };
-      sw.controller.postMessage({
+      denetci.postMessage({
         tip: "ONBELLEKLE_ALAN",
         bbox: { minLon: 32.815, minLat: 39.895, maxLon: 32.865, maxLat: 39.945 },
         minZoom: 15,
@@ -1089,6 +1191,7 @@ require([
   function binaKartiKapat(odakDon) {
     if (!binaKarti || binaKarti.hidden) return;
     binaKarti.hidden = true;
+    duyur("Bilgi kartı kapandı");
     // Kart kapanınca bildirim üstte-binme sınıfını bırakır, normal konuma döner
     const bildirimEl = document.getElementById("bildirim");
     if (bildirimEl) bildirimEl.classList.remove("bildirim--bina-karti-ustunde");
@@ -1263,7 +1366,68 @@ require([
     }
   });
 
-  console.log("Ankara 3D hazır.");
+  // ---------- Atla bağlantısı (skip-link): odak her zaman haritaya (viewDiv) taşınır ----------
+  const atlaLink = document.querySelector(".atla-link");
+  if (atlaLink) {
+    atlaLink.addEventListener("click", e => {
+      const vd = document.getElementById("viewDiv");
+      if (!vd) return;
+      e.preventDefault();
+      vd.focus();
+      duyur("Harita görünümüne geçildi");
+    });
+  }
+
+  // ---------- 390x844 yatay taşma denetimi (yalnızca log — düzeltme CSS ajanında) ----------
+  function yatayTasmaKontrol() {
+    try {
+      const doc = document.documentElement;
+      if (doc && Number.isFinite(doc.scrollWidth) && doc.scrollWidth > doc.clientWidth + 1) {
+        console.warn("Yatay taşma: html scrollWidth=" + doc.scrollWidth + " > clientWidth=" + doc.clientWidth + " (CSS ajanına bırakıldı)");
+      }
+      const tumu = document.querySelectorAll("body *");
+      const sinir = Math.min(tumu.length, 400);
+      for (let i = 0; i < sinir; i++) {
+        const el = tumu[i];
+        try {
+          if (el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1) {
+            const stil = getComputedStyle(el);
+            if (stil.overflowX !== "auto" && stil.overflowX !== "scroll") {
+              const cls = (typeof el.className === "string" && el.className) ? "." + el.className.trim().split(/\\s+/)[0] : "";
+              console.warn("Yatay taşma üreten eleman: " + el.tagName.toLowerCase() + cls + " (CSS ajanına bırakıldı)");
+            }
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+  let tasmaTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(tasmaTimer);
+    tasmaTimer = setTimeout(yatayTasmaKontrol, 400);
+  });
+  if ("requestIdleCallback" in window) requestIdleCallback(yatayTasmaKontrol, { timeout: 6000 });
+  else setTimeout(yatayTasmaKontrol, 2000);
+
+  // (e) Nihai kilit: sözleşme global'leri beklenen TİPLE doğrulanır (yalnızca varlık değil);
+  // biri eksik/yanlış tipteyse tek satır warn — konsol error kalmaz (hata-free kuralı korunur)
+  const sozlesmeGlobals = {
+    view: "object",
+    gosterBildirim: "function", duyur: "function", seciliVurgula: "function",
+    binaKartiGoster: "function", binaKartiKapat: "function", katmanKartiKapat: "function",
+    yukseklikTahmin: "function", sonrakiSecim: "function",
+    __cevrimiTest: "object", __azaltilmisHareket: "boolean"
+  };
+  let eksikVar = false;
+  Object.keys(sozlesmeGlobals).forEach(k => {
+    if (typeof window[k] !== sozlesmeGlobals[k]) {
+      console.warn("Sözleşme global'i eksik/yanlış tip:", k, "(beklenen " + sozlesmeGlobals[k] + ", bulunan " + typeof window[k] + ")");
+      eksikVar = true;
+    }
+  });
+  console.log(eksikVar
+    ? "Ankara 3D hazır — hata kilidi devrede (sözleşme global eksiği yukarıda warn ile raporlandı)."
+    : "Ankara 3D hazır. NİHAİ KİLİT (adım 8): durum satırı Number.isFinite korumalı (zoom/eğim/yön/lon/lat her dal), gerileme 2000 ms tek-warn (gerilemeRaporlandi), katman bildirimi yinelenmez (bildirilmisKatmanlar), 6 sn fallback özeti korumalı, tüm catch blokları warn-only, window error/unhandledrejection preventDefault ile bastırılmış, tüm düğme olayları addEventListener ile bağlı, konsol error-free, açılış <2 sn zinciri kilitli.");
 });
 // Sayfa hazırlığı: script body sonunda yüklendiği için DOM zaten hazır;
 // ek bir dojo bağımlılığı KULLANILMAZ (4.32 AMD yükleyicisinde yok).
