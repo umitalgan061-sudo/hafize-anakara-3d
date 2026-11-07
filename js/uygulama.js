@@ -41,11 +41,22 @@ require([
     else if (mq.addListener) mq.addListener(reducedMotionDegisti);
   } catch (_) {}
   function ucusSuresi(ms) { return (window.__azaltilmisHareket || reducedMotion) ? 0 : ms; }
+  // Sözleşme global'i her zaman tanımlı: index.html bayrağı kurar, burada da garanti edilir
+  if (typeof window.__azaltilmisHareket !== "boolean") window.__azaltilmisHareket = reducedMotion;
 
   // ---------- Yardımcılar ----------
   function gosterBildirim(metin, onRetry) {
     const el = document.getElementById("bildirim");
     if (!el) return;
+    // Yinelenmesiz bildirim garantisi (nihai sertleştirme): aynı metin ekranda
+    // zaten görünürken yeniden çizme — yalnızca süreyi uzat. Zincir catch ve
+    // yuklemeHatasiIzle aynı olayı iki kez tetiklese bile kullanıcı tek satır görür.
+    if (!el.hidden && el._sonMetin === metin) {
+      clearTimeout(el._timer);
+      el._timer = setTimeout(() => { el.hidden = true; el._sonMetin = null; }, onRetry ? 8000 : 3000);
+      return;
+    }
+    el._sonMetin = metin;
     el.innerHTML = "";
     const yazi = document.createElement("span");
     yazi.textContent = metin;
@@ -70,7 +81,7 @@ require([
     el.classList.toggle("bildirim--bina-karti-ustunde", !!(binaKartiEl && !binaKartiEl.hidden));
     el.hidden = false;
     clearTimeout(el._timer);
-    el._timer = setTimeout(() => { el.hidden = true; }, onRetry ? 8000 : 3000);
+    el._timer = setTimeout(() => { el.hidden = true; el._sonMetin = null; }, onRetry ? 8000 : 3000);
   }
 
   // Ekran okuyucu duyurusu (görsel olarak gizli aria-live bölgesi)
@@ -528,9 +539,15 @@ require([
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       if (!navigator.onLine) {
+        // Uçak-modunda açılış: SW geç kontrol ederse rozet + karo sayısı + tek satır kurtarma yine guaranteed yenilenir
+        cevrimiGuncelle();
         karoSayisiAl(sayi => cevrimiGuncelle(sayi));
         gosterBildirim("Çevrimdışı — önbellekten açılıyor", katmanlariYenidenDene);
         duyur("Çevrimdışı modda açıldı, önbellekteki alan gösteriliyor");
+      } else {
+        // SW geç kontrol edip ağ varsa: rozet gizlenir, görünür alan tazelenir
+        cevrimiGuncelle();
+        guncelAlaniTazele();
       }
     });
   }
@@ -690,6 +707,8 @@ require([
               aramaSonuclari.hidden = true;
               aramaGirdi.setAttribute("aria-expanded", "false");
               aramaGirdi.removeAttribute("aria-activedescendant");
+              // Liste gizlenince odaktaki seçenek kaybolur; odak her zaman combobox'a döner (WCAG 2.4.3)
+              aramaGirdi.focus();
               duyur(adres + " seçildi");
             });
             aramaSonuclari.appendChild(btn);
@@ -1368,7 +1387,7 @@ require([
   // (e) Sözleşme global'lerinin varlık garantisi: biri eksikse tek satır warn;
   // konsol error kalmaz (hata-free kuralı korunur)
   ["view", "gosterBildirim", "duyur", "seciliVurgula", "binaKartiGoster", "binaKartiKapat",
-   "katmanKartiKapat", "yukseklikTahmin", "sonrakiSecim", "__cevrimiTest"].forEach(k => {
+   "katmanKartiKapat", "yukseklikTahmin", "sonrakiSecim", "__cevrimiTest", "__azaltilmisHareket"].forEach(k => {
     if (!window[k]) console.warn("Sözleşme global'i eksik:", k);
   });
 

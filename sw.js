@@ -1,16 +1,10 @@
-// Sürüm senkronu: her dağıtımda İKİSİ BİRLİKTE bir üst sürüme çıkarılır;
-// activate'te eski AD/KARO_AD dışındaki tüm önbellekler temizlenir.
-const AD = "ankara3d-v29";
-const KARO_AD = "ankara3d-karolar-v26";
-// Vektör taban kaynakları AYRI önbellekte tutulur: karo LRU sınırı bunları asla silmez — "Harita" tabanı çevrimdışı her zaman açılır
+const AD = "ankara3d-v30";
+const KARO_AD = "ankara3d-karolar-v27";
 const VEKTOR_AD = "ankara3d-vektor-v1";
-const KARO_SINIRI = 600; // önbellekte tutulacak en çok girdi sayısı (LRU)
+const KARO_SINIRI = 600;
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
 
-// "Harita" (streets-vector) tabanı çevrimdışı açılış için kritik vektör kaynakları:
-// stil kökü, sprite tanımı ve glyph aralıkları + fontlar — install'da tek tek
-// ön-yüklenir; biri alınamazsa kurulum bozulmaz (diğerleri önbelleğe girer).
 const VEKTOR_ON = [
   "https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer?f=json",
   "https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/styles/root.json",
@@ -20,7 +14,6 @@ const VEKTOR_ON = [
   "https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/fonts/AdelleSans_W_Regular/0-255.pbf"
 ];
 
-// Esri/ArcGIS karo ve vektör-taban sunucuları (herkese açık, anahtarsız)
 function arcgisSunucusuMu(url) {
   try {
     const host = url.hostname;
@@ -32,17 +25,12 @@ function arcgisSunucusuMu(url) {
   } catch (_) { return false; }
 }
 
-// Raster/vektör karo isteği mi? (.../tile/z/y/x — veri sorguları değil)
 function karoIstegiMi(url) {
   try {
     return arcgisSunucusuMu(url) && /\/tile\/\d+\/\d+\/\d+/.test(url.pathname);
   } catch (_) { return false; }
 }
 
-// Vektör taban kaynakları (streets-vector): VectorTileServer karoları + style json,
-// glyph, sprite, font dosyaları — "Harita" tabanı çevrimdışı çalışır.
-// Kapsam: query/applyEdits/legend hariç; .pbf/.json/.png/.woff dosyaları ve
-// resources/styles/fonts/glyphs/sprites yolları dahil.
 function vektorKaynagiMi(url) {
   try {
     if (!arcgisSunucusuMu(url) || karoIstegiMi(url)) return false;
@@ -61,21 +49,22 @@ function lonLatToTile(lon, lat, z) {
   return { x, y };
 }
 
-// Gerçek LRU yazımı: önce sil, sonra ekle — anahtar sıranın SONUNA taşınır,
-// böylece keys()[0] her zaman en eski (silinecek ilk) girdi olur
 async function karoYaz(c, anahtar, yanit) {
   try { await c.delete(anahtar); } catch (_) {}
   try { await c.put(anahtar, yanit); } catch (_) {}
 }
 
-// Alan karo önbellekleme: minZoom–maxZoom arasındaki tüm uydu karoları önbelleğe alır.
-// onlyHighFirst=true ise en yüksek zoom (açılış görünümü) ÖNCE önbelleklenir;
-// sadeceEksik=true ise önbellekte zaten olan karolar ağdan yeniden çekilmez.
+function bboxGecerliMi(bbox) {
+  return !!bbox &&
+    Number.isFinite(bbox.minLon) && Number.isFinite(bbox.maxLon) &&
+    Number.isFinite(bbox.minLat) && Number.isFinite(bbox.maxLat) &&
+    bbox.minLon >= -180 && bbox.maxLon <= 180 &&
+    bbox.minLat >= -85 && bbox.maxLat <= 85 &&
+    bbox.minLon < bbox.maxLon && bbox.minLat < bbox.maxLat;
+}
+
 async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst) {
-  if (!bbox || typeof bbox.minLon !== "number" || typeof bbox.maxLon !== "number" ||
-      typeof bbox.minLat !== "number" || typeof bbox.maxLat !== "number" ||
-      !Number.isFinite(bbox.minLon) || !Number.isFinite(bbox.maxLon) ||
-      !Number.isFinite(bbox.minLat) || !Number.isFinite(bbox.maxLat)) return 0;
+  if (!bboxGecerliMi(bbox)) return 0;
   let c;
   try { c = await caches.open(KARO_AD); } catch (_) { return 0; }
   let sayac = 0;
@@ -83,9 +72,7 @@ async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst
   const zMin = Math.max(1, Math.min(19, Math.floor(minZoom) || 1));
   const zMax = Math.max(zMin, Math.min(19, Math.floor(maxZoom) || zMin));
   for (let z = zMin; z <= zMax; z++) zoomlar.push(z);
-  if (onlyHighFirst) zoomlar.reverse(); // z17 (Anıtkabir açılış alanı) ilk önce
-  // Güvenlik sınırı: tek istekte en çok ~5000 karo planlanır; daha fazlası (yanlış/çok geniş
-  // bbox) kırpılır — sonsuz veya çok uzun önbellekleme döngüsü oluşmaz
+  if (onlyHighFirst) zoomlar.reverse();
   let plan = 0;
   for (let i = 0; i < zoomlar.length; i++) {
     const z = zoomlar[i];
@@ -118,7 +105,6 @@ async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst
   return sayac;
 }
 
-// Önbellek sınırını aşınca en eski girdileri baştan sil (Cache API keys eklenme sırasındadır)
 async function karoSinirla() {
   try {
     const c = await caches.open(KARO_AD);
@@ -130,15 +116,12 @@ async function karoSinirla() {
   } catch (_) {}
 }
 
-// Port üzerinden yanıtı garanti et: hata olsa bile istemci beklemesin
 function portYanitla(port, mesaj) {
   try {
     if (port) port.postMessage(mesaj);
   } catch (_) {}
 }
 
-// Boş gövdeli yanıt: vektör kaynağı önbellekte yokken ve ağ yokken 504 yerine
-// istemcinin çökmesini önleyen zararsız boş içerik döner
 function bosYanit(url) {
   let ct = "application/octet-stream";
   try {
@@ -150,48 +133,38 @@ function bosYanit(url) {
   return new Response("", { status: 200, headers: { "Content-Type": ct } });
 }
 
-// Her mesaj dalı için garanti yanıt üreten sarmalayıcı:
-// önce senkron yanıt dener, sonra e.waitUntil içinde iş yapıp catch zinciriyle
-// yine yanıt yollar — port asla yanıtsız kalmaz.
 function mesajIsle(e, fn) {
   const port = e.ports && e.ports[0];
+  const garantiYanit = () => {
+    const tip = (e.data && e.data.tip) || "";
+    if (tip === "KARO_SAYISI") portYanitla(port, { tip: "KARO_SAYISI", sayi: 0 });
+    else if (tip === "ONBELLEKLE_ALAN") portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: 0 });
+    else if (tip === "TAZELE_ALAN") portYanitla(port, { tip: "TAZELE_TAMAM", sayi: 0 });
+    else if (tip === "GUNCEL_ALAN") portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: 0 });
+    else if (tip === "SKIP_WAITING") portYanitla(port, { tip: "SKIP_WAITING_TAMAM" });
+    else portYanitla(port, { tip: "BILINMEYEN", istenen: tip || null, hata: true });
+  };
   try {
     e.waitUntil(
       Promise.resolve()
         .then(() => fn(port))
-        .then(() => { /* fn zaten yanıt yolladı */ })
-        .catch(() => {
-          // Beklenmedik hata: uygun tipe göre son garanti yanıtı
-          const tip = (e.data && e.data.tip) || "";
-          if (tip === "KARO_SAYISI") portYanitla(port, { tip: "KARO_SAYISI", sayi: 0 });
-          else if (tip === "ONBELLEKLE_ALAN") portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: 0 });
-          else if (tip === "TAZELE_ALAN") portYanitla(port, { tip: "TAZELE_TAMAM", sayi: 0 });
-          else if (tip === "GUNCEL_ALAN") portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: 0 });
-          else if (tip === "SKIP_WAITING") portYanitla(port, { tip: "SKIP_WAITING_TAMAM" });
-          else portYanitla(port, { tip: "BILINMEYEN", istenen: tip || null, hata: true });
-        })
+        .catch(garantiYanit)
     );
   } catch (_) {
-    portYanitla(port, { tip: "BILINMEYEN", istenen: (e.data && e.data.tip) || null, hata: true });
+    garantiYanit();
   }
 }
 
 self.addEventListener("install", e => {
   e.waitUntil(
     caches.open(AD).then(async c => {
-      // Kabuk dosyaları TEK TEK eklenir: biri geçici olarak alınamazsa
-      // kurulum bozulmaz, geri kalanı önbelleğe girer (uçak modunda açılış kurtarma)
       await Promise.all(KABUK.map(u =>
         fetch(u).then(r => { if (r.ok) return c.put(u, r); }).catch(() => {})
       ));
-      // İkonlar tek tek eklenir; biri eksik olursa kurulum bozulmaz
       await Promise.all(IKONLAR.map(u =>
         fetch(u).then(r => { if (r.ok) return c.put(u, r); }).catch(() => {})
       ));
     })
-    // Vektör taban kaynakları AYRI önbelleğe tek tek ön-yüklenir (karo LRU sınırından
-    // bağımsız): biri alınamazsa kurulum bozulmaz, "Harita" tabanı çevrimdışı açılışta
-    // eksik kaynakları fetch dalındaki SWR ile karşılanır
     .then(() => caches.open(VEKTOR_AD).then(async c => {
       await Promise.all(VEKTOR_ON.map(u =>
         fetch(u).then(r => { if (r.ok || r.type === "opaque") return c.put(u, r); }).catch(() => {})
@@ -202,14 +175,12 @@ self.addEventListener("install", e => {
   );
 });
 
-// Eski önbellekler (eski karo önbellekleri dahil) temizlenir, yeni sürüm tüm istemcilere yayılır
 self.addEventListener("activate", e => {
   e.waitUntil(
     caches.keys()
       .then(keys => Promise.all(keys.filter(k => k !== AD && k !== KARO_AD && k !== VEKTOR_AD).map(k => caches.delete(k).catch(() => {}))))
       .then(() => Promise.all([caches.open(AD), caches.open(KARO_AD)]))
       .then(([c]) => c.match("index.html").then(hit => {
-        // Navigasyon kurtarma garantisi: index.html önbellekte yoksa yeniden koy
         if (!hit) return fetch("index.html").then(r => { if (r.ok) return c.put("index.html", r); }).catch(() => {});
       }))
       .then(() => self.clients.claim())
@@ -217,13 +188,11 @@ self.addEventListener("activate", e => {
   );
 });
 
-// Mesaj işleyici: tüm dallar mesajIsle ile garanti yanıt alır
 self.addEventListener("message", e => {
   const veri = e.data || {};
   const tip = (typeof veri === "string") ? veri : veri.tip;
 
   if (tip === "SKIP_WAITING") {
-    // Senkron yanıt + guaranteed skipWaiting
     const port = e.ports && e.ports[0];
     portYanitla(port, { tip: "SKIP_WAITING_TAMAM" });
     e.waitUntil(self.skipWaiting());
@@ -239,8 +208,6 @@ self.addEventListener("message", e => {
     return;
   }
 
-  // Açılış alanı (Anıtkabir çevresi, bbox 32.815,39.895–32.865,39.945, z15-17)
-  // önbelleklemesi ÖNCELİKLİ yapılır: en yüksek zoom (z17, açılış görünümü) ilk önce önbelleğe girer
   if (tip === "ONBELLEKLE_ALAN") {
     mesajIsle(e, port =>
       alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false, true)
@@ -249,8 +216,6 @@ self.addEventListener("message", e => {
     return;
   }
 
-  // Çevrimiçi dönüşte görünür alanın karoları ağdan tazelenir (kurtarma akışı);
-  // ağ yoksa sessizce geçilir, yanıt yine garanti edilir
   if (tip === "TAZELE_ALAN") {
     mesajIsle(e, port =>
       alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false)
@@ -259,8 +224,6 @@ self.addEventListener("message", e => {
     return;
   }
 
-  // Harita durunca güncel görünür alanın karoları arka planda önbelleğe alınır;
-  // yalnızca eksik karolar çekilir
   if (tip === "GUNCEL_ALAN") {
     mesajIsle(e, port =>
       alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, true)
@@ -269,7 +232,6 @@ self.addEventListener("message", e => {
     return;
   }
 
-  // Bilinmeyen mesaj: yine de garanti yanıt ver (istemci portu asla beklemesin)
   const port = e.ports && e.ports[0];
   portYanitla(port, { tip: "BILINMEYEN", istenen: tip || null });
 });
@@ -279,20 +241,14 @@ self.addEventListener("fetch", e => {
     if (e.request.method !== "GET") return;
     const url = new URL(e.request.url);
 
-    // 1) Harita karoları + vektör taban kaynakları: önce önbellekten anında sun,
-    //    varsa arka planda ağdan tazele (stale-while-revalidate); önbellekte yoksa
-    //    ağdan çek, ağ yoksa/bozuksa son önbellek denemesi, yoksa:
-    //    - karo: boş 504 gövdesi, vektör kaynağı: boş içerik (istemci çökmez)
     if (karoIstegiMi(url) || vektorKaynagiMi(url)) {
       const vektor = vektorKaynagiMi(url);
-      // Vektör kaynakları VEKTOR_AD'de, karolar KARO_AD'de: LRU sınırı vektörleri asla silmez
       const cacheAd = vektor ? VEKTOR_AD : KARO_AD;
       e.respondWith(
         caches.open(cacheAd).then(async c => {
           let hit = null;
           try { hit = await c.match(e.request, { ignoreSearch: true }); } catch (_) {}
           if (hit) {
-            // Çevrimiçiysek arka planda güncelle (LRU sırası tazelenir); ağ yoksa sessizce geç
             fetch(e.request)
               .then(r => {
                 if (r.ok || r.type === "opaque") {
@@ -312,37 +268,27 @@ self.addEventListener("fetch", e => {
             }
             return resp;
           } catch (err) {
-            // Ağ yokken önbellek dönüşünü son kez dene
             try {
               const tekrar = await c.match(e.request, { ignoreSearch: true });
               if (tekrar) return tekrar;
             } catch (_) {}
-            // Çevrimdışı taban geçişinde eksik vektör kaynağı: boş içerik; karo: 504 boş gövde
             if (vektor) return bosYanit(url);
             return new Response("", { status: 504 });
           }
         }).catch(() => {
-          // Önbellek açılamazsa bile istek bozulmadan ağa yönlensin
           return fetch(e.request).catch(() => vektor ? bosYanit(url) : new Response("", { status: 504 }));
         })
       );
       return;
     }
 
-    // 2) Diğer ArcGIS istekleri (veri sorguları vb.) her zaman ağdan
     if (arcgisSunucusuMu(url)) return;
 
-    // 3) Uygulama kabuğu (aynı origin) — çevrimdışı navigasyon kurtarma
     if (url.origin !== location.origin) return;
 
     e.respondWith(
       caches.match(e.request, { ignoreSearch: e.request.mode === "navigate" }).then(hit => {
-        // Navigasyon: önce önbellekten aç (uçak modunda açılış kurtarma),
-        // mümkünse arka planda ağı önbelleğe güncelle; önbellek de boşsa index.html kurtarma
         if (e.request.mode === "navigate") {
-          // Uçak modunda açılış — gerçek stale-while-revalidate: önbellekte varsa
-          // anında sunulur; arka planda ağ varsa hem gerçek navigasyon isteği hem
-          // index.html önbelleği tazelenir (eski sürüm kalıntısı kalmaz)
           fetch(e.request)
             .then(resp => {
               if (resp.ok) caches.open(AD).then(c => {
@@ -376,7 +322,6 @@ self.addEventListener("fetch", e => {
       }).catch(() => fetch(e.request).catch(() => Response.error()))
     );
   } catch (_) {
-    // Hiçbir fetch dalı asla atmasın: en kötü durumda istek ağa bırakılır
     return;
   }
 });
