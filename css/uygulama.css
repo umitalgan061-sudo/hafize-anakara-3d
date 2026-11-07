@@ -60,7 +60,10 @@ body {
   text-decoration: none;
   flex-shrink: 0;
 }
-.ust-bant__logo svg { height: 28px; width: auto; display: block; }
+/* TEK OTORİTTER KURAL: Atakule logosu her görünümde en az 28 px yüksekliğinde.
+   min-height + flex-shrink:0 koruması: hiçbir başka kural (max-height, flex
+   sıkıştırma, contain) svg'yi 28 px altına indiremez (kabul ölçütü). */
+.ust-bant__logo svg { height: 28px !important; min-height: 28px !important; width: auto; flex-shrink: 0; display: block; }
 .ust-bant__baslik { font-weight: 600; font-size: 1rem; color: var(--metin); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* Arama */
@@ -413,7 +416,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
 @media (max-width: 600px) {
   .ust-bant { top: 6px; left: 8px; right: 8px; padding: 4px 6px; gap: 6px; max-height: 56px; }
   .ust-bant__baslik { display: none; }
-  .ust-bant__logo svg { height: 28px; }
+  /* Mobil logo koruması: 28 px asla alta inmez (kabul ölçütü — ölçülen 24 px hatası kalıcı giderildi) */
+  .ust-bant__logo svg { height: 28px; min-height: 28px; flex-shrink: 0; }
   .arama-kutu { min-width: 0; }
   #arama-girdi { height: 44px; font-size: 16px; padding: 0 44px 0 10px; }
   #arama-temizle { width: 44px; height: 44px; right: 0; }
@@ -427,7 +431,10 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .bildirim--bina-karti-ustunde { bottom: calc(70px + 200px + env(safe-area-inset-bottom)); }
 }
 
-/* Klavye kullanıcıları için atla bağlantısı: 44x44 hedef, odakta görünür */
+/* 601-720 px arası ara kırılım: logo yüksekliği burada da 28 px altına inemez */
+@media (min-width: 601px) and (max-width: 720px) {
+  .ust-bant__logo svg { height: 28px !important; min-height: 28px !important; flex-shrink: 0; }
+}/* Klavye kullanıcıları için atla bağlantısı: 44x44 hedef, odakta görünür */
 .atla-link {
   position: fixed;
   top: -56px;
