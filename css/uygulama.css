@@ -59,6 +59,8 @@ body {
   gap: 8px;
   text-decoration: none;
   flex-shrink: 0;
+  /* WCAG 2.5.8: logo bağlantısının dokunma hedefi en az 44x44 (SVG 32 px kalır, hedef alan büyür) */
+  min-height: 44px;
 }
 /* Kabul ölçütü: logo en az 28 px yükseklikte (güven paylı 32 px, min-height 28 px garanti) */
 .ust-bant__logo svg { height: 32px !important; min-height: 28px !important; width: auto !important; display: block; flex-shrink: 0; }
