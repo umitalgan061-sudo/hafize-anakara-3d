@@ -44,6 +44,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-height: 40px; /* logonun (28px) üst bant içinde sıkışmasını kalıcı önler */
   max-height: 56px;
   padding: 6px 12px;
   background: var(--yuzey);
@@ -60,8 +61,9 @@ body {
   text-decoration: none;
   flex-shrink: 0;
 }
-/* Fourth-layer kilit: render yüksekliği her görünümde en az 28px — hiçbir display/height kuralı ezemez */
-.ust-bant__logo svg { height: 28px !important; min-height: 28px !important; width: auto !important; display: block !important; }
+/* Fourth-layer + fifth-layer kilit: render yüksekliği her görünümde en az 28px — hiçbir display/height kuralı ezemez.
+   Beşinci katman: clamp(28px, 8vw, 28px) her zaman 28px üretir; width 11.2px (viewBox 40x100 aspect) oranı kilitler */
+.ust-bant__logo svg { height: clamp(28px, 8vw, 28px) !important; min-height: 28px !important; width: 11.2px !important; display: block !important; }
 .ust-bant__baslik { font-weight: 600; font-size: 1rem; color: var(--metin); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* Arama */
@@ -414,8 +416,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
 @media (max-width: 600px) {
   .ust-bant { top: 6px; left: 8px; right: 8px; padding: 4px 6px; gap: 6px; max-height: 56px; }
   .ust-bant__baslik { display: none; }
-  /* Mobil kırılımda da fourth-layer kilit: 390x844'te logo 28px'in altına düşemez */
-  .ust-bant__logo svg { height: 28px !important; min-height: 28px !important; width: auto !important; display: block !important; }
+  /* Mobil kırılımda da fifth-layer kilit: 390x844'te logo 28px'in altına düşemez; clamp + aspect (11.2px) kilidi */
+  .ust-bant__logo svg { height: clamp(28px, 8vw, 28px) !important; min-height: 28px !important; width: 11.2px !important; display: block !important; }
   .arama-kutu { min-width: 0; }
   #arama-girdi { height: 44px; font-size: 16px; padding: 0 44px 0 10px; }
   #arama-temizle { width: 44px; height: 44px; right: 0; }

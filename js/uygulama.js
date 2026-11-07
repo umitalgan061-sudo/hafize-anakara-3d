@@ -120,6 +120,10 @@ require([
         svg.style.height = "28px";
         svg.style.minHeight = "28px";
       }
+      // Beşinci katman: erişilebilirlik öznitelikleri de çalışma zamanında kilitli —
+      // role='img' ve aria-label='Atakule' eksikse setAttribute ile düzeltilir
+      if (svg.getAttribute("role") !== "img") svg.setAttribute("role", "img");
+      if (svg.getAttribute("aria-label") !== "Atakule") svg.setAttribute("aria-label", "Atakule");
     } catch (err) {
       console.warn("Logo guard hatası (ele alındı):", err);
     }
@@ -166,6 +170,33 @@ require([
       const s = document.querySelector(".ust-bant__logo svg");
       return s ? s.getBoundingClientRect().height : 0;
     } catch (_) { return 0; }
+  };
+  // BEŞİNCİ KATMAN KİLİT (adım 4): fontlar hazır olunca (document.fonts.ready) ve
+  // ilk 3 saniye boyunca her requestAnimationFrame karesinde (~180 kare) guard yinelenir;
+  // boyama/tema/font değişiminde bile 28px + role + aria-label garantisi sürer.
+  try {
+    if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === "function") {
+      document.fonts.ready.then(() => logoGuardUygula()).catch(() => {});
+    }
+    let logoKareSayisi = 0;
+    const logoRafDongusu = () => {
+      logoGuardUygula();
+      logoKareSayisi++;
+      if (logoKareSayisi < 180) requestAnimationFrame(logoRafDongusu);
+    };
+    requestAnimationFrame(logoRafDongusu);
+  } catch (err) {
+    console.warn("Logo rAF/fonts guard hatası (ele alındı):", err);
+  }
+  // Yeni teşhis kancası (sözleşme global'i, adım 4): denetçiler mobil + masaüstünde
+  // yükseklik, genişlik ve aria-label'i bu kanalla tek çağrıda ölçer.
+  window.__logoDenetimi = function () {
+    try {
+      const s = document.querySelector(".ust-bant__logo svg");
+      if (!s) return { yukseklik: 0, genislik: 0, ariaLabel: null };
+      const r = s.getBoundingClientRect();
+      return { yukseklik: r.height, genislik: r.width, ariaLabel: s.getAttribute("aria-label") };
+    } catch (_) { return { yukseklik: 0, genislik: 0, ariaLabel: null }; }
   };
 
   // ---------- Katmanlar ----------
@@ -1477,7 +1508,7 @@ require([
     binaKartiGoster: "function", binaKartiKapat: "function", katmanKartiKapat: "function",
     yukseklikTahmin: "function", sonrakiSecim: "function",
     __cevrimiTest: "object", __azaltilmisHareket: "boolean",
-    __logoYuksekligi: "function"
+    __logoYuksekligi: "function", __logoDenetimi: "function"
   };
   let eksikVar = false;
   Object.keys(sozlesmeGlobals).forEach(k => {
