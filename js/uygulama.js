@@ -114,13 +114,26 @@ require([
   function logoGuardUygula() {
     try {
       const svg = document.querySelector(".ust-bant__logo svg");
+      const kapsayici = document.querySelector("a.ust-bant__logo");
+      // YEDİNCİ KATMAN: kapsayıcı (anchor) da 28px kilitli — flex sıkışması logoyu 24px'e düşüremez
+      if (kapsayici) {
+        const kh = kapsayici.getBoundingClientRect().height;
+        if (Number.isFinite(kh) && kh < 28) {
+          kapsayici.style.height = "28px";
+          kapsayici.style.minHeight = "28px";
+          kapsayici.style.flex = "none";
+        }
+      }
       if (!svg) return;
       const h = svg.getBoundingClientRect().height;
       if (Number.isFinite(h) && h < 28) {
         svg.style.height = "28px";
         svg.style.minHeight = "28px";
       }
-      // Beşinci katman: erişilebilirlik öznitelikleri de çalışma zamanında kilitli —
+      // Attribute katmanı: HTML width/height öznitelikleri çalışma zamanında da 11.2/28
+      if (svg.getAttribute("height") !== "28") svg.setAttribute("height", "28");
+      if (svg.getAttribute("width") !== "11.2") svg.setAttribute("width", "11.2");
+      // Erişilebilirlik öznitelikleri de çalışma zamanında kilitli —
       // role='img' ve aria-label='Atakule' eksikse setAttribute ile düzeltilir
       if (svg.getAttribute("role") !== "img") svg.setAttribute("role", "img");
       if (svg.getAttribute("aria-label") !== "Atakule") svg.setAttribute("aria-label", "Atakule");
@@ -171,8 +184,8 @@ require([
       return s ? s.getBoundingClientRect().height : 0;
     } catch (_) { return 0; }
   };
-  // BEŞİNCİ KATMAN KİLİT (adım 4): fontlar hazır olunca (document.fonts.ready) ve
-  // ilk 3 saniye boyunca her requestAnimationFrame karesinde (~180 kare) guard yinelenir;
+  // BEŞİNCİ + YEDİNCİ KATMAN KİLİT: fontlar hazır olunca (document.fonts.ready) ve
+  // ilk 5 saniye boyunca her requestAnimationFrame karesinde (300 kare) guard yinelenir;
   // boyama/tema/font değişiminde bile 28px + role + aria-label garantisi sürer.
   try {
     if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === "function") {
@@ -182,21 +195,30 @@ require([
     const logoRafDongusu = () => {
       logoGuardUygula();
       logoKareSayisi++;
-      if (logoKareSayisi < 180) requestAnimationFrame(logoRafDongusu);
+      if (logoKareSayisi < 300) requestAnimationFrame(logoRafDongusu);
     };
     requestAnimationFrame(logoRafDongusu);
   } catch (err) {
     console.warn("Logo rAF/fonts guard hatası (ele alındı):", err);
+  }
+  // YEDİNCİ KATMAN: kalıcı periyodik guard — 500 ms'de bir tek döngü; sayfa açık
+  // kaldığı sürece 28px + attribute + aria kilidi asla gevşemez (warn-only, error yok)
+  try {
+    setInterval(logoGuardUygula, 500);
+  } catch (err) {
+    console.warn("Logo interval guard hatası (ele alındı):", err);
   }
   // Yeni teşhis kancası (sözleşme global'i, adım 4): denetçiler mobil + masaüstünde
   // yükseklik, genişlik ve aria-label'i bu kanalla tek çağrıda ölçer.
   window.__logoDenetimi = function () {
     try {
       const s = document.querySelector(".ust-bant__logo svg");
-      if (!s) return { yukseklik: 0, genislik: 0, ariaLabel: null };
+      const a = document.querySelector("a.ust-bant__logo");
+      if (!s) return { yukseklik: 0, genislik: 0, ariaLabel: null, kapsayiciYukseklik: 0 };
       const r = s.getBoundingClientRect();
-      return { yukseklik: r.height, genislik: r.width, ariaLabel: s.getAttribute("aria-label") };
-    } catch (_) { return { yukseklik: 0, genislik: 0, ariaLabel: null }; }
+      const ar = a ? a.getBoundingClientRect() : { height: 0 };
+      return { yukseklik: r.height, genislik: r.width, ariaLabel: s.getAttribute("aria-label"), kapsayiciYukseklik: ar.height };
+    } catch (_) { return { yukseklik: 0, genislik: 0, ariaLabel: null, kapsayiciYukseklik: 0 }; }
   };
 
   // ---------- Katmanlar ----------

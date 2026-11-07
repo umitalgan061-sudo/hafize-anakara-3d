@@ -52,9 +52,11 @@ body {
   box-shadow: var(--golge);
   backdrop-filter: blur(8px);
   max-width: calc(100vw - 24px);
-  contain: layout style paint;
+  /* paint KALDIRILDI: üst bant içindeki arama sonuçları açılır listesinin
+     üst bantın dışına taşan kısmı kırpılıyordu; liste artık görünür. */
+  contain: layout style;
 }
-/* Altıncı katman kilit (adım 5): kapsayıcı da 28px — flex sıkışması logoyu 24px'e düşüremez */
+/* Yedinci katman kilit (adım 6): tek kaynak gerçeği — kapsayıcı da 28px, flex sıkışması logoyu 24px'e düşüremez */
 a.ust-bant__logo {
   height: 28px !important;
   flex: none !important;
@@ -65,9 +67,9 @@ a.ust-bant__logo {
   text-decoration: none;
 }
 
-/* Fourth-layer + fifth-layer kilit: render yüksekliği her görünümde en az 28px — hiçbir display/height kuralı ezemez.
-   Beşinci katman: clamp(28px, 8vw, 28px) her zaman 28px üretir; width 11.2px (viewBox 40x100 aspect) oranı kilitler */
-.ust-bant__logo svg { height: clamp(28px, 8vw, 28px) !important; min-height: 28px !important; width: 11.2px !important; display: block !important; flex-shrink: 0 !important; }
+/* Yedinci katman kilit (adım 6): en yüksek özgüllü TEK kural — clamp ve attribute-selektörlü
+   fazladan kurallar kaldırıldı (çakışma kaynağı); render yüksekliği her görünümde düz 28px */
+header.ust-bant a.ust-bant__logo svg { height: 28px !important; min-height: 28px !important; width: 11.2px !important; display: block !important; flex-shrink: 0 !important; }
 .ust-bant__baslik { font-weight: 600; font-size: 1rem; color: var(--metin); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* Arama */
@@ -77,7 +79,10 @@ a.ust-bant__logo {
   display: flex;
   align-items: center;
   min-width: 0;
-  contain: layout style paint;
+  /* paint KALDIRILDI: contain:paint, arama sonuçları listesini (top: calc(100% + 6px))
+     kendi sınırının dışına kırptığı için liste görünmez oluyordu (mobil + masaüstü).
+     layout/style containment korunur, kırpma kalkar. */
+  contain: layout style;
 }
 #arama-girdi {
   width: 100%;
@@ -420,8 +425,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
 @media (max-width: 600px) {
   .ust-bant { top: 6px; left: 8px; right: 8px; padding: 4px 6px; gap: 6px; max-height: 56px; }
   .ust-bant__baslik { display: none; }
-  /* Mobil kırılımda da fifth-layer kilit: 390x844'te logo 28px'in altına düşemez; clamp + aspect (11.2px) kilidi */
-  .ust-bant__logo svg { height: clamp(28px, 8vw, 28px) !important; min-height: 28px !important; width: 11.2px !important; display: block !important; flex-shrink: 0 !important; }
+  /* Mobil kırılımda da AYNI tek kural (özgüllük için header.ust-bant önekiyle): 390x844'te logo 28px'in altına düşemez */
+  header.ust-bant a.ust-bant__logo svg { height: 28px !important; min-height: 28px !important; width: 11.2px !important; display: block !important; flex-shrink: 0 !important; }
   .arama-kutu { min-width: 0; }
   #arama-girdi { height: 44px; font-size: 16px; padding: 0 44px 0 10px; }
   #arama-temizle { width: 44px; height: 44px; right: 0; }
