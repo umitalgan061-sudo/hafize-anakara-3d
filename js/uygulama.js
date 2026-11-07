@@ -1451,6 +1451,38 @@ require([
   if ("requestIdleCallback" in window) requestIdleCallback(yatayTasmaKontrol, { timeout: 6000 });
   else setTimeout(yatayTasmaKontrol, 2000);
 
+  // ---------- LOGO KABUL KİLİDİ: çalışma-zamanı bekçisi (Ajan 4) ----------
+  // Tek otoriter CSS kuralı zaten taban blokta (.ust-bant__logo svg height/min-height
+  // 28px !important). Bu bekçi çalışma zamanında ÖLÇER: ölçülen yükseklik 28'den
+  // küçükse inline style height/min-height 28px yazar ve tek satır console.log verir
+  // (warn/error değil — konsol error-free kuralı korunur). Asla hata fırlatmaz.
+  function logoKontrol() {
+    try {
+      const svg = document.querySelector(".ust-bant__logo svg");
+      if (!svg) return;
+      const yukseklik = svg.getBoundingClientRect().height;
+      if (Number.isFinite(yukseklik) && yukseklik < 28) {
+        svg.style.height = "28px";
+        svg.style.minHeight = "28px";
+        console.log("Logo 28px kilidi uygulandı");
+      }
+    } catch (_) {}
+  }
+  window.__logoKontrol = logoKontrol;
+  // view hazır olunca, sayfa yüklenince, yeniden boyutlandırma/dönme anlarında ve
+  // mobil kırılım (max-width: 600px) değişiminde bekçi çalışır — her cihazda/breakpoint'te
+  // logo 28 px altına inemez (kabul ölçütü kalıcı kapanır).
+  view.when(() => { try { logoKontrol(); } catch (_) {} });
+  window.addEventListener("load", logoKontrol);
+  window.addEventListener("resize", logoKontrol);
+  window.addEventListener("orientationchange", logoKontrol);
+  try {
+    const mqLogo = window.matchMedia("(max-width: 600px)");
+    const logoDegisti = () => { try { logoKontrol(); } catch (_) {} };
+    if (mqLogo.addEventListener) mqLogo.addEventListener("change", logoDegisti);
+    else if (mqLogo.addListener) mqLogo.addListener(logoDegisti);
+  } catch (_) {}
+
   // (e) Nihai kilit: sözleşme global'leri beklenen TİPLE doğrulanır (yalnızca varlık değil);
   // biri eksik/yanlış tipteyse tek satır warn — konsol error kalmaz (hata-free kuralı korunur)
   const sozlesmeGlobals = {
@@ -1458,7 +1490,7 @@ require([
     gosterBildirim: "function", duyur: "function", seciliVurgula: "function",
     binaKartiGoster: "function", binaKartiKapat: "function", katmanKartiKapat: "function",
     yukseklikTahmin: "function", sonrakiSecim: "function",
-    __cevrimiTest: "object", __azaltilmisHareket: "boolean"
+    __cevrimiTest: "object", __azaltilmisHareket: "boolean", __logoKontrol: "function"
   };
   let eksikVar = false;
   Object.keys(sozlesmeGlobals).forEach(k => {

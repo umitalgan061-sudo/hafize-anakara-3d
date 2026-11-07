@@ -1,7 +1,7 @@
-const AD = "ankara3d-v35";
-const KARO_AD = "ankara3d-karolar-v29";
-const VEKTOR_AD = "ankara3d-vektor-v3";
-const SDK_AD = "ankara3d-sdk-v2";
+const AD = "ankara3d-v36";
+const KARO_AD = "ankara3d-karolar-v30";
+const VEKTOR_AD = "ankara3d-vektor-v4";
+const SDK_AD = "ankara3d-sdk-v3";
 const KARO_SINIRI = 600;
 const SDK_SINIRI = 400;
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];

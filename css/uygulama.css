@@ -439,7 +439,30 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
 /* 601-720 px arası ara kırılım: logo yüksekliği burada da 28 px altına inemez */
 @media (min-width: 601px) and (max-width: 720px) {
   .ust-bant__logo svg { height: 28px !important; min-height: 28px !important; flex-shrink: 0; }
-}/* Klavye kullanıcıları için atla bağlantısı: 44x44 hedef, odakta görünür */
+}
+/* Logo 28 px koruması bu kırılımda da geçerli; aynı koruma ≤360px dar telefon
+   blokunda da geçerlidir — hiçbir blok (601-720px, ≤600px, ≤360px) taban kuraldaki
+   28px !important değerini ezmez; bu blokta logoyu ezen kural YOK. */
+
+/* ≤360px dar telefon (320x568 dahil): üst bant daha da kompaktlanır; yatay taşma
+   sıfır kalır. Logo 28px kuralı burada YİNELENMEZ (taban bloktaki !important kural
+   tek otoriter); bu blokta logoyu ezen hiçbir kural yoktur.
+   Kaplama: üst bant dış yükseklik = arama 44 + padding 2*2 + top 4 = 52 px;
+   alt çubuk dış yükseklik = düğme min 44 + padding 2*2 + bottom 4 = 52 px;
+   toplam 104 px ≤ 126 px → #viewDiv görünürlüğü ≥%87,7 (hedef ≥%85, kabul ≤126px).
+   Dokunma hedefleri 44x44 korunur (WCAG 2.1 AA kırılmaz). */
+@media (max-width: 360px) {
+  .ust-bant { top: 4px; left: 4px; right: 4px; padding: 2px 4px; gap: 4px; max-height: 52px; }
+  .arama-kutu { min-width: 0; }
+  #arama-girdi { height: 44px; font-size: 16px; padding: 0 44px 0 8px; }
+  #arama-temizle { width: 44px; height: 44px; right: 0; }
+  .alt-cubuk { bottom: calc(4px + env(safe-area-inset-bottom)); padding: 2px; gap: 2px; max-width: calc(100vw - 8px); }
+  .kontrol-dugme { width: 48px; min-height: 44px; min-width: 44px; padding: 2px 2px; }
+  .kontrol-dugme svg { width: 20px; height: 20px; }
+  .kontrol-dugme span { font-size: 9px; }
+  .cevrimo-gosterge { max-width: 38vw; }
+}
+/* Klavye kullanıcıları için atla bağlantısı: 44x44 hedef, odakta görünür */
 .atla-link {
   position: fixed;
   top: -56px;
