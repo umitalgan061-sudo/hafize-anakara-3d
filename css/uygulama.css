@@ -288,11 +288,14 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .kurulum-dugme svg { width: 20px; height: 20px; }
 }
 
-/* Çevrimdışı rozeti: tek satır — WCAG AA: --vurgu sobre #f6e3e2 ≈ 5.3:1 */
+/* Çevrimdışı rozeti: tek satır — WCAG AA: --vurgu sobre #f6e3e2 ≈ 5.3:1.
+   Veri (özellik) önbelleği de varsa metin 'Çevrimdışı · N karo · veri' olur;
+   max-width bu ek için küçük oranda büyütüldü — overflow:hidden + ellipsis +
+   white-space:nowrap ve 100vw üst sınırı değişmediği için yatay taşma sıfır kalır. */
 .cevrimo-gosterge {
   flex-shrink: 1;
   min-width: 0;
-  max-width: 42vw;
+  max-width: 46vw;
   overflow: hidden;
   text-overflow: ellipsis;
   padding: 4px 8px;
@@ -460,7 +463,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .kontrol-dugme { width: 48px; min-height: 44px; min-width: 44px; padding: 2px 2px; }
   .kontrol-dugme svg { width: 20px; height: 20px; }
   .kontrol-dugme span { font-size: 9px; }
-  .cevrimo-gosterge { max-width: 38vw; }
+  /* ≤360px'te de 'veri' eki sığar; ellipsis taşmayı yine keser (taşma sıfır) */
+  .cevrimo-gosterge { max-width: 42vw; }
 }
 /* Klavye kullanıcıları için atla bağlantısı: 44x44 hedef, odakta görünür */
 .atla-link {
