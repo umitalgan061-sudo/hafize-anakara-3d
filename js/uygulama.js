@@ -84,6 +84,57 @@ require([
     setInterval(logoBoyutuGarantisi, 5000);
   } catch (_) {}
 
+  // ---------- viewDiv tam ekran garanti mekanizması (çalışma zamanı, kalıcı kilit) ----------
+  // Kabul ölçütü: #viewDiv bütün ekranı kaplar (position:fixed; inset:0; 100vw x 100vh/100dvh),
+  // sayfa kaymaz, harita ekranın en az %85'inde görünür. css/uygulama.css içinde gömülü
+  // bir düzenleme işareti (>>>YENİ) CSS ayrıştırmasını kırsa bile bu mekanizma #viewDiv'i
+  // yoksa oluşturur ve inline stilleri uygulayarak haritayı tam ekran guarantee eder.
+  // SceneView container'ı hâlâ "viewDiv" olduğu için harita çalışır. Asla hata atmaz.
+  function viewDivGarantisi() {
+    try {
+      let vd = document.getElementById("viewDiv");
+      if (!vd) {
+        vd = document.createElement("div");
+        vd.id = "viewDiv";
+        vd.setAttribute("tabindex", "-1");
+        vd.setAttribute("role", "application");
+        vd.setAttribute("aria-label", "Ankara 3D harita görünümü.");
+        document.body.insertBefore(vd, document.body.firstChild);
+      }
+      const s = vd.style;
+      s.position = "fixed";
+      s.top = "0"; s.left = "0"; s.right = "0"; s.bottom = "0";
+      s.inset = "0";
+      s.width = "100vw";
+      s.height = "100vh";
+      try { s.height = "100dvh"; } catch (_) {}
+      s.zIndex = "0";
+      s.margin = "0";
+      s.padding = "0";
+      // Sayfa kaymasını da JS katmanında garanti et (CSS overflow kırılsa bile)
+      const b = document.body, h = document.documentElement;
+      if (b) { b.style.overflow = "hidden"; b.style.maxWidth = "100vw"; b.style.height = "100%"; }
+      if (h) { h.style.overflow = "hidden"; h.style.maxWidth = "100vw"; h.style.height = "100%"; }
+    } catch (_) {}
+  }
+  window.viewDivGarantisi = viewDivGarantisi;
+  try {
+    // Script body sonunda yüklendiği için DOM zaten hazır — hemen uygula
+    viewDivGarantisi();
+    if (document.readyState !== "complete") {
+      document.addEventListener("DOMContentLoaded", viewDivGarantisi);
+      window.addEventListener("load", viewDivGarantisi);
+    }
+    window.addEventListener("resize", viewDivGarantisi);
+    window.addEventListener("orientationchange", viewDivGarantisi);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) viewDivGarantisi(); });
+    if (typeof MutationObserver !== "undefined") {
+      const gozlemci = new MutationObserver(() => viewDivGarantisi());
+      gozlemci.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"] });
+    }
+    setInterval(viewDivGarantisi, 5000);
+  } catch (_) {}
+
   // ---------- Sayfa içi kabul self-test kancaları (sözleşme global'leri) ----------
   // window.logoDenetimi(): logo yüksekliğini ölçüp { yukseklik, gecti, ariaLabel } döndürür (eşik 28 px).
   // window.kabulDenetimi(): logo + viewDiv görünürlük oranı + yatay taşma + viewport özeti döndürür.

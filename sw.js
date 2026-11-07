@@ -1,4 +1,4 @@
-const AD = "ankara3d-v33";
+const AD = "ankara3d-v34";
 const KARO_AD = "ankara3d-karolar-v28";
 const VEKTOR_AD = "ankara3d-vektor-v2";
 const SDK_AD = "ankara3d-sdk-v1";
@@ -407,7 +407,18 @@ self.addEventListener("fetch", e => {
                 }))
             );
         }
-        if (hit) return hit;
+        if (hit) {
+          // SWR: önbellekteki css/js her zaman arka planda ağdan tazelenir —
+          // bozuk eski CSS'in kalıcı sunulması (tüm düzen kabul hatalarının kaynağı) biter
+          fetch(e.request)
+            .then(resp => {
+              if (resp.ok && /\.(css|js|json|png|svg)$/.test(url.pathname)) {
+                caches.open(AD).then(c => c.put(e.request, resp)).catch(() => {});
+              }
+            })
+            .catch(() => {});
+          return hit;
+        }
         return fetch(e.request).then(resp => {
           if (resp.ok && /\.(css|js|json|png|svg)$/.test(url.pathname)) {
             const kopya = resp.clone();
