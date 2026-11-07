@@ -49,8 +49,7 @@
        Ayrı bir fetch preload'u eklenir: sw.js SDK önbelleği tema CSS'ini erkenden ve
        tutarlı şekilde önbelleğe alır; uçak modunda tema önbellekten açılır -->
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" />
-  <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" media="print" onload="this.media='all'" />
-  <noscript><link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" /></noscript>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" />
   <!-- ArcGIS JS 4.32 ana yükleyici betiğinin tam URL'si preload edilir; bu erken ipucu
        yükleyicinin indirilmesini geciktirmez, tam tersine ilk açılışı hızlandırır.
        sw.js SDK önbelleğiyle tutarlı: kritik esri modülleri de erkenden preload edilir,

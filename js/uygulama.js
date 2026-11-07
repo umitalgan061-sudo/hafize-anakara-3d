@@ -98,15 +98,38 @@ require([
   // yalnızca warn ile ele alındığı bildirilsin
   window.addEventListener("unhandledrejection", e => {
     console.warn("Yakalanmamış promise reddi (ele alındı):", e.reason);
-    e.preventDefault();
   });
   // Konsol hatasız kuralı: beklenmedik çalışma zamanı hataları (senkron hatalar dahil)
   // konsolu kırmızıya boyamasın — preventDefault konsol error çıktısını bastırır,
   // warn ile ele alındığı bildirilir
   window.addEventListener("error", e => {
     console.warn("Yakalanmamış hata (ele alındı):", e.message);
-    e.preventDefault();
   });
+
+  // ---------- Atakule logo çalışma-zamanı guard'ı (mobil kabul hatası kalıcı giderimi) ----------
+  // Sözleşme: '.ust-bant__logo svg' render yüksekliği her görünümde (masaüstü + 390x844 telefon)
+  // en az 28px olmalı. HTML width/height öznitelikleri + CSS !important zaten garanti eder;
+  // bu guard çalışma zamanında da (yükleme + resize + orientationchange) 28px'in altına
+  // düşülmesini kalıcı olarak önler. Hiçbir konsol error üretmez (yalnızca warn).
+  function logoGuardUygula() {
+    try {
+      const svg = document.querySelector(".ust-bant__logo svg");
+      if (!svg) return;
+      const h = svg.getBoundingClientRect().height;
+      if (Number.isFinite(h) && h < 28) {
+        svg.style.height = "28px";
+        svg.style.minHeight = "28px";
+      }
+    } catch (err) {
+      console.warn("Logo guard hatası (ele alındı):", err);
+    }
+  }
+  // Script body sonunda yüklendiği için DOM hazır: hemen uygula; ayrıca
+  // yükleme tamamlanınca, resize ve orientationchange'te yinelenir.
+  logoGuardUygula();
+  window.addEventListener("load", logoGuardUygula);
+  window.addEventListener("resize", logoGuardUygula);
+  window.addEventListener("orientationchange", logoGuardUygula);
 
   // ---------- Katmanlar ----------
   // 3B Binalar (Esri SceneServer) — opak buz grisi
