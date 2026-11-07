@@ -70,6 +70,47 @@ require([
     logoBoyutuGarantisi();
   } catch (_) {}
 
+  // ---------- Logo garantisi 4. katman: MutationObserver + sekme görünürlüğü + periyodik denetim ----------
+  // Logo/üst bant üzerinde attribute, class ya da childList değişimi olursa, sekme
+  // görünür hale gelirse ve her 5 sn'de bir logo boyutu yeniden ölçülür; 28 px'in
+  // altına düşerse garanti mekanizması devreye girer. Asla hata atmaz, konsola error yazmaz.
+  try {
+    const hedef = document.querySelector(".ust-bant__logo") || document.querySelector(".ust-bant");
+    if (hedef && typeof MutationObserver !== "undefined") {
+      const gozlemci = new MutationObserver(() => logoBoyutuGarantisi());
+      gozlemci.observe(hedef, { attributes: true, childList: true, subtree: true });
+    }
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) logoBoyutuGarantisi(); });
+    setInterval(logoBoyutuGarantisi, 5000);
+  } catch (_) {}
+
+  // ---------- Sayfa içi kabul self-test kancaları (sözleşme global'leri) ----------
+  // window.logoDenetimi(): logo yüksekliğini ölçüp { yukseklik, gecti, ariaLabel } döndürür (eşik 28 px).
+  // window.kabulDenetimi(): logo + viewDiv görünürlük oranı + yatay taşma + viewport özeti döndürür.
+  // Hiçbiri konsola error yazmaz; yalnızca ölçüm sonucu döndürür (try/catch sarılı).
+  window.logoDenetimi = function () {
+    try {
+      const svg = document.querySelector(".ust-bant__logo svg");
+      const h = svg ? svg.getBoundingClientRect().height : 0;
+      return { yukseklik: h, gecti: Number.isFinite(h) && h >= 28, ariaLabel: svg ? svg.getAttribute("aria-label") : null };
+    } catch (_) { return { yukseklik: 0, gecti: false, ariaLabel: null }; }
+  };
+  window.kabulDenetimi = function () {
+    try {
+      const doc = document.documentElement;
+      const viewDiv = document.getElementById("viewDiv");
+      const yukseklik = window.innerHeight || (doc && doc.clientHeight) || 1;
+      const genislik = window.innerWidth || (doc && doc.clientWidth) || 1;
+      const gorunen = viewDiv ? viewDiv.getBoundingClientRect().height : 0;
+      return {
+        logo: window.logoDenetimi(),
+        viewDivGorunurluk: yukseklik > 0 ? gorunen / yukseklik : 0,
+        yatayTasma: !!(doc && Number.isFinite(doc.scrollWidth) && doc.scrollWidth > doc.clientWidth + 1),
+        genislik: genislik
+      };
+    } catch (_) { return { logo: { yukseklik: 0, gecti: false, ariaLabel: null }, viewDivGorunurluk: 0, yatayTasma: true, genislik: 0 }; }
+  };
+
   // ---------- Yardımcılar ----------
   function gosterBildirim(metin, onRetry) {
     const el = document.getElementById("bildirim");
@@ -1437,13 +1478,14 @@ require([
 
   // (e) Nihai kilit: sözleşme global'leri beklenen TİPLE doğrulanır (yalnızca varlık değil);
   // biri eksik/yanlış tipteyse tek satır warn — konsol error kalmaz (hata-free kuralı korunur)
-  const sozlesmeGlobals = {
-    view: "object",
-    gosterBildirim: "function", duyur: "function", seciliVurgula: "function",
-    binaKartiGoster: "function", binaKartiKapat: "function", katmanKartiKapat: "function",
-    yukseklikTahmin: "function", sonrakiSecim: "function",
-    __cevrimiTest: "object", __azaltilmisHareket: "boolean"
-  };
+    const sozlesmeGlobals = {
+      view: "object",
+      logoBoyutuGarantisi: "function", logoDenetimi: "function", kabulDenetimi: "function",
+      gosterBildirim: "function", duyur: "function", seciliVurgula: "function",
+      binaKartiGoster: "function", binaKartiKapat: "function", katmanKartiKapat: "function",
+      yukseklikTahmin: "function", sonrakiSecim: "function",
+      __cevrimiTest: "object", __azaltilmisHareket: "boolean"
+    };
   let eksikVar = false;
   Object.keys(sozlesmeGlobals).forEach(k => {
     if (typeof window[k] !== sozlesmeGlobals[k]) {

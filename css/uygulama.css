@@ -63,7 +63,9 @@ body {
   min-height: 44px;
 }
 /* Kabul ölçütü: logo en az 28 px yükseklikte (güven paylı 32 px, min-height 28 px garanti) */
-.ust-bant__logo svg { height: 32px !important; min-height: 28px !important; width: auto !important; display: block; flex-shrink: 0; }
+/* Adım 4 kalıcı kilit: kabul ölçütü 28 px — 32px !important + min-height 28px !important + width:auto !important;
+   viewBox en-boy oranı (40/100) aspect-ratio ile açıkça korunur */
+.ust-bant__logo svg { height: 32px !important; min-height: 28px !important; width: auto !important; display: block; flex-shrink: 0; aspect-ratio: 40 / 100; }
 .ust-bant__baslik { font-weight: 600; font-size: 1rem; color: var(--metin); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* Arama */
@@ -417,7 +419,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .ust-bant { top: 6px; left: 8px; right: 8px; padding: 4px 6px; gap: 6px; max-height: 56px; }
   .ust-bant__baslik { display: none; }
   /* Mobil kabul ölçütü: logo en az 28 px (güven paylı 32 px, min-height 28 px garanti) */
-  .ust-bant__logo svg { height: 32px !important; min-height: 28px !important; width: auto !important; flex-shrink: 0; }
+  /* Mobil kabul ölçütü kilidi (aynı kural): logo en az 28 px (güven paylı 32 px, min-height 28 px garanti), en-boy oranı korunur */
+  .ust-bant__logo svg { height: 32px !important; min-height: 28px !important; width: auto !important; display: block; flex-shrink: 0; aspect-ratio: 40 / 100; }
   .arama-kutu { min-width: 0; }
   #arama-girdi { height: 44px; font-size: 16px; padding: 0 44px 0 10px; }
   #arama-temizle { width: 44px; height: 44px; right: 0; }
