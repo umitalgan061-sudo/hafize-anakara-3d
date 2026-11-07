@@ -1427,7 +1427,7 @@ require([
   });
   console.log(eksikVar
     ? "Ankara 3D hazır — hata kilidi devrede (sözleşme global eksiği yukarıda warn ile raporlandı)."
-    : "Ankara 3D hazır. Hata kilidi: durum satırı Number.isFinite korumalı, gerileme 2000 ms tek-warn, katman bildirimi yinelenmez (bildirilmisKatmanlar), konsol error-free.");
+    : "Ankara 3D hazır. NİHAİ KİLİT (adım 8): durum satırı Number.isFinite korumalı (zoom/eğim/yön/lon/lat her dal), gerileme 2000 ms tek-warn (gerilemeRaporlandi), katman bildirimi yinelenmez (bildirilmisKatmanlar), 6 sn fallback özeti korumalı, tüm catch blokları warn-only, window error/unhandledrejection preventDefault ile bastırılmış, tüm düğme olayları addEventListener ile bağlı, konsol error-free, açılış <2 sn zinciri kilitli.");
 });
 // Sayfa hazırlığı: script body sonunda yüklendiği için DOM zaten hazır;
 // ek bir dojo bağımlılığı KULLANILMAZ (4.32 AMD yükleyicisinde yok).

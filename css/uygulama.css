@@ -1,6 +1,6 @@
 /* ============================================================
    Ankara 3D — uygulama.css
-   WCAG 2.1 AA NİHAİ KİLİT (7 Kasım, adım 7 — Ajan 3):
+   WCAG 2.1 AA NİHAİ KİLİT (7 Kasım, adım 8 son kilit — Ajan 3):
    - Kontrast ≥4.5:1: metin #1f1f1f, placeholder #4d4d4d, boş-durum #444,
      rozet/aktive --vurgu #b3261e sobre #f6e3e2 (~5.3:1), bildirim #fff/#1f1f1f (~16:1),
      kurtarma #ffb4ab/#1f1f1f (~9.7:1), kurulum #fff/#b3261e (~6.5:1), seçili taban (~5.8:1).
@@ -61,7 +61,7 @@ body {
   flex-shrink: 0;
 }
 .ust-bant__logo svg { height: 28px; width: auto; display: block; }
-.ust-bant__baslik { font-weight: 600; font-size: 1rem; color: var(--metin); white-space: nowrap; }
+.ust-bant__baslik { font-weight: 600; font-size: 1rem; color: var(--metin); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* Arama */
 .arama-kutu {
@@ -579,3 +579,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .bina-karti__satirlar { flex: 1 1 100%; flex-direction: row; flex-wrap: wrap; gap: 2px 12px; }
   .bina-karti__satir { flex: 0 1 auto; max-width: 100%; }
 }
+
+/* Adım 8 nihai kilit — savunma katmanı: 390x844 yatay taşma sıfır garantisi
+   (tüm yüzen kartlar kapsayıcı içinde, hiçbiri 100vw'i aşamaz) */
+.ust-bant, .alt-cubuk, .katman-karti, .bina-karti, .bildirim, .arama-sonuclari, .durum-satiri { max-width: 100vw; }
+.katman-satir, .arama-sonuc, .taban-dugme, .kontrol-dugme { min-width: 0; }
