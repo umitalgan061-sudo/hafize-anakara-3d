@@ -25,12 +25,11 @@
   <link rel="dns-prefetch" href="https://server.arcgisonline.com" />
   <link rel="dns-prefetch" href="https://basemaps.arcgis.com" />
   <link rel="dns-prefetch" href="https://geocode.arcgis.com" />
-  <!-- baskentcbs.ankara.bel.tr ve geocode.arcgis.com için crossorigin preconnect zaten yukarıda tanımlı — birebir yinelenmez -->
   <!-- Yükleme zincirinin ilk halkaları (Numarataj → Yapılar) için servis ve katman meta verisi erkenden çekilir; AMD yükleyici çalıştığında istek zaten tamamlanmış olur (ilk açılış <2 sn hedefine katkı) -->
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer?f=json" />
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/0?f=json" />
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/2?f=json" />
-  <!-- 7. adım: zincirin SON halkası (3B binalar) view.when + requestIdleCallback ile erteleniyor;
+  <!-- Zincirin SON halkası (3B binalar) view.when + requestIdleCallback ile erteleniyor;
        SceneServer meta verisi yine de erkenden çekilir — idle callback tetiklenince istek
        çoktan tamamlanmış olur, açılış Anıtkabir görünümü <2 sn hedefini geciktirmez -->
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://basemaps3d.arcgis.com/arcgis/rest/services/Esri3D_Buildings_v1/SceneServer?f=json" />
@@ -40,14 +39,14 @@
   <link rel="preload" as="image" crossorigin fetchpriority="high" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38746" />
   <link rel="preload" as="image" crossorigin fetchpriority="high" href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/24835/38747" />
   <!-- Çevrimdışı 'Harita' (streets-vector) taban geçişi için vektör taban kaynakları erkenden başlar:
-       stil kökü (root.json) + sprite + glyph aralığı + font preload edilir; sw.js v27 bunları önbelleğe alır -->
+       stil kökü (root.json) + sprite + glyph aralığı + font preload edilir; sw.js bunları önbelleğe alır -->
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer?f=json" />
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/styles/root.json" />
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/sprites/sprite.json" />
   <link rel="preload" as="fetch" crossorigin href="https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/fonts/AdelleSans_W_Bold/0-255.pbf" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 100'%3E%3Cg fill='%23b3261e'%3E%3Crect x='19' y='1' width='2' height='9'/%3E%3Cpath d='M15 11h10l-1.5 5h-7z'/%3E%3Cpath fill-rule='evenodd' d='M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z'/%3E%3Cpath d='M16 34h8l2 62H14z'/%3E%3Crect x='12' y='96' width='16' height='3'/%3E%3C/g%3E%3C/svg%3E" />
-  <!-- ArcGIS tema CSS'i ilk boyamayı engellemesin: print medyasıyla yükle, yüklenince 'all' yap (hile korunur).
-       Ayrı bir fetch preload'u eklenir: sw.js SDK önbelleği (SDK_AD) tema CSS'ini erkenden ve
+  <!-- ArcGIS tema CSS'i ilk boyamayı engellemesin: print medyasıyla yükle, yüklenince 'all' yap.
+       Ayrı bir fetch preload'u eklenir: sw.js SDK önbelleği tema CSS'ini erkenden ve
        tutarlı şekilde önbelleğe alır; uçak modunda tema önbellekten açılır -->
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" />
   <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" media="print" onload="this.media='all'" />
@@ -55,8 +54,7 @@
   <!-- ArcGIS JS 4.32 ana yükleyici betiğinin tam URL'si preload edilir; bu erken ipucu
        yükleyicinin indirilmesini geciktirmez, tam tersine ilk açılışı hızlandırır.
        sw.js SDK önbelleğiyle tutarlı: kritik esri modülleri de erkenden preload edilir,
-       AMD require bu URL'leri istediğinde tarayıcı önbelleği zaten dolu olur (hem ilk
-       açılış <2 sn hedefine katkı, hem uçak modunda SDK önbellekten eksiksiz açılır) -->
+       AMD require bu URL'leri istediğinde tarayıcı önbelleği zaten dolu olur -->
   <link rel="preload" as="script" href="https://js.arcgis.com/4.32/" fetchpriority="high" />
   <link rel="preload" as="script" fetchpriority="high" href="https://js.arcgis.com/4.32/esri/views/SceneView.js" />
   <link rel="preload" as="script" fetchpriority="high" href="https://js.arcgis.com/4.32/esri/WebScene.js" />
@@ -82,7 +80,7 @@
 
   <header class="ust-bant" id="ust-bant" aria-label="Üst çubuk: uygulama adı, adres arama ve durum göstergesi">
     <a class="ust-bant__logo" href="#" aria-label="Ankara 3D">
-      <svg role="img" aria-label="Atakule" viewBox="0 0 40 100"><g fill="#b3261e"><rect x="19" y="1" width="2" height="9"/><path d="M15 11h10l-1.5 5h-7z"/><path fill-rule="evenodd" d="M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z"/><path d="M16 34h8l2 62H14z"/><rect x="12" y="96" width="16" height="3"/></g></svg>
+      <svg role="img" aria-label="Atakule" viewBox="0 0 40 100" focusable="false"><g fill="#b3261e"><rect x="19" y="1" width="2" height="9"/><path d="M15 11h10l-1.5 5h-7z"/><path fill-rule="evenodd" d="M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z"/><path d="M16 34h8l2 62H14z"/><rect x="12" y="96" width="16" height="3"/></g></svg>
       <h1 class="ust-bant__baslik">Ankara 3D</h1>
     </a>
     <div class="arama-kutu" role="search">
@@ -91,7 +89,7 @@
       <div id="arama-sonuclari" class="arama-sonuclari" role="listbox" aria-label="Arama sonuçları" hidden></div>
     </div>
     <button type="button" class="kurulum-dugme" id="btn-kurulum" hidden aria-label="Uygulamayı ana ekrana kur">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
       <span>Kur</span>
     </button>
     <span id="cevrimo-gosterge" class="cevrimo-gosterge" role="status" aria-live="polite" aria-atomic="true" hidden>Çevrimdışı</span>
@@ -128,10 +126,10 @@
     </div>
   </div>
 
-  <!-- Sözleşme (6. adım): kart kimliği #bina-karti, başlık #bina-karti-baslik (.bina-karti__baslik), açıklama #bina-karti-aciklama.gorsel-gizli, satır kapsayıcı .bina-karti__satirlar, kapama #bina-karti-kapat; role=dialog aria-modal=false, aria-labelledby/aria-describedby; Esc/dışarı dokunuş/Tab döngüsü js/uygulama.js'tedir; içerik yalnızca createElement ile doldurulur -->
+  <!-- Bina bilgi kartı: role=dialog aria-modal=false, aria-labelledby/aria-describedby;
+       Esc/dışarı dokunuş/Tab döngüsü js/uygulama.js'tedir; içerik yalnızca createElement ile doldurulur -->
   <div id="bina-karti" class="bina-karti" role="dialog" aria-modal="false" aria-labelledby="bina-karti-baslik" aria-describedby="bina-karti-aciklama" tabindex="-1" hidden>
     <span class="bina-karti__baslik" id="bina-karti-baslik"></span>
-    <!-- Çoklu seçim sayacı rozeti (7. adım): aynı noktada birden çok sonuç varsa '2/3' gösterir; js/uygulama.js doldurur, yoksa gizli kalır -->
     <span class="bina-karti__sayac" id="bina-karti-sayac" hidden></span>
     <span id="bina-karti-aciklama" class="gorsel-gizli">Seçili yapı veya kapı numarası bilgileri. Kapatmak için Esc tuşuna basın.</span>
     <div class="bina-karti__satirlar"></div>

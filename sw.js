@@ -1,4 +1,4 @@
-const AD = "ankara3d-v32";
+const AD = "ankara3d-v33";
 const KARO_AD = "ankara3d-karolar-v28";
 const VEKTOR_AD = "ankara3d-vektor-v2";
 const SDK_AD = "ankara3d-sdk-v1";
@@ -212,7 +212,7 @@ self.addEventListener("install", e => {
 });
 
 // Nihai sertleştirme: activate'te GÜNCEL sürümler dışındaki TÜM önbellekler
-// (eski v31/v30/v27/v1 dahil her ad) kalıcı silinir; dört önbellek varestelle garanti edilir
+// (eski v32/v31/v30/v27/v1 dahil her ad) kalıcı silinir; dört önbellek varestelle garanti edilir
 self.addEventListener("activate", e => {
   const guncelAdlar = [AD, KARO_AD, VEKTOR_AD, SDK_AD];
   e.waitUntil(

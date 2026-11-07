@@ -1,13 +1,13 @@
 /* ============================================================
    Ankara 3D — uygulama.css
-   WCAG 2.1 AA NİHAİ TARAMA (7 Kasım, adım 5):
+   WCAG 2.1 AA NİHAİ KİLİT (7 Kasım, adım 7 — Ajan 3):
    - Kontrast ≥4.5:1: metin #1f1f1f, placeholder #4d4d4d, boş-durum #444,
-     rozet/aktive --vurgu #b3261e sobre #f6e3e2 (~5.3:1), bildirim #fff/#1f1f1f,
-     kurtarma düğmesi #ffb4ab/#1f1f1f, kurulum #fff/#b3261e (~6.5:1) — hepsi geçer.
+     rozet/aktive --vurgu #b3261e sobre #f6e3e2 (~5.3:1), bildirim #fff/#1f1f1f (~16:1),
+     kurtarma #ffb4ab/#1f1f1f (~9.7:1), kurulum #fff/#b3261e (~6.5:1), seçili taban (~5.8:1).
    - Dokunma hedefleri ≥44x44: kontrol düğmeleri 56x56 (mobil 54x52), temizle 44x44,
-     katman satırı min-height 44, taban düğmesi min-height 44, kurulum min-height 44,
-     bina kartı kapama 44x44, bildirim kurtarma düğmesi min 44x44, atla-link min-height 44.
-   - :focus-visible: tüm kontrollerde tutarlı 3px --vurgu halkası (beyaz zeminde ~6.5:1).
+     katman satırı min-height 44, taban düğmesi min 44, kurulum min 44,
+     bina kartı kapama 44x44, bildirim kurtarma min 44x44, atla-link min 44, arama sonucu min 44.
+   - :focus-visible: tüm kontrollerde tutarlı 3px --vurgu halkası.
    - prefers-reduced-motion: tüm transition/animasyon kesilir, yükleniyor halkası statik.
    - 390x844 yatay taşma sıfır: html/body max-width:100vw + overflow-x:hidden,
      tüm flex elemanları min-width:0.
@@ -31,7 +31,6 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--metin);
   background: #fff;
-  /* Çekip bırakma yenilemesini kapat: harita tek ekrandır, sayfa kaymaz */
   overscroll-behavior: none;
 }
 
@@ -52,7 +51,6 @@ body {
   box-shadow: var(--golge);
   backdrop-filter: blur(8px);
   max-width: calc(100vw - 24px);
-  /* Boyama optimizasyonu: çubuk içeriği dış düzeni etkilemez, dışarı boyanmaz */
   contain: layout style paint;
 }
 .ust-bant__logo {
@@ -72,7 +70,6 @@ body {
   display: flex;
   align-items: center;
   min-width: 0;
-  /* Boyama optimizasyonu: arama kutusu düzeni dışarıdan izole, dışarı boyanmaz */
   contain: layout style paint;
 }
 #arama-girdi {
@@ -80,8 +77,7 @@ body {
   height: 44px;
   padding: 0 36px 0 12px;
   font: inherit;
-  /* 16px ve üstü: iOS odaklanmada otomatik zoom'u önler (kullanılabilirlik) */
-  font-size: 16px;
+  font-size: 16px; /* 16px ve üstü: iOS odaklanmada otomatik zoom'u önler */
   color: var(--metin);
   background: #f2f2f2;
   border: 1px solid transparent;
@@ -89,9 +85,8 @@ body {
   outline: none;
 }
 #arama-girdi:focus { background: #fff; border-color: var(--vurgu); }
-/* WCAG 2.1 AA kontrast: placeholder en az 4.5:1 (#4d4d4d > 5:1) */
+/* WCAG 2.1 AA kontrast: placeholder en az 4.5:1 (#4d4d4d > 7:1) */
 #arama-girdi::placeholder { color: #4d4d4d; opacity: 1; }
-/* Arama kutusu: tarayıcının kendi iptal düğmesi asla çizilmez */
 #arama-girdi { -webkit-appearance: none; appearance: none; }
 #arama-temizle {
   position: absolute;
@@ -99,8 +94,7 @@ body {
   width: 44px; height: 44px;
   border: none;
   background: transparent;
-  /* WCAG AA: #666 beyaz zeminde 5.7:1 — geçer */
-  color: #666;
+  color: #666; /* WCAG AA: beyaz zeminde 5.7:1 */
   font-size: 0.9rem;
   cursor: pointer;
   border-radius: 50%;
@@ -124,14 +118,14 @@ input[type="search"]::-webkit-search-results-decoration,
   top: calc(100% + 6px);
   left: 0; right: 0;
   max-height: 264px;
+  max-width: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
   background: #fff;
   border-radius: var(--yaricap);
   box-shadow: var(--golge);
   z-index: 20;
-  /* Sonuç listesi kaydırılırken sayfa zincirleme kaydırmaz (mobil tek ekran, sayfa hiç kaymaz) */
   overscroll-behavior: contain;
-  /* Boyama optimizasyonu: ekrandan uzakken içerik boyanmaz (ilk açılış performansı) */
   content-visibility: auto;
   contain-intrinsic-size: 220px 264px;
 }
@@ -155,7 +149,7 @@ input[type="search"]::-webkit-search-results-decoration,
 .arama-sonuc:hover, .arama-sonuc:focus-visible { background: #f2f2f2; }
 /* Klavye gezinmesinde aria-selected=true olan seçenek de görsel olarak seçili görünsün (WCAG 2.4.7) */
 .arama-sonuc[aria-selected="true"] { background: #f2f2f2; }
-/* WCAG 2.1 AA: boş-durum metni en az 4.5:1 (#444 > 7:1) */
+/* WCAG 2.1 AA: boş-durum metni en az 4.5:1 (#444 > 9:1) */
 .arama-sonuc--bos { color: #444; cursor: default; }
 
 /* Alt araç çubuğu: ortada yatay hap */
@@ -174,9 +168,7 @@ input[type="search"]::-webkit-search-results-decoration,
   box-shadow: var(--golge);
   backdrop-filter: blur(16px);
   max-width: calc(100vw - 16px);
-  /* Boyama optimizasyonu: hap çubuk yerleşimi sabit, dış düzeni etkilemez, dışarı boyanmaz */
   contain: layout style paint;
-  /* translateX(-50%) yerleşimi kendi katmanında kalsın: harita boyamasını tetiklemesin */
   will-change: transform;
 }
 .kontrol-dugme {
@@ -198,11 +190,11 @@ input[type="search"]::-webkit-search-results-decoration,
 }
 .kontrol-dugme:hover { background: #f2f2f2; }
 .kontrol-dugme:active { background: #e5e5e5; }
-/* WCAG AA: aktif durum --vurgu sobre #f6e3e2 ≈ 5.3:1 — geçer */
+/* WCAG AA: aktif durum --vurgu sobre #f6e3e2 ≈ 5.3:1 */
 .kontrol-dugme[aria-expanded="true"] { color: var(--vurgu); background: #f6e3e2; }
 .kontrol-dugme svg { width: 24px; height: 24px; }
 .kontrol-dugme span { font-size: 11px; line-height: 1; white-space: nowrap; }
-/* Tutarlı odak göstergesi: tüm dokunulabilir kontroller — katı renk, 3:1 kontrastı geçer (WCAG) */
+/* Tutarlı odak göstergesi: tüm dokunulabilir kontroller — 3px katı halka (WCAG 2.4.7) */
 button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focus-visible {
   outline: 3px solid var(--vurgu);
   outline-offset: 2px;
@@ -212,7 +204,6 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
 #arama-temizle:focus-visible { border-radius: 50%; }
 .katman-satir:focus-within { background: #f2f2f2; }
 .katman-satir:focus-within input { outline: 3px solid var(--vurgu); outline-offset: 1px; }
-/* Onay kutusu tek başına odaktayken de 3px --vurgu halkası görünsün (WCAG 2.4.7) */
 .katman-satir input:focus-visible { outline: 3px solid var(--vurgu); outline-offset: 2px; border-radius: 4px; }
 .taban-dugme:focus-visible, .kurulum-dugme:focus-visible { outline: 3px solid var(--vurgu); outline-offset: 2px; }
 
@@ -232,7 +223,6 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   display: flex;
   flex-direction: column;
   gap: 4px;
-  /* Boyama optimizasyonu: kapalıyken/uzaktayken içerik boyanmaz; kart taşmaz, dışarı boyanmaz */
   content-visibility: auto;
   contain-intrinsic-size: 220px 260px;
   contain: layout style paint;
@@ -264,10 +254,10 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   cursor: pointer;
   color: var(--metin);
 }
-/* WCAG AA: seçili taban --vurgu sobre #f2f2f2 ≈ 5.8:1 — geçer */
+/* WCAG AA: seçili taban --vurgu sobre #f2f2f2 ≈ 5.8:1 */
 .taban-dugme[aria-pressed="true"] { border-color: var(--vurgu); color: var(--vurgu); font-weight: 600; }
 
-/* PWA kurulum düğmesi (üst bant, sağda) — WCAG AA: #fff sobre #b3261e ≈ 6.5:1 */
+/* PWA kurulum düğmesi — WCAG AA: #fff sobre #b3261e ≈ 6.5:1 */
 .kurulum-dugme {
   flex-shrink: 0;
   contain: layout style;
@@ -295,7 +285,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .kurulum-dugme svg { width: 20px; height: 20px; }
 }
 
-/* Çevrimdışı rozeti: yalnızca ağ yokken görünür (hidden ile kontrol edilir), tek satır */
+/* Çevrimdışı rozeti: tek satır — WCAG AA: --vurgu sobre #f6e3e2 ≈ 5.3:1 */
 .cevrimo-gosterge {
   flex-shrink: 1;
   min-width: 0;
@@ -305,13 +295,11 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   padding: 4px 8px;
   border-radius: 999px;
   background: #f6e3e2;
-  /* WCAG AA: --vurgu #b3261e sobre #f6e3e2 ≈ 5.3:1 — geçer */
   color: var(--vurgu);
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
-  /* Boyama optimizasyonu: rozet üst bant düzenini dışarıdan izole eder, dışarı boyanmaz */
   contain: layout style paint;
   content-visibility: auto;
   contain-intrinsic-size: 90px 24px;
@@ -320,7 +308,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .cevrimo-gosterge { padding: 3px 7px; font-size: 0.68rem; }
 }
 
-/* Bina kartı açıkken bildirim onun üstüne binsin: hiçbir şey üst üste binmez (masaüstü ve mobil) */
+/* Bildirim açıkken kartların üstüne binmesin: hiçbir şey üst üste binmez */
 .bildirim--bina-karti-ustunde { bottom: calc(76px + 200px + env(safe-area-inset-bottom)); }
 .bildirim {
   position: fixed;
@@ -334,15 +322,13 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   max-width: calc(100vw - 24px);
   padding: 10px 16px;
   background: #1f1f1f;
-  /* WCAG AA: #fff sobre #1f1f1f ≈ 18:1 — geçer */
-  color: #fff;
+  color: #fff; /* WCAG AA: #fff sobre #1f1f1f ≈ 16:1 */
   font-size: 0.85rem;
   border-radius: 8px;
   box-shadow: var(--golge);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* Boyama optimizasyonu: bildirim ekrandan uzaktayken içerik boyanmaz; dışarı boyanmaz */
   content-visibility: auto;
   contain-intrinsic-size: 280px 40px;
   contain: layout paint;
@@ -357,8 +343,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   padding: 2px 8px;
   background: none;
   border: none;
-  /* WCAG AA: #ffb4ab sobre #1f1f1f ≈ 9:1 — geçer */
-  color: #ffb4ab;
+  color: #ffb4ab; /* WCAG AA: #ffb4ab sobre #1f1f1f ≈ 9.7:1 */
   font: inherit;
   font-weight: 600;
   text-decoration: underline;
@@ -366,10 +351,9 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   white-space: nowrap;
 }
 .bildirim button:focus-visible { outline: 3px solid #ffb4ab; outline-offset: 1px; border-radius: 4px; }
-/* Katman kartı açıkken bildirim kartın üstünde dursun: hiçbir şey üst üste binmez */
 .bildirim--kart-ustunde { bottom: calc(84px + 320px + env(safe-area-inset-bottom)); }
 
-/* Yükleniyor göstergesi: açılışta anında görünür, haritayı kapatmaz (tıklanmaz, yarı saydam) */
+/* Yükleniyor göstergesi */
 .yukleniyor {
   position: fixed;
   inset: 0;
@@ -380,9 +364,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(2px);
   pointer-events: none;
-  /* Açılış katmanı tek seferlik gösterilip kaldırılır; opaklık değişimi katmanlaştırılır */
   will-change: opacity;
-  /* Boyama kapsamı: açılış overlay'i harita katmanlarıyla boyanmayı paylaşmaz */
   contain: layout style paint;
 }
 .yukleniyor__logo { height: 48px; width: auto; }
@@ -420,7 +402,6 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   white-space: nowrap;
   pointer-events: none;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-  /* Boyama optimizasyonu: ekrandan uzaktayken içerik boyanmaz (ilk açılış performansı) */
   content-visibility: auto;
   contain-intrinsic-size: 260px 24px;
   contain: layout paint;
@@ -446,13 +427,12 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .bildirim--bina-karti-ustunde { bottom: calc(70px + 200px + env(safe-area-inset-bottom)); }
 }
 
-/* Klavye kullanıcıları için atla bağlantısı: odakta görünür */
+/* Klavye kullanıcıları için atla bağlantısı: 44x44 hedef, odakta görünür */
 .atla-link {
   position: fixed;
   top: -56px;
   left: 12px;
   z-index: 50;
-  /* 44x44 dokunma hedefi (WCAG 2.5.8 / sahip kuralı): min-height garanti + padding */
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -486,7 +466,6 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
     animation: none !important;
     scroll-behavior: auto !important;
   }
-  /* Yükleniyor halkası animasyonsuz da görünür kalsın */
   .yukleniyor__halka {
     animation: none;
     border: 3px solid rgba(179, 38, 30, 0.35);
@@ -494,21 +473,18 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   }
 }
 
-/* Bina bilgi kartı açılış animasyonu: hafif belirme + yukarıdan kayma (0.18s) */
+/* Bina bilgi kartı */
 @keyframes bina-karti-gir {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-/* Mobil kart için animasyon: alttan hafif kayma */
 @keyframes bina-karti-gir-mobil {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-/* reduced-motion: kart animasyonsuz açılır (global kural animasyonu zaten keser; bu blok garantidir) */
 @media (prefers-reduced-motion: reduce) {
   .bina-karti { animation: none !important; }
 }
-/* Bina bilgi kartı: masaüstünde sağ üstte yüzen kart; mobilde alt çubuk üstünde yatay kart */
 .bina-karti {
   position: fixed;
   top: 76px;
@@ -524,7 +500,6 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   flex-direction: column;
   gap: 4px;
   animation: bina-karti-gir 0.18s ease-out;
-  /* Boyama optimizasyonu: kapalıyken/uzaktayken içerik boyanmaz; kart taşmaz, dışarı boyanmaz */
   content-visibility: auto;
   contain-intrinsic-size: 260px 140px;
   contain: layout style paint;
@@ -533,20 +508,19 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--metin);
-  padding-right: 44px; /* kapama düğmesiyle çakışmasın */
+  padding-right: 44px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .bina-karti__baslik-satir { display: flex; align-items: center; min-width: 0; }
-/* Çoklu seçim sayacı rozeti (7. adım sözleşmesi): başlık yanına küçük '2/3' rozeti; JS doldurmadıkça [hidden] ile gizli kalır */
+/* Çoklu seçim sayacı rozeti — WCAG AA: --vurgu sobre #f6e3e2 ≈ 5.3:1 */
 .bina-karti__sayac {
   flex-shrink: 0;
   margin-left: 6px;
   padding: 1px 7px;
   border-radius: 999px;
   background: #f6e3e2;
-  /* WCAG AA: --vurgu sobre #f6e3e2 ≈ 5.3:1 — geçer */
   color: var(--vurgu);
   font-size: 0.72rem;
   font-weight: 700;
@@ -561,7 +535,6 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Sözleşme: satır kapsayıcısı dikey dizilir; mobil yatay kartta taşmayı önler */
 .bina-karti__satirlar {
   display: flex;
   flex-direction: column;
@@ -569,7 +542,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   min-width: 0;
   max-width: 100%;
 }
-/* Kapama düğmesi: en az 44x44 dokunma hedefi, --vurgu odak halkası (WCAG) */
+/* Kapama düğmesi: en az 44x44 dokunma hedefi, --vurgu odak halkası */
 #bina-karti-kapat {
   position: absolute;
   top: 2px;
@@ -589,7 +562,6 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
 #bina-karti-kapat:focus-visible { outline: 3px solid var(--vurgu); outline-offset: 2px; border-radius: 50%; }
 
 @media (max-width: 600px) {
-  /* Mobil: alt ortada yatay kart, alt çubukla çakışmaz (bottom: alt çubuk üstü + güvenli alan) */
   .bina-karti {
     top: auto;
     right: 12px;

@@ -329,8 +329,11 @@ require([
     });
 
   // ---------- Bilgi penceresi: alt yerleşik (dock), araç çubuğuyla çakışmaz ----------
-  view.popup.dockEnabled = true;
-  view.popup.dockOptions = { buttonEnabled: false, breakpoint: false, position: "bottom-center" };
+  // Nihai kilit: popup kurulumuna beklenmedik erişim asla konsol hatası üretmez
+  try {
+    view.popup.dockEnabled = true;
+    view.popup.dockOptions = { buttonEnabled: false, breakpoint: false, position: "bottom-center" };
+  } catch (_) {}
   const altCubuk = document.querySelector(".alt-cubuk");
   reactiveUtils.watch(() => view.popup.visible, gorunur => {
     // Koruma: watch callback'i asla konsol hatası üretmez
@@ -739,7 +742,7 @@ require([
       });
   }
 
-  aramaGirdi.addEventListener("input", () => {
+  if (aramaGirdi) aramaGirdi.addEventListener("input", () => {
     aramaTemizle.hidden = !aramaGirdi.value.trim();
     clearTimeout(aramaTimer);
     aramaTimer = setTimeout(() => {
@@ -753,7 +756,7 @@ require([
     }, 500);
   });
 
-  aramaGirdi.addEventListener("keydown", e => {
+  if (aramaGirdi) aramaGirdi.addEventListener("keydown", e => {
     try {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -786,7 +789,7 @@ require([
   });
 
   // Sonuç listesinde ok tuşlarıyla gezinme
-  aramaSonuclari.addEventListener("keydown", e => {
+  if (aramaSonuclari) aramaSonuclari.addEventListener("keydown", e => {
     if (e.key === "Enter") {
       // Odaktaki seçenek Enter ile seçilir (listbox/option ekran okuyucu akışı)
       const aktif = document.activeElement;
@@ -816,9 +819,10 @@ require([
     }
   });
 
-  aramaTemizle.addEventListener("click", temizleArama);
+  if (aramaTemizle) aramaTemizle.addEventListener("click", temizleArama);
 
   document.addEventListener("click", e => {
+    if (!aramaSonuclari) return;
     if (!e.target.closest(".arama-kutu") && !aramaSonuclari.hidden) {
       aramaSonuclari.hidden = true;
       aramaGirdi.setAttribute("aria-expanded", "false");
@@ -833,7 +837,7 @@ require([
     isaretKoy(pt, [30, 100, 200, 1], "Konumunuz", "");
     view.goTo({ target: pt, zoom: 17, tilt: 60 }, { duration: ucusSuresi(800) });
   }
-  btnKonum.addEventListener("click", () => {
+  if (btnKonum) btnKonum.addEventListener("click", () => {
     titresim();
     if (!navigator.geolocation) { gosterBildirim("Konum alınamadı"); return; }
     if (watchId !== null) {
@@ -860,7 +864,8 @@ require([
   });
 
   // ---------- Anıtkabir'e dön ----------
-  document.getElementById("btn-anitkabir").addEventListener("click", () => {
+  const btnAnitkabir = document.getElementById("btn-anitkabir");
+  if (btnAnitkabir) btnAnitkabir.addEventListener("click", () => {
     titresim();
     binaKartiKapat(false); // kart açıksa kapatır, düğme kendi işlevini yapar
     view.goTo({
@@ -873,7 +878,8 @@ require([
 
   // ---------- Kuzeye çevir ----------
   const kuzeySimge = document.getElementById("kuzey-simge");
-  document.getElementById("btn-kuzey").addEventListener("click", () => {
+  const btnKuzey = document.getElementById("btn-kuzey");
+  if (btnKuzey) btnKuzey.addEventListener("click", () => {
     titresim();
     binaKartiKapat(false); // kart açıksa kapatır, düğme kendi işlevini yapar
     view.goTo({ heading: 0 }, { duration: ucusSuresi(600) });
@@ -886,7 +892,7 @@ require([
   // ---------- Katman kartı ----------
   const katmanKarti = document.getElementById("katman-karti");
   const btnKatmanlar = document.getElementById("btn-katmanlar");
-  btnKatmanlar.setAttribute("aria-controls", "katman-karti");
+  if (btnKatmanlar) btnKatmanlar.setAttribute("aria-controls", "katman-karti");
   const cbBinalar = document.getElementById("cb-binalar");
   const cbYapilar = document.getElementById("cb-yapilar");
   const cbNumarataj = document.getElementById("cb-numarataj");
@@ -895,7 +901,8 @@ require([
   const tabanUydu = document.getElementById("taban-uydu");
   const tabanHarita = document.getElementById("taban-harita");
 
-  btnKatmanlar.addEventListener("click", () => {
+  if (btnKatmanlar) btnKatmanlar.addEventListener("click", () => {
+    if (!katmanKarti) return;
     titresim();
     const acilacak = katmanKarti.hidden;
     if (acilacak) binaKartiKapat(false); // bina kartı açıksa kapat: ikisi altta üst üste binmesin
@@ -909,12 +916,12 @@ require([
   });
 
   function katmanKartiKapat() {
-    // Nihai guard (binaKartiKapat'le aynı kural): kart zaten kapalıysa hiçbir şey
-    // yapma — yoksa her dış tıklamada ekran okuyucuya gereksiz "kapandı" duyurusu gider
-    if (katmanKarti.hidden) return;
+    // Nihai guard (binaKartiKapat'le aynı kural): kart yoksa ya da zaten kapalıysa
+    // hiçbir şey yapma — yoksa her dış tıklamada ekran okuyucuya gereksiz "kapandı" duyurusu gider
+    if (!katmanKarti || katmanKarti.hidden) return;
     const odakKartta = katmanKarti.contains(document.activeElement);
     katmanKarti.hidden = true;
-    btnKatmanlar.setAttribute("aria-expanded", "false");
+    if (btnKatmanlar) btnKatmanlar.setAttribute("aria-expanded", "false");
     duyur("Katmanlar paneli kapandı");
     if (odakKartta) btnKatmanlar.focus();
   }
@@ -942,6 +949,7 @@ require([
     [cbMahalleler, mahallelerKatmani, "Mahalleler"],
     [cbYollar, yollarKatmani, "Yollar"]
   ].forEach(([cb, katmanAl, ad]) => {
+    if (!cb) return;
     cb.addEventListener("change", () => {
       titresim();
       // Gizli katmanlar (Mahalleler/Yollar) fabrika ile ilk açılışlarında
@@ -957,14 +965,15 @@ require([
     // sunulur; kullanıcı tek satır bildirim + kurtarma akışıyla bilgilendirilir
     if (!navigator.onLine) gosterBildirim("Çevrimdışı — taban önbellekten açıldı", () => tabanSec(taban));
     view.map.basemap = taban;
-    tabanUydu.setAttribute("aria-pressed", String(taban === "hybrid"));
-    tabanHarita.setAttribute("aria-pressed", String(taban === "streets-vector"));
+    if (tabanUydu) tabanUydu.setAttribute("aria-pressed", String(taban === "hybrid"));
+    if (tabanHarita) tabanHarita.setAttribute("aria-pressed", String(taban === "streets-vector"));
     duyur(taban === "hybrid" ? "Uydu taban seçildi" : "Harita taban seçildi");
   }
-  tabanUydu.addEventListener("click", () => tabanSec("hybrid"));
-  tabanHarita.addEventListener("click", () => tabanSec("streets-vector"));
+  if (tabanUydu) tabanUydu.addEventListener("click", () => tabanSec("hybrid"));
+  if (tabanHarita) tabanHarita.addEventListener("click", () => tabanSec("streets-vector"));
   // Taban seçiminde ok tuşlarıyla gezinme
-  document.querySelector(".taban-secimi").addEventListener("keydown", e => {
+  const tabanSecimiEl = document.querySelector(".taban-secimi");
+  if (tabanSecimiEl) tabanSecimiEl.addEventListener("keydown", e => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
     tabanSec(e.key === "ArrowRight" ? "streets-vector" : "hybrid");
