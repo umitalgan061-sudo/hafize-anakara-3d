@@ -1,3 +1,17 @@
+/* ============================================================
+   Ankara 3D — uygulama.css
+   WCAG 2.1 AA NİHAİ TARAMA (7 Kasım, adım 5):
+   - Kontrast ≥4.5:1: metin #1f1f1f, placeholder #4d4d4d, boş-durum #444,
+     rozet/aktive --vurgu #b3261e sobre #f6e3e2 (~5.3:1), bildirim #fff/#1f1f1f,
+     kurtarma düğmesi #ffb4ab/#1f1f1f, kurulum #fff/#b3261e (~6.5:1) — hepsi geçer.
+   - Dokunma hedefleri ≥44x44: kontrol düğmeleri 56x56 (mobil 54x52), temizle 44x44,
+     katman satırı min-height 44, taban düğmesi min-height 44, kurulum min-height 44,
+     bina kartı kapama 44x44, bildirim kurtarma düğmesi min 44x44, atla-link min-height 44.
+   - :focus-visible: tüm kontrollerde tutarlı 3px --vurgu halkası (beyaz zeminde ~6.5:1).
+   - prefers-reduced-motion: tüm transition/animasyon kesilir, yükleniyor halkası statik.
+   - 390x844 yatay taşma sıfır: html/body max-width:100vw + overflow-x:hidden,
+     tüm flex elemanları min-width:0.
+   ============================================================ */
 :root {
   --vurgu: #b3261e;
   --metin: #1f1f1f;
@@ -85,6 +99,7 @@ body {
   width: 44px; height: 44px;
   border: none;
   background: transparent;
+  /* WCAG AA: #666 beyaz zeminde 5.7:1 — geçer */
   color: #666;
   font-size: 0.9rem;
   cursor: pointer;
@@ -167,6 +182,7 @@ input[type="search"]::-webkit-search-results-decoration,
 .kontrol-dugme {
   width: 56px;
   min-height: 56px;
+  min-width: 44px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -182,6 +198,7 @@ input[type="search"]::-webkit-search-results-decoration,
 }
 .kontrol-dugme:hover { background: #f2f2f2; }
 .kontrol-dugme:active { background: #e5e5e5; }
+/* WCAG AA: aktif durum --vurgu sobre #f6e3e2 ≈ 5.3:1 — geçer */
 .kontrol-dugme[aria-expanded="true"] { color: var(--vurgu); background: #f6e3e2; }
 .kontrol-dugme svg { width: 24px; height: 24px; }
 .kontrol-dugme span { font-size: 11px; line-height: 1; white-space: nowrap; }
@@ -231,11 +248,13 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   cursor: pointer;
 }
 .katman-satir:hover { background: #f2f2f2; }
-.katman-satir input { width: 18px; height: 18px; accent-color: var(--vurgu); }
+/* WCAG 2.5.8: dokunma hedefi tüm satır (min-height 44); kutu sabit boyutta kalır */
+.katman-satir input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--vurgu); }
 .taban-secimi { display: flex; gap: 8px; margin-top: 8px; }
 .taban-dugme {
   flex: 1;
   min-height: 44px;
+  min-width: 44px;
   padding: 8px;
   font: inherit;
   font-size: 0.85rem;
@@ -245,9 +264,10 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   cursor: pointer;
   color: var(--metin);
 }
+/* WCAG AA: seçili taban --vurgu sobre #f2f2f2 ≈ 5.8:1 — geçer */
 .taban-dugme[aria-pressed="true"] { border-color: var(--vurgu); color: var(--vurgu); font-weight: 600; }
 
-/* PWA kurulum düğmesi (üst bant, sağda) */
+/* PWA kurulum düğmesi (üst bant, sağda) — WCAG AA: #fff sobre #b3261e ≈ 6.5:1 */
 .kurulum-dugme {
   flex-shrink: 0;
   contain: layout style;
@@ -255,6 +275,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   align-items: center;
   gap: 6px;
   min-height: 44px;
+  min-width: 44px;
   padding: 6px 12px;
   font: inherit;
   font-size: 0.85rem;
@@ -269,7 +290,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
 .kurulum-dugme:hover { background: #9c1f18; }
 .kurulum-dugme svg { width: 18px; height: 18px; }
 @media (max-width: 600px) {
-  .kurulum-dugme { min-height: 44px; padding: 4px 10px; font-size: 0.8rem; }
+  .kurulum-dugme { min-height: 44px; min-width: 44px; padding: 4px 10px; font-size: 0.8rem; }
   .kurulum-dugme span { display: none; }
   .kurulum-dugme svg { width: 20px; height: 20px; }
 }
@@ -284,6 +305,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   padding: 4px 8px;
   border-radius: 999px;
   background: #f6e3e2;
+  /* WCAG AA: --vurgu #b3261e sobre #f6e3e2 ≈ 5.3:1 — geçer */
   color: var(--vurgu);
   font-size: 0.72rem;
   font-weight: 700;
@@ -312,6 +334,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   max-width: calc(100vw - 24px);
   padding: 10px 16px;
   background: #1f1f1f;
+  /* WCAG AA: #fff sobre #1f1f1f ≈ 18:1 — geçer */
   color: #fff;
   font-size: 0.85rem;
   border-radius: 8px;
@@ -334,6 +357,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   padding: 2px 8px;
   background: none;
   border: none;
+  /* WCAG AA: #ffb4ab sobre #1f1f1f ≈ 9:1 — geçer */
   color: #ffb4ab;
   font: inherit;
   font-weight: 600;
@@ -413,7 +437,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   #arama-girdi { height: 44px; font-size: 16px; padding: 0 44px 0 10px; }
   #arama-temizle { width: 44px; height: 44px; right: 0; }
   .alt-cubuk { bottom: calc(8px + env(safe-area-inset-bottom)); padding: 4px; gap: 2px; }
-  .kontrol-dugme { width: 54px; min-height: 52px; padding: 2px 4px; }
+  .kontrol-dugme { width: 54px; min-height: 52px; min-width: 44px; padding: 2px 4px; }
   .kontrol-dugme svg { width: 22px; height: 22px; }
   .kontrol-dugme span { font-size: 10px; }
   .katman-karti { bottom: calc(70px + env(safe-area-inset-bottom)); }
@@ -428,7 +452,11 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   top: -56px;
   left: 12px;
   z-index: 50;
-  /* 44x44 dokunma hedefi (WCAG 2.5.8 / sahip kuralı): 0.9rem metin + 2x14px padding ≥ 44px */
+  /* 44x44 dokunma hedefi (WCAG 2.5.8 / sahip kuralı): min-height garanti + padding */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
   padding: 14px;
   background: var(--metin);
   color: #fff;
@@ -518,6 +546,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   padding: 1px 7px;
   border-radius: 999px;
   background: #f6e3e2;
+  /* WCAG AA: --vurgu sobre #f6e3e2 ≈ 5.3:1 — geçer */
   color: var(--vurgu);
   font-size: 0.72rem;
   font-weight: 700;

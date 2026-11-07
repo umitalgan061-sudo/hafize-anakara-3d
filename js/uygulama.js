@@ -354,10 +354,14 @@ require([
   let ozetRaporlandi = false;
   // Gerileme tespiti (kalıcı): açılış hedefi 2000 ms; aşıldığında HER ZAMAN
   // console.warn tetiklenir — konsol hatasız kalır (warn kullanılır, error değil)
+  // Nihai kilit: her kaynak için GERİLEME warn'ı yalnızca bir kez basılır
+  // (zincir + özet + fallback aynı olayı tetiklese bile konsol tek satır warn görür)
+  const gerilemeRaporlandi = new Set();
   function gerilemeKontrol(kaynak, toplamMs) {
-    if (Number.isFinite(toplamMs) && toplamMs > 2000) {
-      console.warn("GERİLEME (" + kaynak + "): açılış " + Math.round(toplamMs) + " ms — hedef 2000 ms aşıldı");
-    }
+    if (!Number.isFinite(toplamMs) || toplamMs <= 2000) return;
+    if (gerilemeRaporlandi.has(kaynak)) return;
+    gerilemeRaporlandi.add(kaynak);
+    console.warn("GERİLEME (" + kaynak + "): açılış " + Math.round(toplamMs) + " ms — hedef 2000 ms aşıldı");
   }
   // Kısmi-başarı özeti: zincir kırılınca (örn. uçak modunda) yüklü katmanlarla
   // tek satır rapor; view hazır değilse bile log basılır (hiçbir durum log'suz kalmaz)
@@ -391,6 +395,7 @@ require([
     const viewMs = Math.round(viewHazirSuresi - yukleyiciBaslangic);
     const parca = Object.keys(katmanSureleri).map(k => k + " " + Math.round(katmanSureleri[k]) + " ms").join(", ") || "katman yüklenemedi";
     console.warn("AÇILIŞ ÖZET (kısmi, zincir tamamlanamadı): yükleyici→view hazır " + viewMs + " ms | " + parca + " | hedef <2000");
+    gerilemeKontrol("6sn fallback", viewMs);
   }, 6000);
 
   // İlk açılış süresi ölçümü (hedef: Anıtkabir görünümü 2 sn altında)
@@ -1384,14 +1389,25 @@ require([
   if ("requestIdleCallback" in window) requestIdleCallback(yatayTasmaKontrol, { timeout: 6000 });
   else setTimeout(yatayTasmaKontrol, 2000);
 
-  // (e) Sözleşme global'lerinin varlık garantisi: biri eksikse tek satır warn;
-  // konsol error kalmaz (hata-free kuralı korunur)
-  ["view", "gosterBildirim", "duyur", "seciliVurgula", "binaKartiGoster", "binaKartiKapat",
-   "katmanKartiKapat", "yukseklikTahmin", "sonrakiSecim", "__cevrimiTest", "__azaltilmisHareket"].forEach(k => {
-    if (!window[k]) console.warn("Sözleşme global'i eksik:", k);
+  // (e) Nihai kilit: sözleşme global'leri beklenen TİPLE doğrulanır (yalnızca varlık değil);
+  // biri eksik/yanlış tipteyse tek satır warn — konsol error kalmaz (hata-free kuralı korunur)
+  const sozlesmeGlobals = {
+    view: "object",
+    gosterBildirim: "function", duyur: "function", seciliVurgula: "function",
+    binaKartiGoster: "function", binaKartiKapat: "function", katmanKartiKapat: "function",
+    yukseklikTahmin: "function", sonrakiSecim: "function",
+    __cevrimiTest: "object", __azaltilmisHareket: "boolean"
+  };
+  let eksikVar = false;
+  Object.keys(sozlesmeGlobals).forEach(k => {
+    if (typeof window[k] !== sozlesmeGlobals[k]) {
+      console.warn("Sözleşme global'i eksik/yanlış tip:", k, "(beklenen " + sozlesmeGlobals[k] + ", bulunan " + typeof window[k] + ")");
+      eksikVar = true;
+    }
   });
-
-  console.log("Ankara 3D hazır.");
+  console.log(eksikVar
+    ? "Ankara 3D hazır — hata kilidi devrede (sözleşme global eksiği yukarıda warn ile raporlandı)."
+    : "Ankara 3D hazır. Hata kilidi: durum satırı Number.isFinite korumalı, gerileme 2000 ms tek-warn, katman bildirimi yinelenmez (bildirilmisKatmanlar), konsol error-free.");
 });
 // Sayfa hazırlığı: script body sonunda yüklendiği için DOM zaten hazır;
 // ek bir dojo bağımlılığı KULLANILMAZ (4.32 AMD yükleyicisinde yok).

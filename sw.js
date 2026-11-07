@@ -1,6 +1,6 @@
-const AD = "ankara3d-v30";
-const KARO_AD = "ankara3d-karolar-v27";
-const VEKTOR_AD = "ankara3d-vektor-v1";
+const AD = "ankara3d-v31";
+const KARO_AD = "ankara3d-karolar-v28";
+const VEKTOR_AD = "ankara3d-vektor-v2";
 const KARO_SINIRI = 600;
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
@@ -133,6 +133,8 @@ function bosYanit(url) {
   return new Response("", { status: 200, headers: { "Content-Type": ct } });
 }
 
+// Nihai sertleştirme: her mesaj tipi için garanti yanıt — fn hata verse bile
+// port asla yanıtsız kalmaz; BILINMEYEN fallback tüm tipleri kapsar
 function mesajIsle(e, fn) {
   const port = e.ports && e.ports[0];
   const garantiYanit = () => {
@@ -175,13 +177,20 @@ self.addEventListener("install", e => {
   );
 });
 
+// Nihai sertleştirme: activate'te GÜNCEL sürümler dışındaki TÜM önbellekler
+// (eski v30/v27/v1 dahil her ad) kalıcı silinir; üç önbellek varestelle garanti edilir
 self.addEventListener("activate", e => {
+  const guncelAdlar = [AD, KARO_AD, VEKTOR_AD];
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== AD && k !== KARO_AD && k !== VEKTOR_AD).map(k => caches.delete(k).catch(() => {}))))
-      .then(() => Promise.all([caches.open(AD), caches.open(KARO_AD)]))
-      .then(([c]) => c.match("index.html").then(hit => {
-        if (!hit) return fetch("index.html").then(r => { if (r.ok) return c.put("index.html", r); }).catch(() => {});
+      .then(keys => Promise.all(
+        keys
+          .filter(k => guncelAdlar.indexOf(k) === -1)
+          .map(k => caches.delete(k).catch(() => {}))
+      ))
+      .then(() => Promise.all([caches.open(AD), caches.open(KARO_AD), caches.open(VEKTOR_AD)]))
+      .then(cachesArr => cachesArr[0].match("index.html").then(hit => {
+        if (!hit) return fetch("index.html").then(r => { if (r.ok) return cachesArr[0].put("index.html", r); }).catch(() => {});
       }))
       .then(() => self.clients.claim())
       .catch(() => self.clients.claim())
