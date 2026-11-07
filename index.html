@@ -46,12 +46,21 @@
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/sprites/sprite.json" />
   <link rel="preload" as="fetch" crossorigin href="https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/fonts/AdelleSans_W_Bold/0-255.pbf" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 100'%3E%3Cg fill='%23b3261e'%3E%3Crect x='19' y='1' width='2' height='9'/%3E%3Cpath d='M15 11h10l-1.5 5h-7z'/%3E%3Cpath fill-rule='evenodd' d='M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z'/%3E%3Cpath d='M16 34h8l2 62H14z'/%3E%3Crect x='12' y='96' width='16' height='3'/%3E%3C/g%3E%3C/svg%3E" />
-  <!-- ArcGIS tema CSS'i ilk boyamayı engellemesin: print medyasıyla yükle, yüklenince 'all' yap (hile korunur) -->
+  <!-- ArcGIS tema CSS'i ilk boyamayı engellemesin: print medyasıyla yükle, yüklenince 'all' yap (hile korunur).
+       Ayrı bir fetch preload'u eklenir: sw.js SDK önbelleği (SDK_AD) tema CSS'ini erkenden ve
+       tutarlı şekilde önbelleğe alır; uçak modunda tema önbellekten açılır -->
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" />
   <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" media="print" onload="this.media='all'" />
   <noscript><link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" /></noscript>
   <!-- ArcGIS JS 4.32 ana yükleyici betiğinin tam URL'si preload edilir; bu erken ipucu
-       yükleyicinin indirilmesini geciktirmez, tam tersine ilk açılışı hızlandırır -->
+       yükleyicinin indirilmesini geciktirmez, tam tersine ilk açılışı hızlandırır.
+       sw.js SDK önbelleğiyle tutarlı: kritik esri modülleri de erkenden preload edilir,
+       AMD require bu URL'leri istediğinde tarayıcı önbelleği zaten dolu olur (hem ilk
+       açılış <2 sn hedefine katkı, hem uçak modunda SDK önbellekten eksiksiz açılır) -->
   <link rel="preload" as="script" href="https://js.arcgis.com/4.32/" fetchpriority="high" />
+  <link rel="preload" as="script" fetchpriority="high" href="https://js.arcgis.com/4.32/esri/views/SceneView.js" />
+  <link rel="preload" as="script" fetchpriority="high" href="https://js.arcgis.com/4.32/esri/WebScene.js" />
+  <link rel="preload" as="script" fetchpriority="high" href="https://js.arcgis.com/4.32/esri/core/reactiveUtils.js" />
   <script src="https://js.arcgis.com/4.32/" fetchpriority="high"></script>
   <link rel="preload" href="css/uygulama.css" as="style" fetchpriority="high" />
   <link rel="preload" href="js/uygulama.js" as="script" fetchpriority="high" />
@@ -63,6 +72,8 @@
   <a class="atla-link" href="#viewDiv">Haritaya geç</a>
   <noscript><p style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center;background:#fff;color:#1f1f1f;font-family:system-ui,sans-serif;">Ankara 3D haritasının çalışması için JavaScript gereklidir.</p></noscript>
   <div id="viewDiv" tabindex="-1" role="application" aria-label="Ankara 3D harita görünümü. Haritada gezinmek için ok tuşlarını, yakınlaşmak için artı ve eksi tuşlarını kullanın; merkezdeki nesneyi seçmek için Enter."></div>
+  <!-- Yükleniyor göstergesi: aria değerleri (0-3) js/uygulama.js zinciriyle birebir eşleşir
+       (Numarataj 1/3, Yapılar 2/3, 3B binalar 3/3 — yuklemeIlerleme() bu değerleri yazar) -->
   <div id="yukleniyor" class="yukleniyor" role="progressbar" aria-label="Harita yükleniyor" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0" aria-valuetext="Yükleniyor (0/3)">
     <span class="gorsel-gizli">Harita yükleniyor</span>
     <svg viewBox="0 0 40 100" class="yukleniyor__logo" aria-hidden="true" focusable="false"><g fill="#b3261e"><rect x="19" y="1" width="2" height="9"/><path d="M15 11h10l-1.5 5h-7z"/><path fill-rule="evenodd" d="M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z"/><path d="M16 34h8l2 62H14z"/><rect x="12" y="96" width="16" height="3"/></g></svg>

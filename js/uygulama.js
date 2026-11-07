@@ -333,8 +333,11 @@ require([
   view.popup.dockOptions = { buttonEnabled: false, breakpoint: false, position: "bottom-center" };
   const altCubuk = document.querySelector(".alt-cubuk");
   reactiveUtils.watch(() => view.popup.visible, gorunur => {
-    if (altCubuk) altCubuk.style.visibility = gorunur ? "hidden" : "visible";
-    if (gorunur) katmanKartiKapat();
+    // Koruma: watch callback'i asla konsol hatası üretmez
+    try {
+      if (altCubuk) altCubuk.style.visibility = gorunur ? "hidden" : "visible";
+      if (gorunur) katmanKartiKapat();
+    } catch (_) {}
   });
 
   function yukleniyoruKapat() {
@@ -417,6 +420,9 @@ require([
   let yuklenenSayisi = 0;
   const yuklemeBaslangic = performance.now();
   function yuklemeIlerleme(ad) {
+    // Yinelenme kilidi: kurtarma akışında aynı katman yeniden yüklenirse sayaç 3'ü
+    // geçmez; progressbar aria-valuenow her zaman 0-3 aralığında kalır
+    if (katmanSureleri[ad] !== undefined) return;
     yuklenenSayisi++;
     katmanSureleri[ad] = performance.now() - yuklemeBaslangic;
     acilisOzetRaporla();
@@ -429,10 +435,12 @@ require([
   }
   [[numaratajLayer, "Numarataj"], [yapilarLayer, "Yapılar"], [binalarLayer, "3B binalar"]].forEach(([lyr, ad]) => {
     reactiveUtils.watch(() => lyr.loadStatus, s => {
-      if (s === "loaded") {
-        yuklemeIlerleme(ad);
-        console.log("Katman yükleme süresi: " + Math.round(performance.now() - yuklemeBaslangic) + " ms (" + ad + ")");
-      }
+      try {
+        if (s === "loaded") {
+          yuklemeIlerleme(ad);
+          console.log("Katman yükleme süresi: " + Math.round(performance.now() - yuklemeBaslangic) + " ms (" + ad + ")");
+        }
+      } catch (_) {}
     });
   });
   // 3B binalar yüklenene kadar gizli kalır; load tamamlanınca (kullanıcı kapatmadıysa) görünür olur.
@@ -901,6 +909,9 @@ require([
   });
 
   function katmanKartiKapat() {
+    // Nihai guard (binaKartiKapat'le aynı kural): kart zaten kapalıysa hiçbir şey
+    // yapma — yoksa her dış tıklamada ekran okuyucuya gereksiz "kapandı" duyurusu gider
+    if (katmanKarti.hidden) return;
     const odakKartta = katmanKarti.contains(document.activeElement);
     katmanKarti.hidden = true;
     btnKatmanlar.setAttribute("aria-expanded", "false");
