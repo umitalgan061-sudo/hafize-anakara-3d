@@ -131,6 +131,43 @@ require([
   window.addEventListener("resize", logoGuardUygula);
   window.addEventListener("orientationchange", logoGuardUygula);
 
+  // DÖRDÜNCÜ KATMAN KİLİT (adım 3): MutationObserver + ResizeObserver ile sürekli guard.
+  // Her DOM değişikliğinde ve logo render boyutu her değiştiğinde 28px zorlanır;
+  // hiçbiri konsol error üretmez (yalnızca warn — konsol error-free kuralı korunur).
+  try {
+    if (typeof MutationObserver !== "undefined" && document.body) {
+      const logoMo = new MutationObserver(() => logoGuardUygula());
+      logoMo.observe(document.body, { childList: true, subtree: true, attributes: true });
+    }
+    if (typeof ResizeObserver !== "undefined") {
+      const logoRo = new ResizeObserver(() => {
+        try {
+          const svg = document.querySelector(".ust-bant__logo svg");
+          if (!svg) return;
+          const h = svg.getBoundingClientRect().height;
+          if (Number.isFinite(h) && h < 28) {
+            svg.style.height = "28px";
+            svg.style.minHeight = "28px";
+          }
+        } catch (err) {
+          console.warn("Logo ResizeObserver hatası (ele alındı):", err);
+        }
+      });
+      const logoSvg = document.querySelector(".ust-bant__logo svg");
+      if (logoSvg) logoRo.observe(logoSvg);
+    }
+  } catch (err) {
+    console.warn("Logo observer kurulumu hatası (ele alındı):", err);
+  }
+  // Teşhis kancası (sözleşme global'i): logo render yüksekliğini döner — denetçiler
+  // mobil (390x844) ve masaüstünde >= 28 ölçütü için bu kanalı kullanır.
+  window.__logoYuksekligi = function () {
+    try {
+      const s = document.querySelector(".ust-bant__logo svg");
+      return s ? s.getBoundingClientRect().height : 0;
+    } catch (_) { return 0; }
+  };
+
   // ---------- Katmanlar ----------
   // 3B Binalar (Esri SceneServer) — opak buz grisi
   const buildingsUrl = "https://basemaps3d.arcgis.com/arcgis/rest/services/Esri3D_Buildings_v1/SceneServer";
@@ -1439,7 +1476,8 @@ require([
     gosterBildirim: "function", duyur: "function", seciliVurgula: "function",
     binaKartiGoster: "function", binaKartiKapat: "function", katmanKartiKapat: "function",
     yukseklikTahmin: "function", sonrakiSecim: "function",
-    __cevrimiTest: "object", __azaltilmisHareket: "boolean"
+    __cevrimiTest: "object", __azaltilmisHareket: "boolean",
+    __logoYuksekligi: "function"
   };
   let eksikVar = false;
   Object.keys(sozlesmeGlobals).forEach(k => {
