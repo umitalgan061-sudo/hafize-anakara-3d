@@ -130,6 +130,7 @@ require([
       if (!svg) return;
       svg.style.height = "28px";
       svg.style.minHeight = "28px";
+      svg.style.width = "11.2px";
       // Attribute katmanı: HTML width/height öznitelikleri çalışma zamanında da 11.2/28
       svg.setAttribute("height", "28");
       svg.setAttribute("width", "11.2");
