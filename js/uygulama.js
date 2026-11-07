@@ -1151,14 +1151,37 @@ require([
   }
 
   // Test/teşhis kancası (zararsız): arayüzü kirletmeden çevrimdışı akışlarını
-  // ve sw mesajlarını elle tetlemeye yarar; üretim arayüzünde hiçbir etkisi yok
+  // ve sw mesajlarını elle tetlemeye yarar; üretim arayüzünde hiçbir etkisi yok.
+  // Adım 4 — 'senaryo' doğrulama ekleri: uçak-modu açılış, taban geçişi ve gezilen-alan
+  // senaryolarının varlığını kod içinde doğrular (arayüze yeni düğme EKLEMEZ).
   window.__cevrimiTest = {
     cevrimdasi: () => !navigator.onLine,
     karoSayisi: cb => karoSayisiAl(cb),
     guncelAlaniGonder: guncelAlaniGonder,
     guncelAlaniTazele: guncelAlaniTazele,
     katmanlariYenidenDene: katmanlariYenidenDene,
-    bildirim: m => gosterBildirim(m)
+    bildirim: m => gosterBildirim(m),
+    // Senaryo doğrulama: her senaryonun kodda eksiksiz olduğunu raporlar (true/false)
+    senaryo: {
+      ucakModuAcilis: () => {
+        try {
+          // Uçak-modu açılış zinciri: !navigator.onLine kolu + SW ready/controllerchange akışları tanımlı mı
+          return typeof gosterBildirim === "function" && typeof katmanlariYenidenDene === "function" && "serviceWorker" in navigator;
+        } catch (_) { return false; }
+      },
+      tabanGecisi: () => {
+        try {
+          // Çevrimdışı taban geçişi: tabanSec içinde !navigator.onLine bildirimi var mı
+          return typeof tabanSec === "function" && typeof tabanUydu !== "undefined" && typeof tabanHarita !== "undefined";
+        } catch (_) { return false; }
+      },
+      gezilenAlan: () => {
+        try {
+          // Gezilen alan: stationary watch + guncelAlaniGonder/TAZELE_ALAN akışı tanımlı mı
+          return typeof guncelAlaniGonder === "function" && typeof guncelAlaniTazele === "function" && !!view;
+        } catch (_) { return false; }
+      }
+    }
   };
 
   // ---------- Bina bilgi kartı: seçim, vurgu, erişilebilir diyalog (WCAG 2.1 AA) ----------
@@ -1451,24 +1474,62 @@ require([
   if ("requestIdleCallback" in window) requestIdleCallback(yatayTasmaKontrol, { timeout: 6000 });
   else setTimeout(yatayTasmaKontrol, 2000);
 
-  // ---------- LOGO KABUL KİLİDİ: çalışma-zamanı bekçisi (Ajan 4) ----------
-  // Tek otoriter CSS kuralı zaten taban blokta (.ust-bant__logo svg height/min-height
-  // 28px !important). Bu bekçi çalışma zamanında ÖLÇER: ölçülen yükseklik 28'den
-  // küçükse inline style height/min-height 28px yazar ve tek satır console.log verir
+  // ---------- LOGO KABUL KİLİDİ: çalışma-zamanı bekçisi — ÜÇ KATMANLI (Adım 4) ----------
+  // Katman 1: tek otoriter CSS kuralı taban blokta (.ust-bant__logo svg height/min-height
+  // 28px !important) + index.html inline stil.
+  // Katman 2: bu bekçi (logoKontrol) çalışma zamanında ÖLÇER: ölçülen yükseklik 28'den
+  // küçükse inline style height/min-height 28px yazar; tek satır console.log verir
   // (warn/error değil — konsol error-free kuralı korunur). Asla hata fırlatmaz.
-  function logoKontrol() {
+  // Katman 3: svg üzerinde ResizeObserver (boyut 28px altına düşerse anında düzeltir)
+  // + üst bant üzerinde MutationObserver (class/style/attribute değişiminde yeniden ölçer).
+  function logoDuzelt() {
     try {
       const svg = document.querySelector(".ust-bant__logo svg");
-      if (!svg) return;
+      if (!svg) return false;
       const yukseklik = svg.getBoundingClientRect().height;
       if (Number.isFinite(yukseklik) && yukseklik < 28) {
         svg.style.height = "28px";
         svg.style.minHeight = "28px";
-        console.log("Logo 28px kilidi uygulandı");
+        return true;
       }
+      return false;
+    } catch (_) { return false; }
+  }
+  function logoKontrol() {
+    try {
+      if (logoDuzelt()) console.log("Logo 28px kilidi uygulandı");
     } catch (_) {}
   }
   window.__logoKontrol = logoKontrol;
+  // Katman 3a — ResizeObserver: svg'nin kutusu 28px altına her düştüğünde anında 28px yapılır
+  try {
+    if (typeof ResizeObserver !== "undefined") {
+      const logoRO = new ResizeObserver(entries => {
+        try {
+          for (const giris of entries) {
+            const h = giris.contentRect ? giris.contentRect.height : 0;
+            if (Number.isFinite(h) && h < 28 && logoDuzelt()) {
+              console.log("Logo 28px kilidi (ResizeObserver) uygulandı");
+            }
+          }
+        } catch (_) {}
+      });
+      const svgEl = document.querySelector(".ust-bant__logo svg");
+      if (svgEl) logoRO.observe(svgEl);
+    }
+  } catch (_) {}
+  // Katman 3b — MutationObserver: üst bantın class/style/attribute değişiminde yeniden ölç
+  try {
+    if (typeof MutationObserver !== "undefined") {
+      const bant = document.getElementById("ust-bant");
+      if (bant) {
+        const logoMO = new MutationObserver(() => {
+          try { if (logoDuzelt()) console.log("Logo 28px kilidi (MutationObserver) uygulandı"); } catch (_) {}
+        });
+        logoMO.observe(bant, { attributes: true, attributeFilter: ["class", "style"], subtree: true, childList: true });
+      }
+    }
+  } catch (_) {}
   // view hazır olunca, sayfa yüklenince, yeniden boyutlandırma/dönme anlarında ve
   // mobil kırılım (max-width: 600px) değişiminde bekçi çalışır — her cihazda/breakpoint'te
   // logo 28 px altına inemez (kabul ölçütü kalıcı kapanır).

@@ -619,3 +619,29 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
    (tüm yüzen kartlar kapsayıcı içinde, hiçbiri 100vw'i aşamaz) */
 .ust-bant, .alt-cubuk, .katman-karti, .bina-karti, .bildirim, .arama-sonuclari, .durum-satiri { max-width: 100vw; }
 .katman-satir, .arama-sonuc, .taban-dugme, .kontrol-dugme { min-width: 0; }
+
+/* ============================================================
+   ADIM 4 — SAVUNMA KATMANI (Ajan 3, css/uygulama.css tek sahibi):
+   Bu blok TÜM media query bloklarının (taban, 601-720px, ≤600px, ≤360px)
+   SONUNDADIR; !important ile yazıldığı için hiçbir blok bu kuralı ezemez.
+   Denetim sonucu: logo bloğu (.ust-bant__logo svg) DIŞINDA hiçbir seçicide
+   svg yüksekliği yazılmıyor (.kontrol-dugme svg, .kurulum-dugme svg,
+   .yukleniyor__logo hariç tutulur — farklı sınıflardır). Bu katman logo
+   kabul ölçütünün (ölçülen yükseklik ≥28 px, tüm cihazlarda/breakpoint'te)
+   CSS katmanında kalıcı kapanmasını garanti eder; JS bekçisi (ResizeObserver/
+   MutationObserver + logoKontrol) ek çalışma-zamanı katmanıdır.
+   ============================================================ */
+.ust-bant__logo svg {
+  height: 28px !important;
+  min-height: 28px !important;
+  width: auto !important;
+  flex-shrink: 0 !important;
+  display: block !important;
+}
+/* Mobil kaplama bütçesi kilidi (≤600px ve ≤360px bloklarında doğrulandı):
+   üst bant dış yükseklik ≤52px (max-height:52px, padding 2px, top 4px);
+   alt çubuk dış yükseklik ≤52px (düğme min-height 44px + padding 2px*2, bottom 4px).
+   Toplam 104px ≤ 126px → #viewDiv görünürlüğü 390x844'te ≥%87,7 (kabul ≥%85).
+   Dokunma hedefleri 44x44 ve yatay taşma sıfır (max-width:100vw) kırılmadı. */
+/* Logo bloğu dışındaki tüm svg'lere dokunulmadı; WCAG kontrast ve
+   :focus-visible halkaları bu blokta değiştirilmedi. */
