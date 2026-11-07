@@ -1186,6 +1186,18 @@ require([
     bildirim: m => gosterBildirim(m)
   };
 
+  // Çevrimdışı uçtan uca senaryo test kancaları (HAFIZE Öncelik 3 zemini):
+  // uçak-modu açılış, taban geçişi, gezilen alan, geri dönüş kurtarma —
+  // __cevrimiTest ile çakışmadan tek global; zararsız teşhis kancalarıdır (üretim arayüzünde etkisi yok)
+  window.__senaryoTest = {
+    cevrimdasi: () => !navigator.onLine,
+    ucakModuAcilis: () => { cevrimiGuncelle(); gosterBildirim("Çevrimdışı — önbellekten açılıyor", katmanlariYenidenDene); },
+    tabanGecisi: t => tabanSec(t || "hybrid"),
+    gezilenAlan: guncelAlaniGonder,
+    geriDonusKurtarma: () => { katmanlariYenidenDene(); guncelAlaniTazele(); },
+    karoSayisi: cb => karoSayisiAl(cb)
+  };
+
   // ---------- Bina bilgi kartı: seçim, vurgu, erişilebilir diyalog (WCAG 2.1 AA) ----------
   const binaKarti = document.getElementById("bina-karti");
   const binaKartiBaslik = binaKarti ? binaKarti.querySelector(".bina-karti__baslik") : null;
@@ -1484,7 +1496,7 @@ require([
       gosterBildirim: "function", duyur: "function", seciliVurgula: "function",
       binaKartiGoster: "function", binaKartiKapat: "function", katmanKartiKapat: "function",
       yukseklikTahmin: "function", sonrakiSecim: "function",
-      __cevrimiTest: "object", __azaltilmisHareket: "boolean"
+      __cevrimiTest: "object", __senaryoTest: "object", __azaltilmisHareket: "boolean"
     };
   let eksikVar = false;
   Object.keys(sozlesmeGlobals).forEach(k => {
