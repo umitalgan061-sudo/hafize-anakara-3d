@@ -97,12 +97,16 @@ require([
   // Konsol hatasız kuralı: yakalanmamış promise reddi konsolu kırmızıya boyamasın,
   // yalnızca warn ile ele alındığı bildirilsin
   window.addEventListener("unhandledrejection", e => {
+    // preventDefault: tarayıcının konsola kırmızı error basmasını fiilen bastırır
+    if (e && typeof e.preventDefault === "function") e.preventDefault();
     console.warn("Yakalanmamış promise reddi (ele alındı):", e.reason);
   });
   // Konsol hatasız kuralı: beklenmedik çalışma zamanı hataları (senkron hatalar dahil)
   // konsolu kırmızıya boyamasın — preventDefault konsol error çıktısını bastırır,
   // warn ile ele alındığı bildirilir
   window.addEventListener("error", e => {
+    // preventDefault: konsol error çıktısını bastırır, yalnızca warn görünür
+    if (e && typeof e.preventDefault === "function") e.preventDefault();
     console.warn("Yakalanmamış hata (ele alındı):", e.message);
   });
 
@@ -111,32 +115,27 @@ require([
   // en az 28px olmalı. HTML width/height öznitelikleri + CSS !important zaten garanti eder;
   // bu guard çalışma zamanında da (yükleme + resize + orientationchange) 28px'in altına
   // düşülmesini kalıcı olarak önler. Hiçbir konsol error üretmez (yalnızca warn).
+  // Nihai sadeleştirilmiş guard: KOŞULSUZ uygulama — yalnızca 28px'den küçükse değil,
+  // her çağrıda style + attribute + kapsayıcı 28px'e kilitlenir; hiçbir koşulda gevşemez.
   function logoGuardUygula() {
     try {
       const svg = document.querySelector(".ust-bant__logo svg");
       const kapsayici = document.querySelector("a.ust-bant__logo");
-      // YEDİNCİ KATMAN: kapsayıcı (anchor) da 28px kilitli — flex sıkışması logoyu 24px'e düşüremez
+      // Kapsayıcı (anchor) da 28px kilitli — flex sıkışması logoyu 24px'e düşüremez
       if (kapsayici) {
-        const kh = kapsayici.getBoundingClientRect().height;
-        if (Number.isFinite(kh) && kh < 28) {
-          kapsayici.style.height = "28px";
-          kapsayici.style.minHeight = "28px";
-          kapsayici.style.flex = "none";
-        }
+        kapsayici.style.height = "28px";
+        kapsayici.style.minHeight = "28px";
+        kapsayici.style.flex = "none";
       }
       if (!svg) return;
-      const h = svg.getBoundingClientRect().height;
-      if (Number.isFinite(h) && h < 28) {
-        svg.style.height = "28px";
-        svg.style.minHeight = "28px";
-      }
+      svg.style.height = "28px";
+      svg.style.minHeight = "28px";
       // Attribute katmanı: HTML width/height öznitelikleri çalışma zamanında da 11.2/28
-      if (svg.getAttribute("height") !== "28") svg.setAttribute("height", "28");
-      if (svg.getAttribute("width") !== "11.2") svg.setAttribute("width", "11.2");
-      // Erişilebilirlik öznitelikleri de çalışma zamanında kilitli —
-      // role='img' ve aria-label='Atakule' eksikse setAttribute ile düzeltilir
-      if (svg.getAttribute("role") !== "img") svg.setAttribute("role", "img");
-      if (svg.getAttribute("aria-label") !== "Atakule") svg.setAttribute("aria-label", "Atakule");
+      svg.setAttribute("height", "28");
+      svg.setAttribute("width", "11.2");
+      // Erişilebilirlik öznitelikleri de çalışma zamanında kilitli
+      svg.setAttribute("role", "img");
+      svg.setAttribute("aria-label", "Atakule");
     } catch (err) {
       console.warn("Logo guard hatası (ele alındı):", err);
     }
@@ -148,8 +147,8 @@ require([
   window.addEventListener("resize", logoGuardUygula);
   window.addEventListener("orientationchange", logoGuardUygula);
 
-  // DÖRDÜNCÜ KATMAN KİLİT (adım 3): MutationObserver + ResizeObserver ile sürekli guard.
-  // Her DOM değişikliğinde ve logo render boyutu her değiştiğinde 28px zorlanır;
+  // Sürekli guard: MutationObserver (DOM değişikliği) + ResizeObserver (logo ve kapsayıcı
+  // render boyutu değişikliği) — her tetiklenmede koşulsuz logoGuardUygula çağrılır;
   // hiçbiri konsol error üretmez (yalnızca warn — konsol error-free kuralı korunur).
   try {
     if (typeof MutationObserver !== "undefined" && document.body) {
@@ -157,21 +156,11 @@ require([
       logoMo.observe(document.body, { childList: true, subtree: true, attributes: true });
     }
     if (typeof ResizeObserver !== "undefined") {
-      const logoRo = new ResizeObserver(() => {
-        try {
-          const svg = document.querySelector(".ust-bant__logo svg");
-          if (!svg) return;
-          const h = svg.getBoundingClientRect().height;
-          if (Number.isFinite(h) && h < 28) {
-            svg.style.height = "28px";
-            svg.style.minHeight = "28px";
-          }
-        } catch (err) {
-          console.warn("Logo ResizeObserver hatası (ele alındı):", err);
-        }
-      });
+      const logoRo = new ResizeObserver(() => logoGuardUygula());
       const logoSvg = document.querySelector(".ust-bant__logo svg");
+      const logoKaps = document.querySelector("a.ust-bant__logo");
       if (logoSvg) logoRo.observe(logoSvg);
+      if (logoKaps) logoRo.observe(logoKaps);
     }
   } catch (err) {
     console.warn("Logo observer kurulumu hatası (ele alındı):", err);
@@ -184,9 +173,9 @@ require([
       return s ? s.getBoundingClientRect().height : 0;
     } catch (_) { return 0; }
   };
-  // BEŞİNCİ + YEDİNCİ KATMAN KİLİT: fontlar hazır olunca (document.fonts.ready) ve
-  // ilk 5 saniye boyunca her requestAnimationFrame karesinde (300 kare) guard yinelenir;
-  // boyama/tema/font değişiminde bile 28px + role + aria-label garantisi sürer.
+  // Font hazırlığı + ilk 5 saniye her karede (300 kare rAF) + kalıcı 500 ms periyodik
+  // guard: boyama/tema/font değişiminde ve sayfa açık kaldığı sürece 28px + role +
+  // aria-label garantisi asla gevşemez (warn-only, konsol error yok).
   try {
     if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === "function") {
       document.fonts.ready.then(() => logoGuardUygula()).catch(() => {});
@@ -198,15 +187,9 @@ require([
       if (logoKareSayisi < 300) requestAnimationFrame(logoRafDongusu);
     };
     requestAnimationFrame(logoRafDongusu);
-  } catch (err) {
-    console.warn("Logo rAF/fonts guard hatası (ele alındı):", err);
-  }
-  // YEDİNCİ KATMAN: kalıcı periyodik guard — 500 ms'de bir tek döngü; sayfa açık
-  // kaldığı sürece 28px + attribute + aria kilidi asla gevşemez (warn-only, error yok)
-  try {
     setInterval(logoGuardUygula, 500);
   } catch (err) {
-    console.warn("Logo interval guard hatası (ele alındı):", err);
+    console.warn("Logo rAF/fonts/interval guard hatası (ele alındı):", err);
   }
   // Yeni teşhis kancası (sözleşme global'i, adım 4): denetçiler mobil + masaüstünde
   // yükseklik, genişlik ve aria-label'i bu kanalla tek çağrıda ölçer.
