@@ -108,13 +108,16 @@ async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst
   const zMax = Math.max(zMin, Math.min(19, Math.floor(maxZoom) || zMin));
   for (let z = zMin; z <= zMax; z++) zoomlar.push(z);
   if (onlyHighFirst) zoomlar.reverse();
+  // Kalıcı garanti: planlanan toplam karo sayısı 5000'i ASLA aşmaz — sınırı aşan
+  // zum entirely plandan çıkarılır (zoomlar.length = i), yani 5000上限 katı tutulur
   let plan = 0;
   for (let i = 0; i < zoomlar.length; i++) {
     const z = zoomlar[i];
     const aP = lonLatToTile(bbox.minLon, bbox.maxLat, z);
     const bP = lonLatToTile(bbox.maxLon, bbox.minLat, z);
-    plan += (bP.x - aP.x + 1) * (bP.y - aP.y + 1);
-    if (plan > 5000) { zoomlar.length = i + 1; break; }
+    const buZum = (bP.x - aP.x + 1) * (bP.y - aP.y + 1);
+    if (plan + buZum > 5000) { zoomlar.length = i; break; }
+    plan += buZum;
   }
   for (const z of zoomlar) {
     const a = lonLatToTile(bbox.minLon, bbox.maxLat, z);

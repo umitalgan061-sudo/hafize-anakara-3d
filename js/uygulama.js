@@ -1186,17 +1186,91 @@ require([
     bildirim: m => gosterBildirim(m)
   };
 
-  // Çevrimdışı uçtan uca senaryo test kancaları (HAFIZE Öncelik 3 zemini):
-  // uçak-modu açılış, taban geçişi, gezilen alan, geri dönüş kurtarma —
-  // __cevrimiTest ile çakışmadan tek global; zararsız teşhis kancalarıdır (üretim arayüzünde etkisi yok)
+  // Çevrimdışı uçtan uca senaryo test kancaları (HAFIZE Öncelik 3 — KALICI ZEMİN, adım 6):
+  // Her senaryo { ad, aciklama, calistir(), sonDurum() } döndürür; üretim arayüzünde
+  // hiçbir görsel etkisi yoktur (yalnızca zararsız teşhis kancalarıdır).
+  const senaryoDurumlari = {};
+  function senaryoKanca(anahtar, ad, aciklama, calistir) {
+    senaryoDurumlari[anahtar] = { sonCalistirma: null, sonHata: null, durum: "hazır" };
+    return {
+      ad: ad,
+      aciklama: aciklama,
+      calistir: function () {
+        const d = senaryoDurumlari[anahtar];
+        try {
+          calistir();
+          d.sonCalistirma = new Date().toISOString();
+          d.durum = "çalıştı";
+          d.sonHata = null;
+        } catch (err) {
+          d.sonCalistirma = new Date().toISOString();
+          d.durum = "hata";
+          d.sonHata = String((err && err.message) || err);
+          console.warn("Senaryo kancası hatası (ele alındı): " + ad + " — " + d.sonHata);
+        }
+        return { ad: ad, durum: d.durum, sonCalistirma: d.sonCalistirma, sonHata: d.sonHata };
+      },
+      sonDurum: function () { return Object.assign({ ad: ad, aciklama: aciklama }, senaryoDurumlari[anahtar]); }
+    };
+  }
   window.__senaryoTest = {
     cevrimdasi: () => !navigator.onLine,
-    ucakModuAcilis: () => { cevrimiGuncelle(); gosterBildirim("Çevrimdışı — önbellekten açılıyor", katmanlariYenidenDene); },
-    tabanGecisi: t => tabanSec(t || "hybrid"),
-    gezilenAlan: guncelAlaniGonder,
-    geriDonusKurtarma: () => { katmanlariYenidenDene(); guncelAlaniTazele(); },
-    karoSayisi: cb => karoSayisiAl(cb)
+    ucakModuAcilis: senaryoKanca("ucakModuAcilis", "Uçak modu açılış",
+      "Rozet + tek satır bildirim + katman kurtarma zincirini elle tetikler (uçak-modunda açılış senaryosu).",
+      () => {
+        cevrimiGuncelle();
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.ready.then(() => karoSayisiAl(sayi => cevrimiGuncelle(sayi))).catch(() => {});
+        }
+        gosterBildirim("Çevrimdışı — önbellekten açılıyor", katmanlariYenidenDene);
+        duyur("Çevrimdışı modda açıldı, önbellekteki alan gösteriliyor");
+      }),
+    tabanGecisi: senaryoKanca("tabanGecisi", "Taban geçişi (çevrimdışı)",
+      "hybrid/streets-vector taban geçişini çevrimdışı akışıyla dener (tabanSec).",
+      t => tabanSec(t || "hybrid")),
+    gezilenAlan: senaryoKanca("gezilenAlan", "Gezilen alan önbelleği",
+      "Görünür alanın eksik karolarını GUNCEL_ALAN ile SW'ye bildirir (pan/zoom sonrası).",
+      guncelAlaniGonder),
+    geriDonusKurtarma: senaryoKanca("geriDonusKurtarma", "Geri dönüş kurtarma",
+      "Çevrimiçi dönüşte TAZELE_ALAN + eksik katmanların yeniden denenmesi.",
+      () => { katmanlariYenidenDene(); guncelAlaniTazele(); }),
+    karoSayisi: senaryoKanca("karoSayisi", "Karo sayısı",
+      "SW'den KARO_SAYISI mesajıyla önbellekteki karo sayısını ister.",
+      cb => karoSayisiAl(typeof cb === "function" ? cb : (sayi => console.log("KARO_SAYISI: " + sayi + " karo önbellekte"))))
   };
+
+  // Kalıcı kontrol raporu kancası (adım 6): logoDenetimi + kabulDenetimi'nin 390x844 mobil
+  // ve masaüstü senaryolarında otomatik çağrılıp TEK SATIR log ile raporlandığı kanca.
+  // Yalnızca console.log/warn kullanır — konsol error-free kalır.
+  window.kaliciKontrolRaporu = function () {
+    try {
+      const logo = window.logoDenetimi();
+      const kabul = window.kabulDenetimi();
+      const genislik = window.innerWidth || 0;
+      const senaryo = genislik <= 600 ? "mobil (390x844 beklenen)" : "masaüstü (1280x800 beklenen)";
+      console.log("KALICI KONTROL RAPORU [" + senaryo + "]: logo " + Math.round(logo.yukseklik) +
+        " px (geçti: " + logo.gecti + ", aria-label: " + logo.ariaLabel + ") | viewDiv görünürlük %" +
+        Math.round(kabul.viewDivGorunurluk * 100) + " (hedef ≥85) | yatay taşma: " + kabul.yatayTasma +
+        " | genişlik: " + kabul.genislik + " px");
+      if (!logo.gecti || logo.ariaLabel !== "Atakule") {
+        console.warn("KALICI KONTROL UYARISI: logo kabul ölçütü tutmadı (hedef ≥28 px, aria-label 'Atakule') — logoBoyutuGarantisi devrede");
+      }
+      if (kabul.viewDivGorunurluk < 0.85) {
+        console.warn("KALICI KONTROL UYARISI: viewDiv görünürlüğü %" + Math.round(kabul.viewDivGorunurluk * 100) + " < %85");
+      }
+      if (kabul.yatayTasma) console.warn("KALICI KONTROL UYARISI: 390x844 yatay taşma var");
+      return { logo: logo, kabul: kabul, senaryo: senaryo };
+    } catch (err) {
+      console.warn("Kalıcı kontrol raporu hatası (ele alındı):", err);
+      return null;
+    }
+  };
+  // Otomatik tek satır rapor: sayfa hazır olunca boş zamanda bir kez çalışır (ilk açılışı etkilemez)
+  try {
+    const raporla = () => { try { window.kaliciKontrolRaporu(); } catch (_) {} };
+    if ("requestIdleCallback" in window) requestIdleCallback(raporla, { timeout: 8000 });
+    else setTimeout(raporla, 3000);
+  } catch (_) {}
 
   // ---------- Bina bilgi kartı: seçim, vurgu, erişilebilir diyalog (WCAG 2.1 AA) ----------
   const binaKarti = document.getElementById("bina-karti");
@@ -1472,7 +1546,7 @@ require([
           if (el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1) {
             const stil = getComputedStyle(el);
             if (stil.overflowX !== "auto" && stil.overflowX !== "scroll") {
-              const cls = (typeof el.className === "string" && el.className) ? "." + el.className.trim().split(/\\s+/)[0] : "";
+              const cls = (typeof el.className === "string" && el.className) ? "." + el.className.trim().split(/\s+/)[0] : "";
               console.warn("Yatay taşma üreten eleman: " + el.tagName.toLowerCase() + cls + " (CSS ajanına bırakıldı)");
             }
           }
@@ -1496,7 +1570,8 @@ require([
       gosterBildirim: "function", duyur: "function", seciliVurgula: "function",
       binaKartiGoster: "function", binaKartiKapat: "function", katmanKartiKapat: "function",
       yukseklikTahmin: "function", sonrakiSecim: "function",
-      __cevrimiTest: "object", __senaryoTest: "object", __azaltilmisHareket: "boolean"
+      __cevrimiTest: "object", __senaryoTest: "object", __azaltilmisHareket: "boolean",
+      kaliciKontrolRaporu: "function"
     };
   let eksikVar = false;
   Object.keys(sozlesmeGlobals).forEach(k => {

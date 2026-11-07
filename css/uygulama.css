@@ -30,8 +30,7 @@ button, input, a, .katman-satir, .taban-dugme { touch-action: manipulation; -web
 /* [hidden] her zaman kazanır: hiçbir display kuralı ezemez (katman kartı/rozet/bildirim kapanması için kritik) */
 [hidden] { display: none !important; }
 /* Flex satır elemanları asla kapsayıcının dışına taşmaz (390px yatay taşma sıfır) */
-.ust-bant > *, .alt-cubuk > *, .taban-secimi > *, .katman-karti > *, .bina-karti > *, .bildirim > * { min-width: 0; }
-html, body { height: 100%; width: 100%; max-width: 100vw; overflow: hidden; overflow-x: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.ust-bant > *, .alt-cubuk > *, .taban-secimi > *, .katman-karti > *, .bina-karti > *, .bildirim > *, .arama-kutu > *, .bina-karti__baslik-satir > *, .bina-karti__satirlar > * { min-width: 0; }\nhtml, body { height: 100%; width: 100%; max-width: 100vw; overflow: hidden; overflow-x: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }\nbody {\n>>>YENİ
 body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--metin);
@@ -428,6 +427,9 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   /* Mobil kabul ölçütü: logo en az 28 px (güven paylı 32 px, min-height 28 px garanti) */
   /* Mobil kabul ölçütü kilidi (aynı kural): logo en az 28 px (güven paylı 32 px, min-height 28 px garanti), en-boy oranı korunur */
   .ust-bant__logo svg { height: var(--logo-yukseklik) !important; min-height: var(--logo-min) !important; width: auto !important; display: block; flex-shrink: 0; aspect-ratio: 40 / 100; }
+  /* Çift kaynaklı kalıcı kilit: değişkenler bir şekilde çözülemezse bile sabit değerlerle
+     32px/28px garantisi mobilde asla düşmez (invalid-at-computed-value-time koruması) */
+  .ust-bant__logo svg { height: 32px !important; min-height: 28px !important; width: auto !important; aspect-ratio: 40 / 100; }
   .arama-kutu { min-width: 0; }
   #arama-girdi { height: 44px; font-size: 16px; padding: 0 44px 0 10px; }
   #arama-temizle { width: 44px; height: 44px; right: 0; }
