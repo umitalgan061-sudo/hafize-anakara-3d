@@ -44,6 +44,32 @@ require([
   // Sözleşme global'i her zaman tanımlı: index.html bayrağı kurar, burada da garanti edilir
   if (typeof window.__azaltilmisHareket !== "boolean") window.__azaltilmisHareket = reducedMotion;
 
+  // ---------- Mobil Atakule logo garanti mekanizması (çalışma zamanı, kalıcı kilit) ----------
+  // Kabul ölçütü: telefonda üst bantta SVG logo en az 28 px yükseklikte olmalı.
+  // CSS kuralı 32px/!important verse de, çalışma zamanında ölçüp 28 px'in altına
+  // düşerse inline 28px garanti eden bu mekanizma devreye girer. Asla hata atmaz,
+  // konsola error yazmaz (try/catch sarılı).
+  function logoBoyutuGarantisi() {
+    try {
+      const svg = document.querySelector(".ust-bant__logo svg");
+      if (!svg) return;
+      const h = svg.getBoundingClientRect().height;
+      if (Number.isFinite(h) && h < 28) svg.style.height = "28px";
+    } catch (_) {}
+  }
+  window.logoBoyutuGarantisi = logoBoyutuGarantisi;
+  try {
+    window.addEventListener("load", logoBoyutuGarantisi);
+    window.addEventListener("resize", logoBoyutuGarantisi);
+    window.addEventListener("orientationchange", logoBoyutuGarantisi);
+    const mqMobil = window.matchMedia("(max-width: 600px)");
+    const mobilDegisti = () => logoBoyutuGarantisi();
+    if (mqMobil.addEventListener) mqMobil.addEventListener("change", mobilDegisti);
+    else if (mqMobil.addListener) mqMobil.addListener(mobilDegisti);
+    // İlk çalışma: DOM hazırsa hemen uygula
+    logoBoyutuGarantisi();
+  } catch (_) {}
+
   // ---------- Yardımcılar ----------
   function gosterBildirim(metin, onRetry) {
     const el = document.getElementById("bildirim");
