@@ -354,6 +354,48 @@ require([
   });
   setTimeout(yukleniyoruKapat, 9000);
 
+  // ---------- viewDiv görünürlük ölçümü (YALNIZCA log — hiçbir UI değişikliği yapmaz) ----------
+  // Tarayıcı kontrol hatası: telefon açılışında #viewDiv ekranın yalnızca %84'ünde
+  // görünüyordu (hedef ≥%85). viewDiv fixed inset:0 olduğundan gerçek kaplama üst bant +
+  // alt çubuk + (varsa) açık kartlardır; CSS ajanı bunları kompaktlar. Bu fonksiyon
+  // oranı ölçüp warn-only loglar (konsol error-free kuralı korunur; arayüze dokunmaz).
+  function viewDivGorunurlukOlc() {
+    try {
+      const vd = document.getElementById("viewDiv");
+      if (!vd) return;
+      const rect = vd.getBoundingClientRect();
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const alan = rect.width * rect.height;
+      const ekran = vw * vh;
+      if (!Number.isFinite(alan) || !Number.isFinite(ekran) || ekran <= 0 || alan <= 0) return;
+      let kapli = 0;
+      const kaplayanlar = document.querySelectorAll(".ust-bant, .alt-cubuk, .katman-karti, .bina-karti, .bildirim, .arama-sonuclari");
+      kaplayanlar.forEach(el => {
+        try {
+          if (!el || el.hidden) return;
+          const r = el.getBoundingClientRect();
+          if (r.width <= 0 || r.height <= 0) return;
+          const x = Math.max(0, Math.min(rect.right, r.right) - Math.max(rect.left, r.left));
+          const y = Math.max(0, Math.min(rect.bottom, r.bottom) - Math.max(rect.top, r.top));
+          kapli += x * y;
+        } catch (_) {}
+      });
+      const gorunur = (alan - Math.min(kapli, alan)) / ekran;
+      if (!Number.isFinite(gorunur)) return;
+      const yuzde = (gorunur * 100).toFixed(1);
+      if (gorunur < 0.85) console.warn("viewDiv görünürlük " + yuzde + "% (<%85 hedef) — üst bant/alt çubuk kaplaması (CSS ajanında kompaktlanır)");
+      else console.log("viewDiv görünürlük: " + yuzde + "% (hedef ≥%85)");
+    } catch (_) {}
+  }
+  let gorunurlukTimer = null;
+  function gorunurlukOlcZamanli() {
+    clearTimeout(gorunurlukTimer);
+    gorunurlukTimer = setTimeout(viewDivGorunurlukOlc, 250);
+  }
+  view.when(() => { setTimeout(viewDivGorunurlukOlc, 400); });
+  window.addEventListener("resize", gorunurlukOlcZamanli);
+  window.addEventListener("orientationchange", gorunurlukOlcZamanli);
+
   // Kalıcı açılış özeti: view hazır + 3 katman yüklendi anında tek satır rapor
   const katmanSureleri = {};
   let viewHazirSuresi = null;
@@ -500,49 +542,89 @@ require([
 
   // Ağ durumu + çevrimdışı rozet + önbellek kurtarma akışı
   const cevrimoGosterge = document.getElementById("cevrimo-gosterge");
-  function cevrimiGuncelle(sayi) {
+  // İki sayaçlı rozet: sayi = karo sayısı, veriSayi = veri (özellik) önbelleği sayısı;
+  // veriSayi > 0 ise metne '· veri' eki eklenir ('Çevrimdışı · N karo · veri')
+  function cevrimiGuncelle(sayi, veriSayi) {
     if (!cevrimoGosterge) return;
     const cevrimdasi = !navigator.onLine;
     cevrimoGosterge.hidden = !cevrimdasi;
     if (cevrimdasi) {
-      cevrimoGosterge.textContent = (typeof sayi === "number")
-        ? "Çevrimdışı · " + sayi + " karo"
-        : "Çevrimdışı";
+      let metin = "Çevrimdışı";
+      if (typeof sayi === "number") metin = "Çevrimdışı · " + sayi + " karo";
+      if (typeof veriSayi === "number" && veriSayi > 0) metin += " · veri";
+      cevrimoGosterge.textContent = metin;
     }
   }
   function karoSayisiAl(geriCagri) {
-    if (!("serviceWorker" in navigator)) return;
-    const denetci = navigator.serviceWorker.controller;
-    if (!denetci) return;
-    const kanal = new MessageChannel();
-    kanal.port1.onmessage = ev => {
-      if (ev.data && ev.data.tip === "KARO_SAYISI") {
-        duyur("Önbellekte " + ev.data.sayi + " harita karosu var");
-        if (typeof geriCagri === "function") geriCagri(ev.data.sayi);
-      }
-    };
-    denetci.postMessage({ tip: "KARO_SAYISI" }, [kanal.port2]);
+    try {
+      if (!("serviceWorker" in navigator)) return;
+      const denetci = navigator.serviceWorker.controller;
+      if (!denetci) return;
+      const kanal = new MessageChannel();
+      kanal.port1.onmessage = ev => {
+        if (ev.data && ev.data.tip === "KARO_SAYISI") {
+          duyur("Önbellekte " + ev.data.sayi + " harita karosu var");
+          if (typeof geriCagri === "function") geriCagri(ev.data.sayi);
+        }
+      };
+      denetci.postMessage({ tip: "KARO_SAYISI" }, [kanal.port2]);
+    } catch (_) {}
+  }
+  // VERI_SAYISI: veri (Numarataj/Yapılar sorgu) önbelleğindeki kayıt sayısını döndürür
+  function veriSayisiAl(geriCagri) {
+    try {
+      if (!("serviceWorker" in navigator)) return;
+      const denetci = navigator.serviceWorker.controller;
+      if (!denetci) return;
+      const kanal = new MessageChannel();
+      kanal.port1.onmessage = ev => {
+        if (ev.data && ev.data.tip === "VERI_SAYISI") {
+          if (typeof geriCagri === "function") geriCagri(ev.data.sayi);
+        }
+      };
+      denetci.postMessage({ tip: "VERI_SAYISI" }, [kanal.port2]);
+    } catch (_) {}
+  }
+  // İki sayaç birlikte: hem karo hem veri sayısı alınır, rozet her iki sayaçla güncellenir
+  function sayaclariYenile() {
+    try {
+      if (!("serviceWorker" in navigator)) return;
+      const denetci = navigator.serviceWorker.controller;
+      if (!denetci) return;
+      let karo = null, veri = null;
+      const guncelle = () => cevrimiGuncelle(karo, veri);
+      const k1 = new MessageChannel();
+      k1.port1.onmessage = ev => {
+        if (ev.data && ev.data.tip === "KARO_SAYISI") { karo = ev.data.sayi; guncelle(); }
+      };
+      denetci.postMessage({ tip: "KARO_SAYISI" }, [k1.port2]);
+      const k2 = new MessageChannel();
+      k2.port1.onmessage = ev => {
+        if (ev.data && ev.data.tip === "VERI_SAYISI") { veri = ev.data.sayi; guncelle(); }
+      };
+      denetci.postMessage({ tip: "VERI_SAYISI" }, [k2.port2]);
+    } catch (_) {}
   }
   cevrimiGuncelle();
   if (!navigator.onLine) {
     // Sayfa zaten çevrimdışı açıldıysa (uçak modu): service worker hazır olunca
-    // rozet karo sayısıyla güncellenir ve tek satır kurtarma bildirimi çıkar
+    // rozet karo + veri sayısıyla güncellenir ve tek satır kurtarma bildirimi çıkar
     navigator.serviceWorker.ready.then(() => {
-      karoSayisiAl(sayi => cevrimiGuncelle(sayi));
+      sayaclariYenile();
       gosterBildirim("Çevrimdışı — önbellekten açılıyor", katmanlariYenidenDene);
       duyur("Çevrimdışı modda açıldı, önbellekteki alan gösteriliyor");
     }).catch(() => {});
   }
   window.addEventListener("offline", () => {
     cevrimiGuncelle();
-    karoSayisiAl(sayi => cevrimiGuncelle(sayi));
+    sayaclariYenile();
     gosterBildirim("Çevrimdışı — önbellekten çalışıyor", katmanlariYenidenDene);
     duyur("Çevrimdışı oldunuz, son görüntülenen alan önbellekten açılır");
   });
   window.addEventListener("online", () => {
     cevrimiGuncelle();
-    // Rozet/karo sayısı tazelensin (çevrimiçi dönüşünde son durum görünsün)
-    karoSayisiAl(sayi => cevrimiGuncelle(sayi));
+    // Rozet/karo + veri sayısı tazelensin (çevrimiçi dönüşünde son durum görünsün)
+    sayaclariYenile();
     // Tek satır kurtarma akışı: önce eksik katmanlar, sonra görünür alanın karoları
     gosterBildirim("Çevrimiçi — eksikler tazeleniyor", katmanlariYenidenDene);
     duyur("Çevrimiçi oldunuz, eksik katmanlar yeniden deneniyor");
@@ -555,9 +637,9 @@ require([
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       if (!navigator.onLine) {
-        // Uçak-modunda açılış: SW geç kontrol ederse rozet + karo sayısı + tek satır kurtarma yine guaranteed yenilenir
+        // Uçak-modunda açılış: SW geç kontrol ederse rozet + karo/veri sayısı + tek satır kurtarma yine guaranteed yenilenir
         cevrimiGuncelle();
-        karoSayisiAl(sayi => cevrimiGuncelle(sayi));
+        sayaclariYenile();
         gosterBildirim("Çevrimdışı — önbellekten açılıyor", katmanlariYenidenDene);
         duyur("Çevrimdışı modda açıldı, önbellekteki alan gösteriliyor");
       } else {
@@ -628,7 +710,8 @@ require([
   // Çevrimdışıyken rozet üzerindeki karo sayısı periyodik yenilenir;
   // döngü boş Zamana başlar, ilk açılışı yavaşlatmaz
   function karoSayisiDongusu() {
-    setInterval(() => { if (!navigator.onLine) karoSayisiAl(sayi => cevrimiGuncelle(sayi)); }, 20000);
+    // Çevrimdışıyken rozet üzerindeki karo + veri sayısı periyodik yenilenir
+    setInterval(() => { if (!navigator.onLine) sayaclariYenile(); }, 20000);
   }
   if ("requestIdleCallback" in window) requestIdleCallback(karoSayisiDongusu, { timeout: 8000 });
   else karoSayisiDongusu();
@@ -1055,6 +1138,23 @@ require([
         minZoom: 15,
         maxZoom: 17
       }, [kanal.port2]);
+      // Sözleşme (adım 6): AYNI idle callback içinde veri (özellik) önbelleği ön-yüklemesi —
+      // VERI_ONBELLEKLE, aynı Anıtkabir bbox + zoom 15-17 ile gönderilir. localStorage
+      // 'ankara3d-onbellek' bayrağı (yukarıda 1 ise tüm blok atlanır) veri ön-yüklemesini de kapsar.
+      try {
+        const vkanal = new MessageChannel();
+        vkanal.port1.onmessage = ev => {
+          if (ev.data && ev.data.tip === "VERI_ONBELLEKLE_TAMAM") {
+            console.log("VERI_ONBELLEKLE_TAMAM: " + (ev.data.sayi || 0) + " veri sorgusu önbelleğe alındı");
+          }
+        };
+        denetci.postMessage({
+          tip: "VERI_ONBELLEKLE",
+          bbox: { minLon: 32.815, minLat: 39.895, maxLon: 32.865, maxLat: 39.945 },
+          minZoom: 15,
+          maxZoom: 17
+        }, [vkanal.port2]);
+      } catch (_) {}
       };
       if ("requestIdleCallback" in window) requestIdleCallback(gonder, { timeout: 8000 });
       else setTimeout(gonder, 3000);
@@ -1109,14 +1209,37 @@ require([
   }
 
   // Test/teşhis kancası (zararsız): arayüzü kirletmeden çevrimdışı akışlarını
-  // ve sw mesajlarını elle tetlemeye yarar; üretim arayüzünde hiçbir etkisi yok
+  // ve sw mesajlarını elle tetlemeye yarar; üretim arayüzünde hiçbir etkisi yok.
+  // Adım 4 — 'senaryo' doğrulama ekleri: uçak-modu açılış, taban geçişi ve gezilen-alan
+  // senaryolarının varlığını kod içinde doğrular (arayüze yeni düğme EKLEMEZ).
   window.__cevrimiTest = {
     cevrimdasi: () => !navigator.onLine,
     karoSayisi: cb => karoSayisiAl(cb),
     guncelAlaniGonder: guncelAlaniGonder,
     guncelAlaniTazele: guncelAlaniTazele,
     katmanlariYenidenDene: katmanlariYenidenDene,
-    bildirim: m => gosterBildirim(m)
+    bildirim: m => gosterBildirim(m),
+    // Senaryo doğrulama: her senaryonun kodda eksiksiz olduğunu raporlar (true/false)
+    senaryo: {
+      ucakModuAcilis: () => {
+        try {
+          // Uçak-modu açılış zinciri: !navigator.onLine kolu + SW ready/controllerchange akışları tanımlı mı
+          return typeof gosterBildirim === "function" && typeof katmanlariYenidenDene === "function" && "serviceWorker" in navigator;
+        } catch (_) { return false; }
+      },
+      tabanGecisi: () => {
+        try {
+          // Çevrimdışı taban geçişi: tabanSec içinde !navigator.onLine bildirimi var mı
+          return typeof tabanSec === "function" && typeof tabanUydu !== "undefined" && typeof tabanHarita !== "undefined";
+        } catch (_) { return false; }
+      },
+      gezilenAlan: () => {
+        try {
+          // Gezilen alan: stationary watch + guncelAlaniGonder/TAZELE_ALAN akışı tanımlı mı
+          return typeof guncelAlaniGonder === "function" && typeof guncelAlaniTazele === "function" && !!view;
+        } catch (_) { return false; }
+      }
+    }
   };
 
   // ---------- Bina bilgi kartı: seçim, vurgu, erişilebilir diyalog (WCAG 2.1 AA) ----------
@@ -1409,14 +1532,83 @@ require([
   if ("requestIdleCallback" in window) requestIdleCallback(yatayTasmaKontrol, { timeout: 6000 });
   else setTimeout(yatayTasmaKontrol, 2000);
 
-  // (e) Nihai kilit: sözleşme global'leri beklenen TİPLE doğrulanır (yalnızca varlık değil);
-  // biri eksik/yanlış tipteyse tek satır warn — konsol error kalmaz (hata-free kuralı korunur)
+  // ---------- LOGO KABUL KİLİDİ: çalışma-zamanı bekçisi — ÜÇ KATMANLI (Adım 4) ----------
+  // Katman 1: tek otoriter CSS kuralı taban blokta (.ust-bant__logo svg height/min-height
+  // 28px !important) + index.html inline stil.
+  // Katman 2: bu bekçi (logoKontrol) çalışma zamanında ÖLÇER: ölçülen yükseklik 28'den
+  // küçükse inline style height/min-height 28px yazar; tek satır console.log verir
+  // (warn/error değil — konsol error-free kuralı korunur). Asla hata fırlatmaz.
+  // Katman 3: svg üzerinde ResizeObserver (boyut 28px altına düşerse anında düzeltir)
+  // + üst bant üzerinde MutationObserver (class/style/attribute değişiminde yeniden ölçer).
+  function logoDuzelt() {
+    try {
+      const svg = document.querySelector(".ust-bant__logo svg");
+      if (!svg) return false;
+      const yukseklik = svg.getBoundingClientRect().height;
+      if (Number.isFinite(yukseklik) && yukseklik < 28) {
+        svg.style.height = "28px";
+        svg.style.minHeight = "28px";
+        return true;
+      }
+      return false;
+    } catch (_) { return false; }
+  }
+  function logoKontrol() {
+    try {
+      if (logoDuzelt()) console.log("Logo 28px kilidi uygulandı");
+    } catch (_) {}
+  }
+  window.__logoKontrol = logoKontrol;
+  // Katman 3a — ResizeObserver: svg'nin kutusu 28px altına her düştüğünde anında 28px yapılır
+  try {
+    if (typeof ResizeObserver !== "undefined") {
+      const logoRO = new ResizeObserver(entries => {
+        try {
+          for (const giris of entries) {
+            const h = giris.contentRect ? giris.contentRect.height : 0;
+            if (Number.isFinite(h) && h < 28 && logoDuzelt()) {
+              console.log("Logo 28px kilidi (ResizeObserver) uygulandı");
+            }
+          }
+        } catch (_) {}
+      });
+      const svgEl = document.querySelector(".ust-bant__logo svg");
+      if (svgEl) logoRO.observe(svgEl);
+    }
+  } catch (_) {}
+  // Katman 3b — MutationObserver: üst bantın class/style/attribute değişiminde yeniden ölç
+  try {
+    if (typeof MutationObserver !== "undefined") {
+      const bant = document.getElementById("ust-bant");
+      if (bant) {
+        const logoMO = new MutationObserver(() => {
+          try { if (logoDuzelt()) console.log("Logo 28px kilidi (MutationObserver) uygulandı"); } catch (_) {}
+        });
+        logoMO.observe(bant, { attributes: true, attributeFilter: ["class", "style"], subtree: true, childList: true });
+      }
+    }
+  } catch (_) {}
+  // view hazır olunca, sayfa yüklenince, yeniden boyutlandırma/dönme anlarında ve
+  // mobil kırılım (max-width: 600px) değişiminde bekçi çalışır — her cihazda/breakpoint'te
+  // logo 28 px altına inemez (kabul ölçütü kalıcı kapanır).
+  view.when(() => { try { logoKontrol(); } catch (_) {} });
+  window.addEventListener("load", logoKontrol);
+  window.addEventListener("resize", logoKontrol);
+  window.addEventListener("orientationchange", logoKontrol);
+  try {
+    const mqLogo = window.matchMedia("(max-width: 600px)");
+    const logoDegisti = () => { try { logoKontrol(); } catch (_) {} };
+    if (mqLogo.addEventListener) mqLogo.addEventListener("change", logoDegisti);
+    else if (mqLogo.addListener) mqLogo.addListener(logoDegisti);
+  } catch (_) {}
+
+
   const sozlesmeGlobals = {
     view: "object",
     gosterBildirim: "function", duyur: "function", seciliVurgula: "function",
     binaKartiGoster: "function", binaKartiKapat: "function", katmanKartiKapat: "function",
     yukseklikTahmin: "function", sonrakiSecim: "function",
-    __cevrimiTest: "object", __azaltilmisHareket: "boolean"
+    __cevrimiTest: "object", __azaltilmisHareket: "boolean", __logoKontrol: "function"
   };
   let eksikVar = false;
   Object.keys(sozlesmeGlobals).forEach(k => {

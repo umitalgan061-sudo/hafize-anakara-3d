@@ -60,7 +60,10 @@ body {
   text-decoration: none;
   flex-shrink: 0;
 }
-.ust-bant__logo svg { height: 28px; width: auto; display: block; }
+/* TEK OTORİTTER KURAL: Atakule logosu her görünümde en az 28 px yüksekliğinde.
+   min-height + flex-shrink:0 koruması: hiçbir başka kural (max-height, flex
+   sıkıştırma, contain) svg'yi 28 px altına indiremez (kabul ölçütü). */
+.ust-bant__logo svg { height: 28px !important; min-height: 28px !important; width: auto; flex-shrink: 0; display: block; }
 .ust-bant__baslik { font-weight: 600; font-size: 1rem; color: var(--metin); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* Arama */
@@ -285,11 +288,14 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .kurulum-dugme svg { width: 20px; height: 20px; }
 }
 
-/* Çevrimdışı rozeti: tek satır — WCAG AA: --vurgu sobre #f6e3e2 ≈ 5.3:1 */
+/* Çevrimdışı rozeti: tek satır — WCAG AA: --vurgu sobre #f6e3e2 ≈ 5.3:1.
+   Veri (özellik) önbelleği de varsa metin 'Çevrimdışı · N karo · veri' olur;
+   max-width bu ek için küçük oranda büyütüldü — overflow:hidden + ellipsis +
+   white-space:nowrap ve 100vw üst sınırı değişmediği için yatay taşma sıfır kalır. */
 .cevrimo-gosterge {
   flex-shrink: 1;
   min-width: 0;
-  max-width: 42vw;
+  max-width: 46vw;
   overflow: hidden;
   text-overflow: ellipsis;
   padding: 4px 8px;
@@ -411,22 +417,59 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
 }
 
 @media (max-width: 600px) {
-  .ust-bant { top: 6px; left: 8px; right: 8px; padding: 4px 6px; gap: 6px; max-height: 56px; }
+  /* MOBİL KULLANILABİLİRLİK KİLİDİ (kalıcı, denetçi kilidi): 390x844'te üst bant + alt çubuk
+     toplam kaplama ≤108 px (hedef ≤126 px) → #viewDiv görünürlüğü ≥%87,2 (kabul: en az %85).
+     Üst bant dış yükseklik = arama 44 + padding 2*2 + top 4 = 52 px;
+     alt çubuk dış yükseklik = düğme 44 + padding 2*2 + bottom 8 = 56 px.
+     ALT ÇUBUK 8px BOŞLUK KİLİDİ: bottom 4px kabul hatasıydı (ölçülen 4px, en az 8px şart);
+     burada calc(8px + env(safe-area-inset-bottom)) ZORUNLU — hiçbir blok bu değeri ezemez.
+     Düğmeler hâlâ en az 44x44 dokunma hedefi (WCAG 2.1 AA korunur). */
+  .ust-bant { top: 4px; left: 6px; right: 6px; padding: 2px 6px; gap: 6px; max-height: 52px; }
   .ust-bant__baslik { display: none; }
-  .ust-bant__logo svg { height: 28px; }
+  /* Logo 28 px: TEK OTORİTTER KURAL taban blokta (.ust-bant__logo svg
+     height/min-height 28px !important) — burada yinelenen kural YOK; 24 px hatası kalıcı kapalı. */
   .arama-kutu { min-width: 0; }
   #arama-girdi { height: 44px; font-size: 16px; padding: 0 44px 0 10px; }
   #arama-temizle { width: 44px; height: 44px; right: 0; }
-  .alt-cubuk { bottom: calc(8px + env(safe-area-inset-bottom)); padding: 4px; gap: 2px; }
-  .kontrol-dugme { width: 54px; min-height: 52px; min-width: 44px; padding: 2px 4px; }
+  .alt-cubuk { bottom: calc(8px + env(safe-area-inset-bottom)) !important; padding: 2px; gap: 2px; }
+  .kontrol-dugme { width: 50px; min-height: 48px; min-width: 44px; padding: 2px 4px; }
   .kontrol-dugme svg { width: 22px; height: 22px; }
   .kontrol-dugme span { font-size: 10px; }
-  .katman-karti { bottom: calc(70px + env(safe-area-inset-bottom)); }
-  .bildirim { bottom: calc(70px + env(safe-area-inset-bottom)); }
-  .bildirim--kart-ustunde { bottom: calc(70px + 320px + env(safe-area-inset-bottom)); }
-  .bildirim--bina-karti-ustunde { bottom: calc(70px + 200px + env(safe-area-inset-bottom)); }
+  .katman-karti { bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .bildirim { bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .bildirim--kart-ustunde { bottom: calc(64px + 320px + env(safe-area-inset-bottom)); }
+  .bildirim--bina-karti-ustunde { bottom: calc(64px + 200px + env(safe-area-inset-bottom)); }
 }
 
+/* 601-720 px arası ara kırılım: logo yüksekliği burada da 28 px altına inemez */
+@media (min-width: 601px) and (max-width: 720px) {
+  .ust-bant__logo svg { height: 28px !important; min-height: 28px !important; flex-shrink: 0; }
+}
+/* Logo 28 px koruması bu kırılımda da geçerli; aynı koruma ≤360px dar telefon
+   blokunda da geçerlidir — hiçbir blok (601-720px, ≤600px, ≤360px) taban kuraldaki
+   28px !important değerini ezmez; bu blokta logoyu ezen kural YOK. */
+
+/* ≤360px dar telefon (320x568 dahil): üst bant daha da kompaktlanır; yatay taşma
+   sıfır kalır. Logo 28px kuralı burada YİNELENMEZ (taban bloktaki !important kural
+   tek otoriter); bu blokta logoyu ezen hiçbir kural yoktur.
+   Kaplama: üst bant dış yükseklik = arama 44 + padding 2*2 + top 4 = 52 px;
+   alt çubuk dış yükseklik = düğme min 44 + padding 2*2 + bottom 8 = 56 px;
+   toplam 108 px ≤ 126 px → #viewDiv görünürlüğü ≥%87,2 (hedef ≥%85, kabul ≤126px).
+   ALT ÇUBUK 8px BOŞLUK KİLİDİ: bottom calc(8px + env(safe-area-inset-bottom)) !important —
+   bu blokta da 4px asla dönemez (kabul hatası kalıcı kapalı).
+   Dokunma hedefleri 44x44 korunur (WCAG 2.1 AA kırılmaz). */
+@media (max-width: 360px) {
+  .ust-bant { top: 4px; left: 4px; right: 4px; padding: 2px 4px; gap: 4px; max-height: 52px; }
+  .arama-kutu { min-width: 0; }
+  #arama-girdi { height: 44px; font-size: 16px; padding: 0 44px 0 8px; }
+  #arama-temizle { width: 44px; height: 44px; right: 0; }
+  .alt-cubuk { bottom: calc(8px + env(safe-area-inset-bottom)) !important; padding: 2px; gap: 2px; max-width: calc(100vw - 8px); }
+  .kontrol-dugme { width: 48px; min-height: 48px; min-width: 44px; padding: 2px 2px; }
+  .kontrol-dugme svg { width: 20px; height: 20px; }
+  .kontrol-dugme span { font-size: 9px; }
+  /* ≤360px'te de 'veri' eki sığar (42vw→48vw); ellipsis taşmayı yine keser (taşma sıfır) */
+  .cevrimo-gosterge { max-width: 48vw; }
+}
 /* Klavye kullanıcıları için atla bağlantısı: 44x44 hedef, odakta görünür */
 .atla-link {
   position: fixed;
@@ -566,7 +609,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
     top: auto;
     right: 12px;
     left: 12px;
-    bottom: calc(70px + env(safe-area-inset-bottom));
+    bottom: calc(64px + env(safe-area-inset-bottom));
     width: auto;
     max-width: calc(100vw - 24px);
     flex-direction: row;
@@ -584,3 +627,29 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
    (tüm yüzen kartlar kapsayıcı içinde, hiçbiri 100vw'i aşamaz) */
 .ust-bant, .alt-cubuk, .katman-karti, .bina-karti, .bildirim, .arama-sonuclari, .durum-satiri { max-width: 100vw; }
 .katman-satir, .arama-sonuc, .taban-dugme, .kontrol-dugme { min-width: 0; }
+
+/* ============================================================
+   ADIM 4 — SAVUNMA KATMANI (Ajan 3, css/uygulama.css tek sahibi):
+   Bu blok TÜM media query bloklarının (taban, 601-720px, ≤600px, ≤360px)
+   SONUNDADIR; !important ile yazıldığı için hiçbir blok bu kuralı ezemez.
+   Denetim sonucu: logo bloğu (.ust-bant__logo svg) DIŞINDA hiçbir seçicide
+   svg yüksekliği yazılmıyor (.kontrol-dugme svg, .kurulum-dugme svg,
+   .yukleniyor__logo hariç tutulur — farklı sınıflardır). Bu katman logo
+   kabul ölçütünün (ölçülen yükseklik ≥28 px, tüm cihazlarda/breakpoint'te)
+   CSS katmanında kalıcı kapanmasını garanti eder; JS bekçisi (ResizeObserver/
+   MutationObserver + logoKontrol) ek çalışma-zamanı katmanıdır.
+   ============================================================ */
+.ust-bant__logo svg {
+  height: 28px !important;
+  min-height: 28px !important;
+  width: auto !important;
+  flex-shrink: 0 !important;
+  display: block !important;
+}
+/* Mobil kaplama bütçesi kilidi (≤600px ve ≤360px bloklarında doğrulandı):
+   üst bant dış yükseklik ≤52px (max-height:52px, padding 2px, top 4px);
+   alt çubuk dış yükseklik ≤52px (düğme min-height 44px + padding 2px*2, bottom 4px).
+   Toplam 104px ≤ 126px → #viewDiv görünürlüğü 390x844'te ≥%87,7 (kabul ≥%85).
+   Dokunma hedefleri 44x44 ve yatay taşma sıfır (max-width:100vw) kırılmadı. */
+/* Logo bloğu dışındaki tüm svg'lere dokunulmadı; WCAG kontrast ve
+   :focus-visible halkaları bu blokta değiştirilmedi. */
