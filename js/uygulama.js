@@ -438,6 +438,10 @@ require([
       " | hedef <" + window.acilisHedefMs + " ms"
     );
     gerilemeKontrol("AÇILIŞ ÖZET", viewMs);
+    // PERF tek-satır rapor (adım 3): hedef window.acilisHedefMs (tek kaynak 1500 ms) —
+    // altında/üstünde net yazılır; gerilemeKontrol yukarıda tek-warn Set ile zaten korumalı
+    console.log("PERF: açılış (yükleyici→view hazır) " + viewMs + " ms — hedef <" + window.acilisHedefMs + " ms → " +
+      (viewMs <= window.acilisHedefMs ? "ALTINDA (hedef karşılandı)" : "ÜSTÜNDE (gerileme — yukarıdaki warn'a bakın)"));
   }
   // Kalıcı doğrulama garantisi: zincir kırılırsa (örn. uçak modunda katmanlar
   // yüklenemezse) özet yine de tek satır raporlansın — 6 sn sonra kısmi özet.
@@ -448,6 +452,8 @@ require([
     const parca = Object.keys(katmanSureleri).map(k => k + " " + Math.round(katmanSureleri[k]) + " ms").join(", ") || "katman yüklenemedi";
     console.warn("AÇILIŞ ÖZET (kısmi, zincir tamamlanamadı): yükleyici→view hazır " + viewMs + " ms | " + parca + " | hedef <" + window.acilisHedefMs + " ms");
     gerilemeKontrol("6sn fallback", viewMs);
+    console.log("PERF: açılış (kısmi özet, 6sn fallback) " + viewMs + " ms — hedef <" + window.acilisHedefMs + " ms → " +
+      (viewMs <= window.acilisHedefMs ? "ALTINDA (hedef karşılandı)" : "ÜSTÜNDE (gerileme)"));
   }, 6000);
 
   // İlk açılış süresi ölçümü (hedef: Anıtkabir görünümü 2 sn altında)
@@ -1676,6 +1682,19 @@ require([
       else if (k === "ArrowDown") { kisayolPan(0, -1); duyur("Kısayol: haritada aşağı"); }
       else if (k === "ArrowLeft") { kisayolPan(-1, 0); duyur("Kısayol: haritada sola"); }
       else if (k === "ArrowRight") { kisayolPan(1, 0); duyur("Kısayol: haritada sağa"); }
+      // YENİ kısayollar (adım 3): '?'/'h' ekran okuyucuya kısayol yardımını duyurur,
+      // '0' Anıtkabir görünümüne sıfırlar, 'n' çoklu sonuçta sonraki seçimi döngüsel seçer.
+      // Girdi-odak ve diyalog-açık sessizlik yukarıda korunur; Esc yukarıda her durumda tüm panelleri kapatır.
+      else if (k === "?" || k === "h" || k === "H") {
+        const yardim = document.getElementById("kisayol-yardim");
+        duyur(yardim && yardim.textContent ? yardim.textContent :
+          "Kısayollar: K kuzey, A Anıtkabir, L katmanlar, C konum, 0 Anıtkabir görünümüne sıfırlama, n sonraki seçim, Esc kapat, + ve - yakınlaştır/uzaklaştır, ok tuşları haritada gezinti, Enter merkezdeki nesneyi seçer");
+      }
+      else if (k === "0") { if (btnAnitkabir) btnAnitkabir.click(); duyur("Kısayol: Anıtkabir görünümüne sıfırlandı"); }
+      else if (k === "n" || k === "N") {
+        if (sonHitTestSonuclari.length) { sonrakiSecim(); }
+        else duyur("Seçili sonuç yok");
+      }
       else kullanildi = false;
       if (kullanildi) e.preventDefault();
     } catch (err) { console.warn("Kısayol yöneticisi hatası (ele alındı):", err); }
@@ -1686,31 +1705,95 @@ require([
   // ---------- Çevrimdışı akıllı alan (sözleşme): gezilen alanı SW'ye ALAN_GENISLET ile bildir ----------
   // Mevcut GUNCEL_ALAN akışını genişletir: aynı bbox + geçerli zoom aralığı ALAN_GENISLET
   // mesajıyla gönderilir; SW yalnızca eksik karoları çeker ve ALAN_GENISLET_TAMAM yanıtlar.
+  // Adım 3 — çok-zoom istek + kuyruk/guard: aynı anda ard arda gelen alan istekleri
+  // kuyruğa alınır, tek tek işlenir (aynı anda birden çok ALAN_GENISLET gitmez).
+  // Zoom aralığı z-2..z+2 (kademeli çok-zoom); SW tarafı 5000 karo plan üst sınırı + LRU korur.
+  let alanGenisletBusy = false;
+  const alanGenisletKuyruk = [];
   function alanOnbellekGenislet(bbox) {
     try {
       if (!bbox || !("serviceWorker" in navigator)) return;
       const denetci = navigator.serviceWorker.controller;
       if (!denetci || !navigator.onLine) return;
-      const z = Number.isFinite(view.zoom) ? Math.round(view.zoom) : 15;
+      alanGenisletKuyruk.push(bbox);
+      if (alanGenisletBusy) return; // kuyrukta bekliyor, guard
+      alanGenisletBusy = true;
+      const siradaki = () => {
+        const bb = alanGenisletKuyruk.shift();
+        if (!bb) { alanGenisletBusy = false; return; }
+        const z = Number.isFinite(view.zoom) ? Math.round(view.zoom) : 15;
+        const kanal = new MessageChannel();
+        kanal.port1.onmessage = ev => {
+          try {
+            if (!ev.data) return;
+            if (ev.data.tip === "ALAN_GENISLET_TAMAM") {
+              console.log("ALAN_GENISLET_TAMAM: " + (ev.data.sayi || 0) + " eksik karo önbelleğe alındı (zoom " + Math.max(1, z - 2) + "-" + Math.min(19, z + 2) + ")");
+              if (ev.data.sayi > 0) duyur(ev.data.sayi + " karo çevrimdışı için genişletildi");
+            } else if (ev.data.tip === "BILINMEYEN") {
+              console.warn("SW bilinmeyen mesaj yanıtı (ele alındı)");
+            }
+          } catch (_) {}
+          siradaki(); // kuyrukta sıradaki alanı işle
+        };
+        denetci.postMessage({
+          tip: "ALAN_GENISLET",
+          bbox: bb,
+          minZoom: Math.max(1, z - 2),
+          maxZoom: Math.min(19, z + 2)
+        }, [kanal.port2]);
+      };
+      siradaki();
+    } catch (_) { alanGenisletBusy = false; }
+  }
+  window.alanOnbellekGenislet = alanOnbellekGenislet;
+
+  // YENİ SW mesaj istemcileri (adım 3): ALAN_OZET (karo+zoom dağılımı) ve
+  // ONBELLEK_DURUMU (ön-yükleme tamamlandı mı) — yanıtlar duyur + log ile bildirilir.
+  function alanOzetAl() {
+    try {
+      if (!("serviceWorker" in navigator)) return;
+      const denetci = navigator.serviceWorker.controller;
+      if (!denetci) return;
       const kanal = new MessageChannel();
       kanal.port1.onmessage = ev => {
         if (!ev.data) return;
-        if (ev.data.tip === "ALAN_GENISLET_TAMAM") {
-          console.log("ALAN_GENISLET_TAMAM: " + (ev.data.sayi || 0) + " eksik karo önbelleğe alındı");
-          if (ev.data.sayi > 0) duyur(ev.data.sayi + " karo çevrimdışı için genişletildi");
+        if (ev.data.tip === "ALAN_OZET_TAMAM") {
+          const d = ev.data.dagilim || ev.data.dağılım; const ozet = d ? Object.keys(d).map(z => "z" + z + ":" + d[z]).join(" ") : "";
+          const metin = "Önbellekte " + (ev.data.toplam || 0) + " karo" + (ozet ? " (" + ozet + ")" : "");
+          console.log("ALAN_OZET_TAMAM: " + metin);
+          duyur(metin);
         } else if (ev.data.tip === "BILINMEYEN") {
           console.warn("SW bilinmeyen mesaj yanıtı (ele alındı)");
         }
       };
-      denetci.postMessage({
-        tip: "ALAN_GENISLET",
-        bbox: bbox,
-        minZoom: Math.max(1, z - 1),
-        maxZoom: Math.min(19, z + 1)
-      }, [kanal.port2]);
+      denetci.postMessage({ tip: "ALAN_OZET" }, [kanal.port2]);
     } catch (_) {}
   }
-  window.alanOnbellekGenislet = alanOnbellekGenislet;
+  function onbellekDurumuAl() {
+    try {
+      if (!("serviceWorker" in navigator)) return;
+      const denetci = navigator.serviceWorker.controller;
+      if (!denetci) return;
+      const kanal = new MessageChannel();
+      kanal.port1.onmessage = ev => {
+        if (!ev.data) return;
+        if (ev.data.tip === "ONBELLEK_DURUMU_TAMAM") {
+          const metin = ev.data.durum === "yapilmadi"
+            ? "Açılış alanı ön-yüklemesi henüz yapılmadı"
+            : "Önbellek durumu: " + (ev.data.durum || "bilinmiyor") + (typeof ev.data.sayi === "number" ? " (" + ev.data.sayi + " karo)" : "");
+          console.log("ONBELLEK_DURUMU_TAMAM: " + metin);
+          duyur(metin);
+        } else if (ev.data.tip === "BILINMEYEN") {
+          console.warn("SW bilinmeyen mesaj yanıtı (ele alındı)");
+        }
+      };
+      denetci.postMessage({ tip: "ONBELLEK_DURUMU" }, [kanal.port2]);
+    } catch (_) {}
+  }
+  if (window.__cevrimiTest) {
+    window.__cevrimiTest.alanOzet = alanOzetAl;
+    window.__cevrimiTest.onbellekDurumu = onbellekDurumuAl;
+  }
 
   const sozlesmeGlobals = {
     view: "object",

@@ -1,8 +1,8 @@
-const AD = "ankara3d-v40";
+const AD = "ankara3d-v41";
 const VERI_AD = "ankara3d-veri-v1";
-const KARO_AD = "ankara3d-karolar-v32";
-const VEKTOR_AD = "ankara3d-vektor-v5";
-const SDK_AD = "ankara3d-sdk-v4";
+const KARO_AD = "ankara3d-karolar-v33";
+const VEKTOR_AD = "ankara3d-vektor-v6";
+const SDK_AD = "ankara3d-sdk-v5";
 const KARO_SINIRI = 600;
 const SDK_SINIRI = 400;
 const VERI_SINIRI = 200;
@@ -24,6 +24,10 @@ const VEKTOR_ON = [
   "https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/fonts/AdelleSans_W_Bold/0-255.pbf",
   "https://basemaps.arcgis.com/arcgis/rest/services/World_Street_Map/VectorTileServer/resources/fonts/AdelleSans_W_Regular/0-255.pbf"
 ];
+
+// ONBELLEK_DURUMU için hafıza içi bayrak: ONBELLEKLE_ALAN sayi>0 ile tamamlanınca
+// 'tamam' raporlanır; aksi hâlde 'yapilmadi' (SW localStorage okuyamaz)
+let onbellekYapildi = false;
 
 function arcgisSunucusuMu(url) {
   try {
@@ -101,6 +105,10 @@ function bboxGecerliMi(bbox) {
     bbox.minLon < bbox.maxLon && bbox.minLat < bbox.maxLat;
 }
 
+// Çok-zoom kademeli önbellek: minZoom..maxZoom aralığındaki her zoom katı için karo
+// çeker; onlyHighFirst=true ise yüksek zoom önce gelir (ön-yüklemede en kritik
+// görünüm erkenden hazır olur). Plan üst sınırı 5000 karo; aşılırsa kalan zoomlar
+// plana dahil edilmez. LRU KARO_SINIRI her çağrı sonunda korunur.
 async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst) {
   if (!bboxGecerliMi(bbox)) return 0;
   let c;
@@ -143,6 +151,26 @@ async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst
   return sayac;
 }
 
+// ALAN_OZET: KARO_AD anahtarlarından (/tile/z/y/x) zoom dağılımı ve toplam üretir
+async function alanOzetAl() {
+  const ozet = { toplam: 0, dagilim: {} };
+  try {
+    const c = await caches.open(KARO_AD);
+    const keys = await c.keys();
+    for (const k of keys) {
+      try {
+        const m = /\/tile\/(\d+)\/\d+\/\d+/.exec(new URL(k.url).pathname);
+        if (m) {
+          const z = m[1];
+          ozet.dagilim[z] = (ozet.dagilim[z] || 0) + 1;
+          ozet.toplam++;
+        }
+      } catch (_) {}
+    }
+  } catch (_) {}
+  return ozet;
+}
+
 // VERİ (özellik) önbelleği: Numarataj (katman 0) ve Yapılar (katman 2) sorgu
 // uçlarını bbox zarfıyla sorgular, yanıtları tam sorgu URL'siyle VERI_AD'e yazar.
 const VERI_KATMANLAR = [0, 2];
@@ -177,18 +205,19 @@ function portYanitla(port, mesaj) {
 function bosYanit(url) {
   let ct = "application/octet-stream";
   try {
-    if (/\\.js$/i.test(url.pathname)) ct = "application/javascript";
-    else if (/\\.css$/i.test(url.pathname)) ct = "text/css";
-    else if (/\\.json$/i.test(url.pathname)) ct = "application/json";
-    else if (/\\.pbf$/i.test(url.pathname)) ct = "application/x-protobuf";
-    else if (/\\.woff2?$/i.test(url.pathname)) ct = "font/woff2";
-    else if (/\\.png$/i.test(url.pathname)) ct = "image/png";
+    if (/\.js$/i.test(url.pathname)) ct = "application/javascript";
+    else if (/\.css$/i.test(url.pathname)) ct = "text/css";
+    else if (/\.json$/i.test(url.pathname)) ct = "application/json";
+    else if (/\.pbf$/i.test(url.pathname)) ct = "application/x-protobuf";
+    else if (/\.woff2?$/i.test(url.pathname)) ct = "font/woff2";
+    else if (/\.png$/i.test(url.pathname)) ct = "image/png";
   } catch (_) {}
   return new Response("", { status: 200, headers: { "Content-Type": ct } });
 }
 
 // Nihai sertleştirme: her mesaj tipi için garanti yanıt — fn hata verse bile
-// port asla yanıtsız kalmaz; BILINMEYEN fallback tüm tipleri kapsar
+// port asla yanıtsız kalmaz; BILINMEYEN fallback tüm tipleri kapsar.
+// YENİ (adım 3): ALAN_OZET ve ONBELLEK_DURUMU da garanti-yanıt fallback'ına eklendi.
 function mesajIsle(e, fn) {
   const port = e.ports && e.ports[0];
   const garantiYanit = () => {
@@ -199,6 +228,8 @@ function mesajIsle(e, fn) {
     else if (tip === "TAZELE_ALAN") portYanitla(port, { tip: "TAZELE_TAMAM", sayi: 0 });
     else if (tip === "GUNCEL_ALAN") portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: 0 });
     else if (tip === "ALAN_GENISLET") portYanitla(port, { tip: "ALAN_GENISLET_TAMAM", sayi: 0 });
+    else if (tip === "ALAN_OZET") portYanitla(port, { tip: "ALAN_OZET_TAMAM", toplam: 0, dagilim: {} });
+    else if (tip === "ONBELLEK_DURUMU") portYanitla(port, { tip: "ONBELLEK_DURUMU_TAMAM", durum: "yapilmadi" });
     else if (tip === "VERI_SENKRON") portYanitla(port, { tip: "VERI_SENKRON_TAMAM", sayi: 0 });
     else if (tip === "SKIP_WAITING") portYanitla(port, { tip: "SKIP_WAITING_TAMAM" });
     else if (tip === "VERI_ONBELLEKLE") portYanitla(port, { tip: "VERI_ONBELLEKLE_TAMAM", sayi: 0 });
@@ -245,7 +276,7 @@ self.addEventListener("install", e => {
 });
 
 // Nihai sertleştirme: activate'te GÜNCEL sürümler dışındaki TÜM önbellekler
-// (eski v36/v35/... dahil her ad) kalıcı silinir; dört önbellek varestelle garanti edilir
+// (eski v36/v35/... dahil her ad) kalıcı silinir; beş önbellek varestelle garanti edilir
 self.addEventListener("activate", e => {
   const guncelAdlar = [AD, VERI_AD, KARO_AD, VEKTOR_AD, SDK_AD];
   e.waitUntil(
@@ -296,7 +327,10 @@ self.addEventListener("message", e => {
   if (tip === "ONBELLEKLE_ALAN") {
     mesajIsle(e, port =>
       alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false, true)
-        .then(sayi => portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: sayi }))
+        .then(sayi => {
+          if (sayi > 0) onbellekYapildi = true;
+          portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: sayi });
+        })
     );
     return;
   }
@@ -318,12 +352,30 @@ self.addEventListener("message", e => {
   }
 
   // Sözleşme: ALAN_GENISLET — gezilen alanın karoları YALNIZCA EKSİK those çekilerek
-  // önbelleğe genişletilir (sadeceEksik=true); yanıt her durumda ALAN_GENISLET_TAMAM
-  // (mesajIsle garanti-yanıt fallback'ı da bu tipi kapsar)
+  // önbelleğe genişletilir (sadeceEksik=true, çok-zoom kademesiz); yanıt her durumda
+  // ALAN_GENISLET_TAMAM (mesajIsle garanti-yanıt fallback'ı da bu tipi kapsar)
   if (tip === "ALAN_GENISLET") {
     mesajIsle(e, port =>
       alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, true, false)
         .then(sayi => portYanitla(port, { tip: "ALAN_GENISLET_TAMAM", sayi: sayi }))
+    );
+    return;
+  }
+
+  // YENİ (adım 3): ALAN_OZET — KARO_AD önbelleğinin zoom dağılımı + toplamı → ALAN_OZET_TAMAM
+  if (tip === "ALAN_OZET") {
+    mesajIsle(e, port =>
+      alanOzetAl().then(ozet => portYanitla(port, { tip: "ALAN_OZET_TAMAM", toplam: ozet.toplam, dagilim: ozet.dagilim }))
+    );
+    return;
+  }
+
+  // YENİ (adım 3): ONBELLEK_DURUMU — açılış alanı ön-yüklemesi tamamlandı mı?
+  // SW localStorage okuyamaz; hafıza içi bayrak (ONBELLEKLE_ALAN sayi>0) kullanılır;
+  // bayrak yoksa 'yapilmadi' döner → ONBELLEK_DURUMU_TAMAM
+  if (tip === "ONBELLEK_DURUMU") {
+    mesajIsle(e, port =>
+      portYanitla(port, { tip: "ONBELLEK_DURUMU_TAMAM", durum: onbellekYapildi ? "tamam" : "yapilmadi" })
     );
     return;
   }

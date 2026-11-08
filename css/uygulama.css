@@ -715,3 +715,68 @@ html, body { max-width: 100vw !important; overflow-x: hidden !important; }
    kapalı, yükleniyor halkası statik) — burada değiştirilmedi. */
 /* WCAG 2.1 AA kontrast renkleri değişmedi: --vurgu #b3261e, --metin
    #1f1f1f, yüzeyler ve rozet renkleri aynı kaldı. */
+
+/* ============================================================
+   ADIM 3 — KISAYOL DERİNLEŞTİRMEYE EŞLİK EDEN ERİŞİLEBİLİRLİK
+   SERTLEŞTİRMESİ (Ajan 5, css/uygulama.css tek sahibi):
+   Yeni kısayollar ('?'/h ekran-okuyucu yardımı, '0' Anıtkabir
+   sıfırlama, 'n' sonraki seçim) js/uygulama.js'te; bu kısayollar
+   yeni odaklanabilir eleman eklemez — bu yüzden arayüz/panel/buton
+   EKLEME YOK. Burada yalnızca:
+   1) Tek otoriter :focus-visible kuralı: TÜM klavye-odak elemanları
+      (button, input, a, select, textarea, [tabindex], [role],
+      [contenteditable]) 3px katı --vurgu halkasını !important ile alır;
+      yukarıdaki Adım 2 kuralıyla birebir aynı değerler — çakışma yok,
+      bu blok salt pekiştirmedir.
+   2) prefers-reduced-motion bloğu yukarıda eksiksiz (tüm
+      transition/animasyon kapalı, yükleniyor halkası statik) — burada
+      değiştirilmedi.
+   3) 390x844 yatay taşma sıfır kilitleri (html/body max-width:100vw
+      !important + tüm yüzen kartlar max-width:100vw !important +
+      flex elemanları min-width:0) burada yinelenmez; yukarıdaki
+      !important değerleri tek otoriter kalır.
+   4) Logo 28px !important ve alt çubuk calc(8px + env(safe-area-
+      inset-bottom)) !important blokları DOKUNULMADI.
+   ============================================================ */
+button:focus-visible, input:focus-visible, a:focus-visible,
+select:focus-visible, textarea:focus-visible, summary:focus-visible,
+[tabindex]:focus-visible, [contenteditable]:focus-visible,
+[role="option"]:focus-visible, [role="button"]:focus-visible,
+[role="checkbox"]:focus-visible, [role="dialog"] [tabindex]:focus-visible,
+.katman-satir:focus-visible, .taban-dugme:focus-visible,
+.kontrol-dugme:focus-visible, .kurulum-dugme:focus-visible,
+.arama-sonuc:focus-visible, .bildirim button:focus-visible,
+.atla-link:focus-visible, #bina-karti-kapat:focus-visible,
+#arama-temizle:focus-visible {
+  outline: 3px solid var(--vurgu) !important;
+  outline-offset: 2px !important;
+  box-shadow: none !important;
+}
+/* Yuvarlak kontrollerde (temizle/kapama) halka dairesel görünsün */
+#arama-temizle:focus-visible, #bina-karti-kapat:focus-visible { border-radius: 50% !important; }
+/* Harita (viewDiv) klavye odağındayken iç kenarda 3px kırmızı halka —
+   '0' (Anıtkabir sıfırlama) ve 'n' (sonraki seçim) kısayolları sonrası
+   odak viewDiv'e döndüğünde klavye kullanıcısı bunu her zaman görür */
+#viewDiv:focus-visible {
+  outline: none !important;
+  box-shadow: inset 0 0 0 3px var(--vurgu) !important;
+}
+/* Arama listesinde ok tuşlarıyla gezinirken aria-selected=true olan
+   seçenek görsel olarak da seçili görünsün ('?' yardım duyurusu ve
+   ok-tuşu gezinmesi için tutarlı geri bildirim) */
+.arama-sonuc[aria-selected="true"] {
+  background: #f2f2f2 !important;
+  box-shadow: inset 3px 0 0 var(--vurgu) !important;
+}
+/* Katman kartı içindeki onay kutusu odağında satır vurgusu (L kısayolu
+   ile kart açıldığında klavye gezinmesi için) */
+.katman-satir:focus-within { background: #f2f2f2; }
+.katman-satir input:focus-visible {
+  outline: 3px solid var(--vurgu) !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
+}
+/* Adım 3 kilidi: bu blokta yukarıdaki Adım 2 kurallarını ezen, logo
+   28px !important'ı, alt çubuk 8px boşluk !important'ı veya
+   prefers-reduced-motion / 390x844 taşma-sıfır kilitlerini bozan
+   TEK BİR kural YOKTUR — salt erişilebilirlik pekiştirmesi. */
