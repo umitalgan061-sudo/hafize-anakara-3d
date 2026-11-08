@@ -653,3 +653,65 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
    Dokunma hedefleri 44x44 ve yatay taşma sıfır (max-width:100vw) kırılmadı. */
 /* Logo bloğu dışındaki tüm svg'lere dokunulmadı; WCAG kontrast ve
    :focus-visible halkaları bu blokta değiştirilmedi. */
+
+/* ============================================================
+   ADIM 2 — KLAVYE KISAYOL SERTLEŞTİRMESİ (Ajan 5, css/uygulama.css tek sahibi):
+   Yeni ekran/panel/buton YOK — yalnızca mevcut elemanların odak geri
+   bildirimi sertleştirilir (sözleşme: K/A/L/C/Esc/+/-/ok/Enter kısayolları
+   js/uygulama.js'te; burada yalnızca görsel odak halkaları güçlendirilir).
+   ============================================================ */
+/* Tek kaynaklı odak halkası: TÜM klavye-odaklanabilir elemanlar —
+   3px katı --vurgu halkası, 2px ofset (WCAG 2.4.7). Hiçbir kontrol bu
+   kuralın dışında kalmaz; yuvarlak kontroller (temizle/kapama) kendi
+   border-radius'larını korur (outline köşeyi takip eder). */
+button:focus-visible, input:focus-visible, a:focus-visible,
+[role="option"]:focus-visible, [role="button"]:focus-visible,
+[tabindex]:focus-visible, select:focus-visible, textarea:focus-visible,
+.katman-satir:focus-visible, .taban-dugme:focus-visible,
+.kontrol-dugme:focus-visible, .kurulum-dugme:focus-visible,
+.bildirim button:focus-visible {
+  outline: 3px solid var(--vurgu) !important;
+  outline-offset: 2px !important;
+  box-shadow: none;
+}
+/* Yuvarlak kontrollerde halka daire görünsün */
+#arama-temizle:focus-visible, #bina-karti-kapat:focus-visible { border-radius: 50%; }
+/* Harita (viewDiv) odağa gelince (atla bağlantısı/Enter/Esc sonrası):
+   ekranın iç kenarında 3px kırmızı inset halka — klavye kullanıcısı
+   haritanın odakta olduğunu her zaman görür */
+#viewDiv:focus-visible {
+  outline: none !important;
+  box-shadow: inset 0 0 0 3px var(--vurgu) !important;
+}
+/* Klavye gezinmesinde aria-selected=true olan arama seçeneği görsel
+   olarak da seçili görünsün (ok tuşlarıyla gezinme geri bildirimi) */
+.arama-sonuc[aria-selected="true"] {
+  background: #f2f2f2 !important;
+  box-shadow: inset 3px 0 0 var(--vurgu);
+}
+/* Katman kartındaki onay kutusu odağında satır vurgusu */
+.katman-satir:focus-within { background: #f2f2f2; }
+.katman-satir input:focus-visible {
+  outline: 3px solid var(--vurgu) !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
+}
+/* 390x844 yatay taşma sıfır garantisi (pekiştirilmiş): hiçbir blok
+   100vw'i aşamaz, tüm flex elemanları min-width:0 */
+html, body { max-width: 100vw !important; overflow-x: hidden !important; }
+.ust-bant, .alt-cubuk, .katman-karti, .bina-karti, .bildirim,
+.arama-sonuclari, .durum-satiri, .atla-link, .cevrimo-gosterge,
+.kurulum-dugme {
+  max-width: 100vw !important;
+  min-width: 0;
+}
+.ust-bant > *, .alt-cubuk > *, .taban-secimi > *, .katman-karti > *,
+.bina-karti > *, .bildirim > *, .arama-sonuclari > * { min-width: 0; }
+/* Mobil blok kilitleri (≤600px ve ≤360px) bu katmanda yinelenmez —
+   taban bloktaki !important değerleri (alt çubuk bottom calc(8px +
+   env(safe-area-inset-bottom)) !important, logo 28px !important) tek
+   otoriter kalır; burada bu kilitleri ezen hiçbir kural YOKTUR. */
+/* prefers-reduced-motion bloğu zaten eksiksiz (tüm transition/animasyon
+   kapalı, yükleniyor halkası statik) — burada değiştirilmedi. */
+/* WCAG 2.1 AA kontrast renkleri değişmedi: --vurgu #b3261e, --metin
+   #1f1f1f, yüzeyler ve rozet renkleri aynı kaldı. */

@@ -317,6 +317,17 @@ self.addEventListener("message", e => {
     return;
   }
 
+  // Sözleşme: ALAN_GENISLET — gezilen alanın karoları YALNIZCA EKSİK those çekilerek
+  // önbelleğe genişletilir (sadeceEksik=true); yanıt her durumda ALAN_GENISLET_TAMAM
+  // (mesajIsle garanti-yanıt fallback'ı da bu tipi kapsar)
+  if (tip === "ALAN_GENISLET") {
+    mesajIsle(e, port =>
+      alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, true, false)
+        .then(sayi => portYanitla(port, { tip: "ALAN_GENISLET_TAMAM", sayi: sayi }))
+    );
+    return;
+  }
+
   if (tip === "VERI_SAYISI") {
     mesajIsle(e, port =>
       caches.open(VERI_AD)

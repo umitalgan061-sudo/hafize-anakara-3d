@@ -1021,7 +1021,7 @@ require([
     }
   });
   document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && !katmanKarti.hidden) { katmanKartiKapat(); e.stopImmediatePropagation(); return; }
+    if (e.key === "Escape" && !katmanKarti.hidden) { katmanKartiKapat(); return; }
     // Kart açıkken Tab/Shift+Tab kart içinde döngüsel kalsın
     if (e.key === "Tab" && !katmanKarti.hidden) {
       const odaklilar = katmanKarti.querySelectorAll("input, button");
@@ -1644,21 +1644,38 @@ require([
       const aktif = document.activeElement;
       if (aktif && (aktif.tagName === "INPUT" || aktif.tagName === "TEXTAREA" ||
           aktif.tagName === "SELECT" || aktif.isContentEditable)) return;
-      const diyalogAcik = (katmanKarti && !katmanKarti.hidden) || (binaKarti && !binaKarti.hidden);
-      if (diyalogAcik) return; // açık diyalogda kısayol yok (Esc/dışarı dokunuş zaten diyalogda ele alınıyor)
       const k = e.key;
+      // SÖZLEŞME: Esc her durumda (diyalog açıkken de) TÜM panelleri kapatır — bina kartı + katman kartı + arama sonuçları
+      if (k === "Escape") {
+        e.preventDefault();
+        binaKartiKapat(true);
+        katmanKartiKapat();
+        if (aramaSonuclari && !aramaSonuclari.hidden) {
+          aramaSonuclari.hidden = true;
+          if (aramaGirdi) {
+            aramaGirdi.setAttribute("aria-expanded", "false");
+            aramaGirdi.removeAttribute("aria-activedescendant");
+          }
+          duyur("Arama sonuçları kapatıldı");
+        }
+        return;
+      }
+      const diyalogAcik = (katmanKarti && !katmanKarti.hidden) || (binaKarti && !binaKarti.hidden);
+      // Arama sonuç listesi açıkken ve odak bir sonuç düğmesindeyse ok tuşları
+      // listeyi gezsin, haritayı pan'lamasın (sessizlik kuralı — girdi odakta zaten üstte yakalanır)
+      const aramaListesiOdakta = !!(aramaSonuclari && !aramaSonuclari.hidden && aktif && aramaSonuclari.contains(aktif));
+      if (diyalogAcik || aramaListesiOdakta) return; // açık diyalogda/liste odakta diğer kısayollar sessiz (Esc yukarıda ele alındı)
       let kullanildi = true;
       if (k === "k" || k === "K") { if (btnKuzey) btnKuzey.click(); duyur("Kısayol: kuzeye çevrildi"); }
       else if (k === "a" || k === "A") { if (btnAnitkabir) btnAnitkabir.click(); duyur("Kısayol: Anıtkabir görünümüne dönüldü"); }
-      else if (k === "l" || k === "L") { if (btnKatmanlar) btnKatmanlar.click(); }
+      else if (k === "l" || k === "L") { if (btnKatmanlar) { const acilacak = katmanKarti && katmanKarti.hidden; btnKatmanlar.click(); duyur(acilacak ? "Kısayol: katmanlar paneli açıldı" : "Kısayol: katmanlar paneli kapandı"); } }
       else if (k === "c" || k === "C") { if (btnKonum) btnKonum.click(); duyur("Kısayol: konum"); }
-      else if (k === "Escape") { binaKartiKapat(true); katmanKartiKapat(); }
       else if (k === "+" || k === "=") { kisayolZoom(1); duyur("Kısayol: yakınlaştı"); }
       else if (k === "-" || k === "_") { kisayolZoom(-1); duyur("Kısayol: uzaklaştı"); }
-      else if (k === "ArrowUp") { kisayolPan(0, 1); }
-      else if (k === "ArrowDown") { kisayolPan(0, -1); }
-      else if (k === "ArrowLeft") { kisayolPan(-1, 0); }
-      else if (k === "ArrowRight") { kisayolPan(1, 0); }
+      else if (k === "ArrowUp") { kisayolPan(0, 1); duyur("Kısayol: haritada yukarı"); }
+      else if (k === "ArrowDown") { kisayolPan(0, -1); duyur("Kısayol: haritada aşağı"); }
+      else if (k === "ArrowLeft") { kisayolPan(-1, 0); duyur("Kısayol: haritada sola"); }
+      else if (k === "ArrowRight") { kisayolPan(1, 0); duyur("Kısayol: haritada sağa"); }
       else kullanildi = false;
       if (kullanildi) e.preventDefault();
     } catch (err) { console.warn("Kısayol yöneticisi hatası (ele alındı):", err); }
