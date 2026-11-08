@@ -29,6 +29,12 @@
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer?f=json" />
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/0?f=json" />
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/2?f=json" />
+  <!-- Çevrimdışı veri önbelleği (adım 6 fazı): Numarataj ve Yapılar sorgu uçlarının
+       (f=json) meta verisi de erkenden çekilir; uçak modunda bu sorgular sw.js
+       VERI_AD önbelleğinden döneceği için ilk yanıtlar önbellek yazımıyla çakışmaz,
+       ilk açılış <2 sn hedefini etkilemez -->
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/0/query?f=json" />
+  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/2/query?f=json" />
   <!-- Zincirin SON halkası (3B binalar) view.when + requestIdleCallback ile erteleniyor;
        SceneServer meta verisi yine de erkenden çekilir — idle callback tetiklenince istek
        çoktan tamamlanmış olur, açılış Anıtkabir görünümü <2 sn hedefini geciktirmez -->

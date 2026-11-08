@@ -542,49 +542,89 @@ require([
 
   // Ağ durumu + çevrimdışı rozet + önbellek kurtarma akışı
   const cevrimoGosterge = document.getElementById("cevrimo-gosterge");
-  function cevrimiGuncelle(sayi) {
+  // İki sayaçlı rozet: sayi = karo sayısı, veriSayi = veri (özellik) önbelleği sayısı;
+  // veriSayi > 0 ise metne '· veri' eki eklenir ('Çevrimdışı · N karo · veri')
+  function cevrimiGuncelle(sayi, veriSayi) {
     if (!cevrimoGosterge) return;
     const cevrimdasi = !navigator.onLine;
     cevrimoGosterge.hidden = !cevrimdasi;
     if (cevrimdasi) {
-      cevrimoGosterge.textContent = (typeof sayi === "number")
-        ? "Çevrimdışı · " + sayi + " karo"
-        : "Çevrimdışı";
+      let metin = "Çevrimdışı";
+      if (typeof sayi === "number") metin = "Çevrimdışı · " + sayi + " karo";
+      if (typeof veriSayi === "number" && veriSayi > 0) metin += " · veri";
+      cevrimoGosterge.textContent = metin;
     }
   }
   function karoSayisiAl(geriCagri) {
-    if (!("serviceWorker" in navigator)) return;
-    const denetci = navigator.serviceWorker.controller;
-    if (!denetci) return;
-    const kanal = new MessageChannel();
-    kanal.port1.onmessage = ev => {
-      if (ev.data && ev.data.tip === "KARO_SAYISI") {
-        duyur("Önbellekte " + ev.data.sayi + " harita karosu var");
-        if (typeof geriCagri === "function") geriCagri(ev.data.sayi);
-      }
-    };
-    denetci.postMessage({ tip: "KARO_SAYISI" }, [kanal.port2]);
+    try {
+      if (!("serviceWorker" in navigator)) return;
+      const denetci = navigator.serviceWorker.controller;
+      if (!denetci) return;
+      const kanal = new MessageChannel();
+      kanal.port1.onmessage = ev => {
+        if (ev.data && ev.data.tip === "KARO_SAYISI") {
+          duyur("Önbellekte " + ev.data.sayi + " harita karosu var");
+          if (typeof geriCagri === "function") geriCagri(ev.data.sayi);
+        }
+      };
+      denetci.postMessage({ tip: "KARO_SAYISI" }, [kanal.port2]);
+    } catch (_) {}
+  }
+  // VERI_SAYISI: veri (Numarataj/Yapılar sorgu) önbelleğindeki kayıt sayısını döndürür
+  function veriSayisiAl(geriCagri) {
+    try {
+      if (!("serviceWorker" in navigator)) return;
+      const denetci = navigator.serviceWorker.controller;
+      if (!denetci) return;
+      const kanal = new MessageChannel();
+      kanal.port1.onmessage = ev => {
+        if (ev.data && ev.data.tip === "VERI_SAYISI") {
+          if (typeof geriCagri === "function") geriCagri(ev.data.sayi);
+        }
+      };
+      denetci.postMessage({ tip: "VERI_SAYISI" }, [kanal.port2]);
+    } catch (_) {}
+  }
+  // İki sayaç birlikte: hem karo hem veri sayısı alınır, rozet her iki sayaçla güncellenir
+  function sayaclariYenile() {
+    try {
+      if (!("serviceWorker" in navigator)) return;
+      const denetci = navigator.serviceWorker.controller;
+      if (!denetci) return;
+      let karo = null, veri = null;
+      const guncelle = () => cevrimiGuncelle(karo, veri);
+      const k1 = new MessageChannel();
+      k1.port1.onmessage = ev => {
+        if (ev.data && ev.data.tip === "KARO_SAYISI") { karo = ev.data.sayi; guncelle(); }
+      };
+      denetci.postMessage({ tip: "KARO_SAYISI" }, [k1.port2]);
+      const k2 = new MessageChannel();
+      k2.port1.onmessage = ev => {
+        if (ev.data && ev.data.tip === "VERI_SAYISI") { veri = ev.data.sayi; guncelle(); }
+      };
+      denetci.postMessage({ tip: "VERI_SAYISI" }, [k2.port2]);
+    } catch (_) {}
   }
   cevrimiGuncelle();
   if (!navigator.onLine) {
     // Sayfa zaten çevrimdışı açıldıysa (uçak modu): service worker hazır olunca
-    // rozet karo sayısıyla güncellenir ve tek satır kurtarma bildirimi çıkar
+    // rozet karo + veri sayısıyla güncellenir ve tek satır kurtarma bildirimi çıkar
     navigator.serviceWorker.ready.then(() => {
-      karoSayisiAl(sayi => cevrimiGuncelle(sayi));
+      sayaclariYenile();
       gosterBildirim("Çevrimdışı — önbellekten açılıyor", katmanlariYenidenDene);
       duyur("Çevrimdışı modda açıldı, önbellekteki alan gösteriliyor");
     }).catch(() => {});
   }
   window.addEventListener("offline", () => {
     cevrimiGuncelle();
-    karoSayisiAl(sayi => cevrimiGuncelle(sayi));
+    sayaclariYenile();
     gosterBildirim("Çevrimdışı — önbellekten çalışıyor", katmanlariYenidenDene);
     duyur("Çevrimdışı oldunuz, son görüntülenen alan önbellekten açılır");
   });
   window.addEventListener("online", () => {
     cevrimiGuncelle();
-    // Rozet/karo sayısı tazelensin (çevrimiçi dönüşünde son durum görünsün)
-    karoSayisiAl(sayi => cevrimiGuncelle(sayi));
+    // Rozet/karo + veri sayısı tazelensin (çevrimiçi dönüşünde son durum görünsün)
+    sayaclariYenile();
     // Tek satır kurtarma akışı: önce eksik katmanlar, sonra görünür alanın karoları
     gosterBildirim("Çevrimiçi — eksikler tazeleniyor", katmanlariYenidenDene);
     duyur("Çevrimiçi oldunuz, eksik katmanlar yeniden deneniyor");
@@ -597,9 +637,9 @@ require([
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       if (!navigator.onLine) {
-        // Uçak-modunda açılış: SW geç kontrol ederse rozet + karo sayısı + tek satır kurtarma yine guaranteed yenilenir
+        // Uçak-modunda açılış: SW geç kontrol ederse rozet + karo/veri sayısı + tek satır kurtarma yine guaranteed yenilenir
         cevrimiGuncelle();
-        karoSayisiAl(sayi => cevrimiGuncelle(sayi));
+        sayaclariYenile();
         gosterBildirim("Çevrimdışı — önbellekten açılıyor", katmanlariYenidenDene);
         duyur("Çevrimdışı modda açıldı, önbellekteki alan gösteriliyor");
       } else {
@@ -670,7 +710,8 @@ require([
   // Çevrimdışıyken rozet üzerindeki karo sayısı periyodik yenilenir;
   // döngü boş Zamana başlar, ilk açılışı yavaşlatmaz
   function karoSayisiDongusu() {
-    setInterval(() => { if (!navigator.onLine) karoSayisiAl(sayi => cevrimiGuncelle(sayi)); }, 20000);
+    // Çevrimdışıyken rozet üzerindeki karo + veri sayısı periyodik yenilenir
+    setInterval(() => { if (!navigator.onLine) sayaclariYenile(); }, 20000);
   }
   if ("requestIdleCallback" in window) requestIdleCallback(karoSayisiDongusu, { timeout: 8000 });
   else karoSayisiDongusu();
@@ -1097,6 +1138,23 @@ require([
         minZoom: 15,
         maxZoom: 17
       }, [kanal.port2]);
+      // Sözleşme (adım 6): AYNI idle callback içinde veri (özellik) önbelleği ön-yüklemesi —
+      // VERI_ONBELLEKLE, aynı Anıtkabir bbox + zoom 15-17 ile gönderilir. localStorage
+      // 'ankara3d-onbellek' bayrağı (yukarıda 1 ise tüm blok atlanır) veri ön-yüklemesini de kapsar.
+      try {
+        const vkanal = new MessageChannel();
+        vkanal.port1.onmessage = ev => {
+          if (ev.data && ev.data.tip === "VERI_ONBELLEKLE_TAMAM") {
+            console.log("VERI_ONBELLEKLE_TAMAM: " + (ev.data.sayi || 0) + " veri sorgusu önbelleğe alındı");
+          }
+        };
+        denetci.postMessage({
+          tip: "VERI_ONBELLEKLE",
+          bbox: { minLon: 32.815, minLat: 39.895, maxLon: 32.865, maxLat: 39.945 },
+          minZoom: 15,
+          maxZoom: 17
+        }, [vkanal.port2]);
+      } catch (_) {}
       };
       if ("requestIdleCallback" in window) requestIdleCallback(gonder, { timeout: 8000 });
       else setTimeout(gonder, 3000);

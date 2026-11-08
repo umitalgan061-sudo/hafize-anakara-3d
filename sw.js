@@ -1,4 +1,5 @@
-const AD = "ankara3d-v37";
+const AD = "ankara3d-v38";
+const VERI_AD = "ankara3d-veri-v1";
 const KARO_AD = "ankara3d-karolar-v31";
 const VEKTOR_AD = "ankara3d-vektor-v5";
 const SDK_AD = "ankara3d-sdk-v4";
@@ -171,6 +172,9 @@ function mesajIsle(e, fn) {
     else if (tip === "TAZELE_ALAN") portYanitla(port, { tip: "TAZELE_TAMAM", sayi: 0 });
     else if (tip === "GUNCEL_ALAN") portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: 0 });
     else if (tip === "SKIP_WAITING") portYanitla(port, { tip: "SKIP_WAITING_TAMAM" });
+    else if (tip === "VERI_ONBELLEKLE") portYanitla(port, { tip: "VERI_ONBELLEKLE_TAMAM", sayi: 0 });
+    else if (tip === "VERI_AL") portYanitla(port, { tip: "VERI_YOK" });
+    else if (tip === "VERI_SAYISI") portYanitla(port, { tip: "VERI_SAYISI", sayi: 0 });
     else portYanitla(port, { tip: "BILINMEYEN", istenen: tip || null, hata: true });
   };
   try {
@@ -214,7 +218,7 @@ self.addEventListener("install", e => {
 // Nihai sertleştirme: activate'te GÜNCEL sürümler dışındaki TÜM önbellekler
 // (eski v36/v35/... dahil her ad) kalıcı silinir; dört önbellek varestelle garanti edilir
 self.addEventListener("activate", e => {
-  const guncelAdlar = [AD, KARO_AD, VEKTOR_AD, SDK_AD];
+  const guncelAdlar = [AD, VERI_AD, KARO_AD, VEKTOR_AD, SDK_AD];
   e.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
@@ -222,7 +226,7 @@ self.addEventListener("activate", e => {
           .filter(k => guncelAdlar.indexOf(k) === -1)
           .map(k => caches.delete(k).catch(() => {}))
       ))
-      .then(() => Promise.all([caches.open(AD), caches.open(KARO_AD), caches.open(VEKTOR_AD), caches.open(SDK_AD)]))
+      .then(() => Promise.all([caches.open(AD), caches.open(VERI_AD), caches.open(KARO_AD), caches.open(VEKTOR_AD), caches.open(SDK_AD)]))
       .then(cachesArr => cachesArr[0].match("index.html").then(hit => {
         if (!hit) return fetch("index.html").then(r => { if (r.ok) return cachesArr[0].put("index.html", r); }).catch(() => {});
       }))

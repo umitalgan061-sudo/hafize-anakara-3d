@@ -463,8 +463,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .kontrol-dugme { width: 48px; min-height: 44px; min-width: 44px; padding: 2px 2px; }
   .kontrol-dugme svg { width: 20px; height: 20px; }
   .kontrol-dugme span { font-size: 9px; }
-  /* ≤360px'te de 'veri' eki sığar; ellipsis taşmayı yine keser (taşma sıfır) */
-  .cevrimo-gosterge { max-width: 42vw; }
+  /* ≤360px'te de 'veri' eki sığar (42vw→48vw); ellipsis taşmayı yine keser (taşma sıfır) */
+  .cevrimo-gosterge { max-width: 48vw; }
 }
 /* Klavye kullanıcıları için atla bağlantısı: 44x44 hedef, odakta görünür */
 .atla-link {
