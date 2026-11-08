@@ -1602,8 +1602,7 @@ require([
     else if (mqLogo.addListener) mqLogo.addListener(logoDegisti);
   } catch (_) {}
 
-  // (e) Nihai kilit: sözleşme global'leri beklenen TİPLE doğrulanır (yalnızca varlık değil);
-  // biri eksik/yanlış tipteyse tek satır warn — konsol error kalmaz (hata-free kuralı korunur)
+
   const sozlesmeGlobals = {
     view: "object",
     gosterBildirim: "function", duyur: "function", seciliVurgula: "function",

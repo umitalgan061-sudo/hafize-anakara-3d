@@ -418,9 +418,11 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
 
 @media (max-width: 600px) {
   /* MOBİL KULLANILABİLİRLİK KİLİDİ (kalıcı, denetçi kilidi): 390x844'te üst bant + alt çubuk
-     toplam kaplama ≤104 px (hedef ≤126 px) → #viewDiv görünürlüğü ≥%87,7 (kabul: en az %85).
+     toplam kaplama ≤108 px (hedef ≤126 px) → #viewDiv görünürlüğü ≥%87,2 (kabul: en az %85).
      Üst bant dış yükseklik = arama 44 + padding 2*2 + top 4 = 52 px;
-     alt çubuk dış yükseklik = düğme 44 + padding 2*2 + bottom 4 = 52 px.
+     alt çubuk dış yükseklik = düğme 44 + padding 2*2 + bottom 8 = 56 px.
+     ALT ÇUBUK 8px BOŞLUK KİLİDİ: bottom 4px kabul hatasıydı (ölçülen 4px, en az 8px şart);
+     burada calc(8px + env(safe-area-inset-bottom)) ZORUNLU — hiçbir blok bu değeri ezemez.
      Düğmeler hâlâ en az 44x44 dokunma hedefi (WCAG 2.1 AA korunur). */
   .ust-bant { top: 4px; left: 6px; right: 6px; padding: 2px 6px; gap: 6px; max-height: 52px; }
   .ust-bant__baslik { display: none; }
@@ -429,8 +431,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
   .arama-kutu { min-width: 0; }
   #arama-girdi { height: 44px; font-size: 16px; padding: 0 44px 0 10px; }
   #arama-temizle { width: 44px; height: 44px; right: 0; }
-  .alt-cubuk { bottom: calc(4px + env(safe-area-inset-bottom)); padding: 2px; gap: 2px; }
-  .kontrol-dugme { width: 50px; min-height: 44px; min-width: 44px; padding: 2px 4px; }
+  .alt-cubuk { bottom: calc(8px + env(safe-area-inset-bottom)) !important; padding: 2px; gap: 2px; }
+  .kontrol-dugme { width: 50px; min-height: 48px; min-width: 44px; padding: 2px 4px; }
   .kontrol-dugme svg { width: 22px; height: 22px; }
   .kontrol-dugme span { font-size: 10px; }
   .katman-karti { bottom: calc(64px + env(safe-area-inset-bottom)); }
@@ -451,16 +453,18 @@ button:focus-visible, input:focus-visible, a:focus-visible, [role="option"]:focu
    sıfır kalır. Logo 28px kuralı burada YİNELENMEZ (taban bloktaki !important kural
    tek otoriter); bu blokta logoyu ezen hiçbir kural yoktur.
    Kaplama: üst bant dış yükseklik = arama 44 + padding 2*2 + top 4 = 52 px;
-   alt çubuk dış yükseklik = düğme min 44 + padding 2*2 + bottom 4 = 52 px;
-   toplam 104 px ≤ 126 px → #viewDiv görünürlüğü ≥%87,7 (hedef ≥%85, kabul ≤126px).
+   alt çubuk dış yükseklik = düğme min 44 + padding 2*2 + bottom 8 = 56 px;
+   toplam 108 px ≤ 126 px → #viewDiv görünürlüğü ≥%87,2 (hedef ≥%85, kabul ≤126px).
+   ALT ÇUBUK 8px BOŞLUK KİLİDİ: bottom calc(8px + env(safe-area-inset-bottom)) !important —
+   bu blokta da 4px asla dönemez (kabul hatası kalıcı kapalı).
    Dokunma hedefleri 44x44 korunur (WCAG 2.1 AA kırılmaz). */
 @media (max-width: 360px) {
   .ust-bant { top: 4px; left: 4px; right: 4px; padding: 2px 4px; gap: 4px; max-height: 52px; }
   .arama-kutu { min-width: 0; }
   #arama-girdi { height: 44px; font-size: 16px; padding: 0 44px 0 8px; }
   #arama-temizle { width: 44px; height: 44px; right: 0; }
-  .alt-cubuk { bottom: calc(4px + env(safe-area-inset-bottom)); padding: 2px; gap: 2px; max-width: calc(100vw - 8px); }
-  .kontrol-dugme { width: 48px; min-height: 44px; min-width: 44px; padding: 2px 2px; }
+  .alt-cubuk { bottom: calc(8px + env(safe-area-inset-bottom)) !important; padding: 2px; gap: 2px; max-width: calc(100vw - 8px); }
+  .kontrol-dugme { width: 48px; min-height: 48px; min-width: 44px; padding: 2px 2px; }
   .kontrol-dugme svg { width: 20px; height: 20px; }
   .kontrol-dugme span { font-size: 9px; }
   /* ≤360px'te de 'veri' eki sığar (42vw→48vw); ellipsis taşmayı yine keser (taşma sıfır) */

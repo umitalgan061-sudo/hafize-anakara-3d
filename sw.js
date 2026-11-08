@@ -1,10 +1,11 @@
-const AD = "ankara3d-v38";
+const AD = "ankara3d-v39";
 const VERI_AD = "ankara3d-veri-v1";
 const KARO_AD = "ankara3d-karolar-v31";
 const VEKTOR_AD = "ankara3d-vektor-v5";
 const SDK_AD = "ankara3d-sdk-v4";
 const KARO_SINIRI = 600;
 const SDK_SINIRI = 400;
+const VERI_SINIRI = 200;
 const KABUK = ["./", "index.html", "css/uygulama.css", "js/uygulama.js", "manifest.json"];
 const IKONLAR = ["ikon/atakule-180.png", "ikon/atakule-192.png", "ikon/atakule-512.png"];
 // ArcGIS JS 4.32 SDK önbelleğinin açılışta ön-yüklenen kritik dosyaları:
@@ -87,6 +88,7 @@ async function cacheSinirla(cacheAd, sinir) {
 
 function karoSinirla() { return cacheSinirla(KARO_AD, KARO_SINIRI); }
 function sdkSinirla() { return cacheSinirla(SDK_AD, SDK_SINIRI); }
+function veriSinirla() { return cacheSinirla(VERI_AD, VERI_SINIRI); }
 
 async function karoYaz(c, anahtar, yanit) { return cacheYaz(c, anahtar, yanit); }
 
@@ -138,6 +140,31 @@ async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst
     await Promise.all(istekler);
   }
   await karoSinirla();
+  return sayac;
+}
+
+// VERİ (özellik) önbelleği: Numarataj (katman 0) ve Yapılar (katman 2) sorgu
+// uçlarını bbox zarfıyla sorgular, yanıtları tam sorgu URL'siyle VERI_AD'e yazar.
+const VERI_KATMANLAR = [0, 2];
+async function veriOnbellekle(bbox) {
+  if (!bboxGecerliMi(bbox)) return 0;
+  let c;
+  try { c = await caches.open(VERI_AD); } catch (_) { return 0; }
+  const zarf = bbox.minLon + "," + bbox.minLat + "," + bbox.maxLon + "," + bbox.maxLat;
+  let sayac = 0;
+  const istekler = VERI_KATMANLAR.map(katman => (async () => {
+    const u = "https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/" + katman +
+      "/query?f=json&geometry=" + encodeURIComponent(zarf) +
+      "&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects" +
+      "&outFields=*&returnGeometry=true&outSR=4326";
+    try {
+      if (await c.match(u)) return;
+      const r = await fetch(u);
+      if (r.ok) { sayac++; await cacheYaz(c, u, r); }
+    } catch (_) {}
+  })());
+  await Promise.all(istekler);
+  await veriSinirla();
   return sayac;
 }
 
@@ -288,6 +315,36 @@ self.addEventListener("message", e => {
     return;
   }
 
+  if (tip === "VERI_SAYISI") {
+    mesajIsle(e, port =>
+      caches.open(VERI_AD)
+        .then(c => c.keys())
+        .then(keys => portYanitla(port, { tip: "VERI_SAYISI", sayi: keys.length }))
+    );
+    return;
+  }
+
+  if (tip === "VERI_ONBELLEKLE") {
+    mesajIsle(e, port =>
+      veriOnbellekle(veri.bbox)
+        .then(sayi => portYanitla(port, { tip: "VERI_ONBELLEKLE_TAMAM", sayi: sayi }))
+    );
+    return;
+  }
+
+  if (tip === "VERI_AL") {
+    mesajIsle(e, port =>
+      caches.open(VERI_AD).then(async c => {
+        try {
+          const hit = await c.match(veri.url || veri.anahtar || "");
+          if (hit) { portYanitla(port, { tip: "VERI_BULUNDU", veri: await hit.text() }); return; }
+        } catch (_) {}
+        portYanitla(port, { tip: "VERI_YOK" });
+      })
+    );
+    return;
+  }
+
   const port = e.ports && e.ports[0];
   portYanitla(port, { tip: "BILINMEYEN", istenen: tip || null });
 });
@@ -380,6 +437,34 @@ self.addEventListener("fetch", e => {
       );
       return;
     }
+
+    // 2b) Veri (özellik) sorguları (baskentcbs .../query): VERI_AD önbelleği önce-önbellek;
+    // yoksa ağdan çekilip önbelleğe yazılır; uçak modunda önbellekten döner
+    try {
+      if (url.hostname === "baskentcbs.ankara.bel.tr" && /\/query/i.test(url.pathname)) {
+        e.respondWith(
+          caches.open(VERI_AD).then(async c => {
+            let hit = null;
+            try { hit = await c.match(e.request); } catch (_) {}
+            if (hit) return hit;
+            try {
+              const resp = await fetch(e.request);
+              if (resp.ok) {
+                try { await cacheYaz(c, e.request, resp.clone()); veriSinirla().catch(() => {}); } catch (_) {}
+              }
+              return resp;
+            } catch (err) {
+              try {
+                const tekrar = await c.match(e.request);
+                if (tekrar) return tekrar;
+              } catch (_) {}
+              return bosYanit(url);
+            }
+          }).catch(() => fetch(e.request).catch(() => bosYanit(url)))
+        );
+        return;
+      }
+    } catch (_) {}
 
     // 3) Diğer ArcGIS sunucuları (veri servisleri vb.): ağa bırak
     if (arcgisSunucusuMu(url)) return;
