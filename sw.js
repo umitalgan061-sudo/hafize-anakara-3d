@@ -1,6 +1,6 @@
-const AD = "ankara3d-v39";
+const AD = "ankara3d-v40";
 const VERI_AD = "ankara3d-veri-v1";
-const KARO_AD = "ankara3d-karolar-v31";
+const KARO_AD = "ankara3d-karolar-v32";
 const VEKTOR_AD = "ankara3d-vektor-v5";
 const SDK_AD = "ankara3d-sdk-v4";
 const KARO_SINIRI = 600;
@@ -198,6 +198,8 @@ function mesajIsle(e, fn) {
     else if (tip === "ONBELLEKLE_ALAN") portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: 0 });
     else if (tip === "TAZELE_ALAN") portYanitla(port, { tip: "TAZELE_TAMAM", sayi: 0 });
     else if (tip === "GUNCEL_ALAN") portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: 0 });
+    else if (tip === "ALAN_GENISLET") portYanitla(port, { tip: "ALAN_GENISLET_TAMAM", sayi: 0 });
+    else if (tip === "VERI_SENKRON") portYanitla(port, { tip: "VERI_SENKRON_TAMAM", sayi: 0 });
     else if (tip === "SKIP_WAITING") portYanitla(port, { tip: "SKIP_WAITING_TAMAM" });
     else if (tip === "VERI_ONBELLEKLE") portYanitla(port, { tip: "VERI_ONBELLEKLE_TAMAM", sayi: 0 });
     else if (tip === "VERI_AL") portYanitla(port, { tip: "VERI_YOK" });

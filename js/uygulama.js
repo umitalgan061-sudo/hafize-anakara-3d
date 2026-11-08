@@ -23,6 +23,9 @@ require([
 
   // Kalıcı açılış performans ölçümü: ArcGIS JS yükleyici başlangıcı (bu callback'in çalıştığı an)
   const yukleyiciBaslangic = performance.now();
+  // Sözleşme global'i: açılış hedefi 1500 ms — gerileme eşiği (gerilemeKontrol) ve
+  // tüm AÇILIŞ ÖZET loglarıyla birebir uyumlu tek kaynak
+  window.acilisHedefMs = 1500;
 
   // prefers-reduced-motion (WCAG 2.1 AA): tüm kamera uçuş süreleri 0 yapılır;
   // CSS animasyonları zaten kapalı, kamera hareketi de anlık olur
@@ -400,16 +403,17 @@ require([
   const katmanSureleri = {};
   let viewHazirSuresi = null;
   let ozetRaporlandi = false;
-  // Gerileme tespiti (kalıcı): açılış hedefi 2000 ms; aşıldığında HER ZAMAN
+  // Gerileme tespiti (kalıcı): açılış hedefi window.acilisHedefMs (1500 ms); aşıldığında HER ZAMAN
   // console.warn tetiklenir — konsol hatasız kalır (warn kullanılır, error değil)
   // Nihai kilit: her kaynak için GERİLEME warn'ı yalnızca bir kez basılır
   // (zincir + özet + fallback aynı olayı tetiklese bile konsol tek satır warn görür)
   const gerilemeRaporlandi = new Set();
   function gerilemeKontrol(kaynak, toplamMs) {
-    if (!Number.isFinite(toplamMs) || toplamMs <= 2000) return;
+    const hedef = (typeof window.acilisHedefMs === "number") ? window.acilisHedefMs : 1500;
+    if (!Number.isFinite(toplamMs) || toplamMs <= hedef) return;
     if (gerilemeRaporlandi.has(kaynak)) return;
     gerilemeRaporlandi.add(kaynak);
-    console.warn("GERİLEME (" + kaynak + "): açılış " + Math.round(toplamMs) + " ms — hedef 2000 ms aşıldı");
+    console.warn("GERİLEME (" + kaynak + "): açılış " + Math.round(toplamMs) + " ms — hedef " + hedef + " ms aşıldı");
   }
   // Kısmi-başarı özeti: zincir kırılınca (örn. uçak modunda) yüklü katmanlarla
   // tek satır rapor; view hazır değilse bile log basılır (hiçbir durum log'suz kalmaz)
@@ -418,7 +422,7 @@ require([
     const parca = Object.keys(katmanSureleri).map(k => k + " " + Math.round(katmanSureleri[k]) + " ms").join(", ") || "katman yüklenemedi";
     console.warn("AÇILIŞ ÖZET (kısmi, zincir tamamlanamadı): " +
       (viewMs !== null ? "yükleyici→view hazır " + viewMs + " ms | " : "view henüz hazır değil | ") +
-      parca + " | hedef <2000");
+      parca + " | hedef <" + window.acilisHedefMs + " ms");
     if (viewMs !== null) gerilemeKontrol("kısmi özet", viewMs);
   }
   function acilisOzetRaporla() {
@@ -431,7 +435,7 @@ require([
       " | Numarataj " + Math.round(katmanSureleri["Numarataj"]) + " ms" +
       ", Yapılar " + Math.round(katmanSureleri["Yapılar"]) + " ms" +
       ", 3B binalar " + Math.round(katmanSureleri["3B binalar"]) + " ms" +
-      " | hedef <2000"
+      " | hedef <" + window.acilisHedefMs + " ms"
     );
     gerilemeKontrol("AÇILIŞ ÖZET", viewMs);
   }
@@ -442,7 +446,7 @@ require([
     ozetRaporlandi = true;
     const viewMs = Math.round(viewHazirSuresi - yukleyiciBaslangic);
     const parca = Object.keys(katmanSureleri).map(k => k + " " + Math.round(katmanSureleri[k]) + " ms").join(", ") || "katman yüklenemedi";
-    console.warn("AÇILIŞ ÖZET (kısmi, zincir tamamlanamadı): yükleyici→view hazır " + viewMs + " ms | " + parca + " | hedef <2000");
+    console.warn("AÇILIŞ ÖZET (kısmi, zincir tamamlanamadı): yükleyici→view hazır " + viewMs + " ms | " + parca + " | hedef <" + window.acilisHedefMs + " ms");
     gerilemeKontrol("6sn fallback", viewMs);
   }, 6000);
 
@@ -451,7 +455,7 @@ require([
   view.when(() => {
     const sure = Math.round(performance.now() - acilisBaslangic);
     viewHazirSuresi = performance.now();
-    if (sure > 2000) console.warn("Açılış hedefi aşıldı: " + sure + " ms");
+    if (sure > window.acilisHedefMs) console.warn("Açılış hedefi aşıldı: " + sure + " ms (hedef " + window.acilisHedefMs + " ms)");
     else console.log("Açılış süresi (Anıtkabir görünümü hazır): " + sure + " ms");
     const y = document.getElementById("yukleniyor");
     if (y) y.setAttribute("aria-valuenow", "3");
@@ -675,6 +679,9 @@ require([
       minZoom: Math.max(1, z - 1),
       maxZoom: Math.min(19, z + 1)
     }, [kanal.port2]);
+    // Sözleşme: mevcut GUNCEL_ALAN akışını genişlet — aynı alanı ALAN_GENISLET ile de gönder
+    // (yalnızca eksik karolar çekilir; SW tarafı ALAN_GENISLET_TAMAM yanıtlar)
+    alanOnbellekGenislet({ minLon: ex.xmin, minLat: ex.ymin, maxLon: ex.xmax, maxLat: ex.ymax });
   }
   function guncelAlaniTazele() {
     if (!navigator.onLine || !("serviceWorker" in navigator)) return;
@@ -1603,11 +1610,97 @@ require([
   } catch (_) {}
 
 
+  // ---------- Klavye kısayolları (sözleşme): K/A/L/C/Esc/+/-/ok tuşları ----------
+  // Tek kaynaklı: her kısayol ilgili düğmenin click'ini tetikler (btn.click()),
+  // girdi odaktayken (input/textarea/select/contentEditable) veya bir diyalog açıkken
+  // (katman kartı / bina kartı) kısayollar sessiz kalır. duyur() ile ekran okuyucuya bildirir.
+  function kisayolZoom(yon) {
+    try {
+      const z = Number.isFinite(view.zoom) ? view.zoom : 15;
+      const hedef = Math.max(1, Math.min(19, z + yon));
+      view.goTo({ zoom: hedef }, { duration: ucusSuresi(200) });
+    } catch (_) {}
+  }
+  function kisayolPan(dx, dy) {
+    try {
+      const c = view.camera;
+      if (!c || !c.position) return;
+      const z = Number.isFinite(view.zoom) ? view.zoom : 15;
+      const adim = 360 / Math.pow(2, Math.min(19, Math.max(1, z))) / 3;
+      const yon = ((c.heading || 0) % 360) * Math.PI / 180;
+      const latF = Math.max(0.2, Math.abs(Math.cos(c.position.latitude * Math.PI / 180)));
+      const lon = c.position.longitude + (dx * Math.sin(yon) + dy * Math.cos(yon)) * adim / latF;
+      const lat = c.position.latitude + (dy * Math.sin(yon) - dx * Math.cos(yon)) * adim;
+      view.goTo({
+        position: { longitude: lon, latitude: lat, z: c.position.z },
+        heading: c.heading,
+        tilt: c.tilt
+      }, { duration: ucusSuresi(200) });
+    } catch (_) {}
+  }
+  function kisayollariYonet(e) {
+    try {
+      if (!e || e.ctrlKey || e.metaKey || e.altKey) return;
+      const aktif = document.activeElement;
+      if (aktif && (aktif.tagName === "INPUT" || aktif.tagName === "TEXTAREA" ||
+          aktif.tagName === "SELECT" || aktif.isContentEditable)) return;
+      const diyalogAcik = (katmanKarti && !katmanKarti.hidden) || (binaKarti && !binaKarti.hidden);
+      if (diyalogAcik) return; // açık diyalogda kısayol yok (Esc/dışarı dokunuş zaten diyalogda ele alınıyor)
+      const k = e.key;
+      let kullanildi = true;
+      if (k === "k" || k === "K") { if (btnKuzey) btnKuzey.click(); duyur("Kısayol: kuzeye çevrildi"); }
+      else if (k === "a" || k === "A") { if (btnAnitkabir) btnAnitkabir.click(); duyur("Kısayol: Anıtkabir görünümüne dönüldü"); }
+      else if (k === "l" || k === "L") { if (btnKatmanlar) btnKatmanlar.click(); }
+      else if (k === "c" || k === "C") { if (btnKonum) btnKonum.click(); duyur("Kısayol: konum"); }
+      else if (k === "Escape") { binaKartiKapat(true); katmanKartiKapat(); }
+      else if (k === "+" || k === "=") { kisayolZoom(1); duyur("Kısayol: yakınlaştı"); }
+      else if (k === "-" || k === "_") { kisayolZoom(-1); duyur("Kısayol: uzaklaştı"); }
+      else if (k === "ArrowUp") { kisayolPan(0, 1); }
+      else if (k === "ArrowDown") { kisayolPan(0, -1); }
+      else if (k === "ArrowLeft") { kisayolPan(-1, 0); }
+      else if (k === "ArrowRight") { kisayolPan(1, 0); }
+      else kullanildi = false;
+      if (kullanildi) e.preventDefault();
+    } catch (err) { console.warn("Kısayol yöneticisi hatası (ele alındı):", err); }
+  }
+  window.kisayollariYonet = kisayollariYonet;
+  document.addEventListener("keydown", kisayollariYonet);
+
+  // ---------- Çevrimdışı akıllı alan (sözleşme): gezilen alanı SW'ye ALAN_GENISLET ile bildir ----------
+  // Mevcut GUNCEL_ALAN akışını genişletir: aynı bbox + geçerli zoom aralığı ALAN_GENISLET
+  // mesajıyla gönderilir; SW yalnızca eksik karoları çeker ve ALAN_GENISLET_TAMAM yanıtlar.
+  function alanOnbellekGenislet(bbox) {
+    try {
+      if (!bbox || !("serviceWorker" in navigator)) return;
+      const denetci = navigator.serviceWorker.controller;
+      if (!denetci || !navigator.onLine) return;
+      const z = Number.isFinite(view.zoom) ? Math.round(view.zoom) : 15;
+      const kanal = new MessageChannel();
+      kanal.port1.onmessage = ev => {
+        if (!ev.data) return;
+        if (ev.data.tip === "ALAN_GENISLET_TAMAM") {
+          console.log("ALAN_GENISLET_TAMAM: " + (ev.data.sayi || 0) + " eksik karo önbelleğe alındı");
+          if (ev.data.sayi > 0) duyur(ev.data.sayi + " karo çevrimdışı için genişletildi");
+        } else if (ev.data.tip === "BILINMEYEN") {
+          console.warn("SW bilinmeyen mesaj yanıtı (ele alındı)");
+        }
+      };
+      denetci.postMessage({
+        tip: "ALAN_GENISLET",
+        bbox: bbox,
+        minZoom: Math.max(1, z - 1),
+        maxZoom: Math.min(19, z + 1)
+      }, [kanal.port2]);
+    } catch (_) {}
+  }
+  window.alanOnbellekGenislet = alanOnbellekGenislet;
+
   const sozlesmeGlobals = {
     view: "object",
     gosterBildirim: "function", duyur: "function", seciliVurgula: "function",
     binaKartiGoster: "function", binaKartiKapat: "function", katmanKartiKapat: "function",
     yukseklikTahmin: "function", sonrakiSecim: "function",
+    kisayollariYonet: "function", alanOnbellekGenislet: "function", acilisHedefMs: "number",
     __cevrimiTest: "object", __azaltilmisHareket: "boolean", __logoKontrol: "function"
   };
   let eksikVar = false;
