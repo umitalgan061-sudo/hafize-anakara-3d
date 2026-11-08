@@ -780,3 +780,30 @@ select:focus-visible, textarea:focus-visible, summary:focus-visible,
    28px !important'ı, alt çubuk 8px boşluk !important'ı veya
    prefers-reduced-motion / 390x844 taşma-sıfır kilitlerini bozan
    TEK BİR kural YOKTUR — salt erişilebilirlik pekiştirmesi. */
+
+/* ============================================================
+   ADIM 4 — KISAYOL ODAK YÖNETİMİ İÇİN CSS PEKİŞTİRMESİ
+   (Ajan 5, css/uygulama.css tek sahibi):
+   js/uygulama.js'te her kısayol tetiklenince odak viewDiv'e
+   döner (view.focus(), window.kisayolOdakYonet). Bu odak
+   dönüşünün GÖRSEL karşılığı zaten yukarıdaki tek otoriter
+   kuraldır:
+     #viewDiv:focus-visible { outline: none !important;
+       box-shadow: inset 0 0 0 3px var(--vurgu) !important; }
+   — bu blokta YENİ kural eklenmemiştir; salt doğrulama yorumudur.
+   Korunanlar (bu blok hiçbirini EZMEZ):
+   - TÜM :focus-visible 3px --vurgu halka blokları (Adım 2/3
+     !important katmanı tek otoriter kalır);
+   - .arama-sonuc[aria-selected="true"] { background + inset sol
+     çizgi } ok-tuşu gezinmesi vurgusu;
+   - .katman-satir:focus-within ve input:focus-visible vurgusu;
+   - KORUMA KİLİTLERİ: .ust-bant__logo svg 28px !important (tüm
+     kırılımlar), .alt-cubuk bottom calc(8px +
+     env(safe-area-inset-bottom)) !important (≤600px ve ≤360px),
+     [hidden]{display:none!important}, html/body max-width:100vw +
+     overflow-x:hidden !important, tüm yüzen kartlar
+     max-width:100vw !important, prefers-reduced-motion bloğu,
+     44x44 dokunma hedefleri, WCAG 2.1 AA kontrast renkleri.
+   Arayüz EKLEME YOK: bu tur hiçbir yeni ekran/panel/sekme/
+   kart/buton eklemez; bu blok salt pekiştirme yorumudur.
+   ============================================================ */

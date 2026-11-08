@@ -408,6 +408,21 @@ require([
   // Nihai kilit: her kaynak için GERİLEME warn'ı yalnızca bir kez basılır
   // (zincir + özet + fallback aynı olayı tetiklese bile konsol tek satır warn görür)
   const gerilemeRaporlandi = new Set();
+  // ADIM 4 — otomatik degrade (sözleşme global'i window.perfDegrade): view hazır
+  // süresi hedefin %20 üstüne çıkarsa tek kez qualityProfile 'low' + tek PERF DEGRADE
+  // log + duyur; gerileme warn tek-warn Set ile zaten korunur.
+  let perfDegradeYapildi = false;
+  function perfDegrade(sureMs) {
+    try {
+      const hedef = (typeof window.acilisHedefMs === "number") ? window.acilisHedefMs : 1500;
+      if (perfDegradeYapildi || !Number.isFinite(sureMs) || sureMs <= hedef * 1.2) return;
+      perfDegradeYapildi = true;
+      try { view.qualityProfile = "low"; } catch (_) {}
+      console.log("PERF DEGRADE: açılış " + Math.round(sureMs) + " ms — hedef " + hedef + " ms'in %20 üstünü aştı; kalite profili 'low'");
+      duyur("Açılış yavaş olduğu için görüntü kalitesi düşürüldü");
+    } catch (_) {}
+  }
+  window.perfDegrade = perfDegrade;
   function gerilemeKontrol(kaynak, toplamMs) {
     const hedef = (typeof window.acilisHedefMs === "number") ? window.acilisHedefMs : 1500;
     if (!Number.isFinite(toplamMs) || toplamMs <= hedef) return;
@@ -466,6 +481,7 @@ require([
     const y = document.getElementById("yukleniyor");
     if (y) y.setAttribute("aria-valuenow", "3");
     acilisOzetRaporla();
+    perfDegrade(sure);
   });
 
   // Yükleniyor göstergesi gerçek ilerlemeyle bağlanır: görsel sade kalır;
@@ -1644,6 +1660,26 @@ require([
       }, { duration: ucusSuresi(200) });
     } catch (_) {}
   }
+  // ADIM 4 — kısayol odak yönetimi (sözleşme): her kısayol tetiklenince (bir
+  // diyalog açılmadıysa) odak viewDiv'e döner (view.focus()); ekran okuyucu
+  // duyurusu kısayol dalında zaten yapıldı. Hiçbir hata fırlatmaz.
+  function kisayolOdakYonet() {
+    try { if (view && typeof view.focus === "function") view.focus(); } catch (_) {}
+  }
+  window.kisayolOdakYonet = kisayolOdakYonet;
+  // ADIM 4 — kısayol odak yönetimi (sözleşme global'i): her kısayol tetiklenince
+  // odak viewDiv'e döner (view.focus()); girdi/diyalog sessizlik kuralları korunur.
+  function kisayolOdakYonet() {
+    try { if (view && typeof view.focus === "function") view.focus(); } catch (_) {}
+  }
+  window.kisayolOdakYonet = kisayolOdakYonet;
+  // ADIM 4 — kısayol odak yönetimi (sözleşme): her kısayol tetiklenince odak
+  // her zaman viewDiv'e döner (view.focus()); ekran okuyucu duyurusu yanındaki
+  // metinle birlikte gider. Hiçbir arayüz elemanı eklenmez.
+  function kisayolOdakYonet() {
+    try { if (view && typeof view.focus === "function") view.focus(); } catch (_) {}
+  }
+  window.kisayolOdakYonet = kisayolOdakYonet;
   function kisayollariYonet(e) {
     try {
       if (!e || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -1696,7 +1732,14 @@ require([
         else duyur("Seçili sonuç yok");
       }
       else kullanildi = false;
-      if (kullanildi) e.preventDefault();
+      if (kullanildi) {
+        e.preventDefault();
+        // Sözleşme: kısayol sonrası odak haritaya (viewDiv) döner — ancak bir
+        // diyalog (katman/bina kartı) bu kısayolla açıldıysa odak diyalogda
+        // kalır (WCAG diyalog odak yönetimi korunur; Esc hâlâ tümünü kapatır)
+        const diyalogHalaAcik = (katmanKarti && !katmanKarti.hidden) || (binaKarti && !binaKarti.hidden);
+        if (!diyalogHalaAcik) kisayolOdakYonet();
+      }
     } catch (err) { console.warn("Kısayol yöneticisi hatası (ele alındı):", err); }
   }
   window.kisayollariYonet = kisayollariYonet;
@@ -1708,14 +1751,40 @@ require([
   // Adım 3 — çok-zoom istek + kuyruk/guard: aynı anda ard arda gelen alan istekleri
   // kuyruğa alınır, tek tek işlenir (aynı anda birden çok ALAN_GENISLET gitmez).
   // Zoom aralığı z-2..z+2 (kademeli çok-zoom); SW tarafı 5000 karo plan üst sınırı + LRU korur.
+  // ADIM 4 — alan öncelik skoru (sözleşme global'i): bbox merkezinin Anıtkabir'e
+  // (32.8387, 39.9090) kabaca mesafesi; küçük skor = öncelikli. Kuyruk bu skora göre sıralanır.
+  function alanOncelikSkoru(bbox) {
+    try {
+      if (!bbox || !Number.isFinite(bbox.minLon) || !Number.isFinite(bbox.maxLon) ||
+          !Number.isFinite(bbox.minLat) || !Number.isFinite(bbox.maxLat)) return Number.MAX_SAFE_INTEGER;
+      const cx = (bbox.minLon + bbox.maxLon) / 2;
+      const cy = (bbox.minLat + bbox.maxLat) / 2;
+      const dx = cx - 32.8387, dy = cy - 39.9090;
+      return Math.sqrt(dx * dx + dy * dy);
+    } catch (_) { return Number.MAX_SAFE_INTEGER; }
+  }
+  window.alanOncelikSkoru = alanOncelikSkoru;
   let alanGenisletBusy = false;
   const alanGenisletKuyruk = [];
+  // ADIM 4 — alan öncelik skoru (sözleşme global'i): bbox merkezinin Anıtkabir'e
+  // (32.8387, 39.9090) olan kabaca mesafesi; küçük skor = öncelikli.
+  function alanOncelikSkoru(bbox) {
+    try {
+      if (!bbox || !Number.isFinite(bbox.minLon) || !Number.isFinite(bbox.maxLon) ||
+          !Number.isFinite(bbox.minLat) || !Number.isFinite(bbox.maxLat)) return Number.MAX_SAFE_INTEGER;
+      const dx = (bbox.minLon + bbox.maxLon) / 2 - 32.8387;
+      const dy = (bbox.minLat + bbox.maxLat) / 2 - 39.9090;
+      return Math.sqrt(dx * dx + dy * dy);
+    } catch (_) { return Number.MAX_SAFE_INTEGER; }
+  }
+  window.alanOncelikSkoru = alanOncelikSkoru;
   function alanOnbellekGenislet(bbox) {
     try {
       if (!bbox || !("serviceWorker" in navigator)) return;
       const denetci = navigator.serviceWorker.controller;
       if (!denetci || !navigator.onLine) return;
       alanGenisletKuyruk.push(bbox);
+      alanGenisletKuyruk.sort((a, b) => alanOncelikSkoru(a) - alanOncelikSkoru(b));
       if (alanGenisletBusy) return; // kuyrukta bekliyor, guard
       alanGenisletBusy = true;
       const siradaki = () => {
@@ -1801,6 +1870,8 @@ require([
     binaKartiGoster: "function", binaKartiKapat: "function", katmanKartiKapat: "function",
     yukseklikTahmin: "function", sonrakiSecim: "function",
     kisayollariYonet: "function", alanOnbellekGenislet: "function", acilisHedefMs: "number",
+    kisayolOdakYonet: "function", perfDegrade: "function", alanOncelikSkoru: "function",
+    kisayolOdakYonet: "function", perfDegrade: "function", alanOncelikSkoru: "function",
     __cevrimiTest: "object", __azaltilmisHareket: "boolean", __logoKontrol: "function"
   };
   let eksikVar = false;

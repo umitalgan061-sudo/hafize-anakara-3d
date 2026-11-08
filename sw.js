@@ -1,8 +1,8 @@
-const AD = "ankara3d-v41";
-const VERI_AD = "ankara3d-veri-v1";
-const KARO_AD = "ankara3d-karolar-v33";
-const VEKTOR_AD = "ankara3d-vektor-v6";
-const SDK_AD = "ankara3d-sdk-v5";
+const AD = "ankara3d-v42";
+const VERI_AD = "ankara3d-veri-v2";
+const KARO_AD = "ankara3d-karolar-v34";
+const VEKTOR_AD = "ankara3d-vektor-v7";
+const SDK_AD = "ankara3d-sdk-v6";
 const KARO_SINIRI = 600;
 const SDK_SINIRI = 400;
 const VERI_SINIRI = 200;
@@ -28,6 +28,12 @@ const VEKTOR_ON = [
 // ONBELLEK_DURUMU için hafıza içi bayrak: ONBELLEKLE_ALAN sayi>0 ile tamamlanınca
 // 'tamam' raporlanır; aksi hâlde 'yapilmadi' (SW localStorage okuyamaz)
 let onbellekYapildi = false;
+
+// ADIM 4 — ALAN_ONCELIK kuyruğu: alan istekleri kuyruğa alınır, bbox merkezinin
+// Anıtkabir'e (MERKEZ) uzaklığına göre sıralanır (küçük skor = öncelikli), aynı anda
+// TEK alan işlenir. Komşu öngörülü ön-yükleme: bir alan tamamlanınca 4 komşu bbox'ın
+// düşük zoom (maxZoom-3, en az 1) karoları onlyEksik=true ile arka planda hafifçe çekilir.
+const MERKEZ = { lon: 32.8387, lat: 39.9090 };
 
 function arcgisSunucusuMu(url) {
   try {
@@ -105,6 +111,19 @@ function bboxGecerliMi(bbox) {
     bbox.minLon < bbox.maxLon && bbox.minLat < bbox.maxLat;
 }
 
+// ADIM 4 — alan öncelik skoru: bbox merkez noktasının MERKEZ'e (Anıtkabir) olan
+// kabaca mesafesi; küçük skor = öncelikli. Kuyruk bu skora göre sıralanır.
+function alanOncelikSkoru(bbox) {
+  try {
+    if (!bboxGecerliMi(bbox)) return Number.MAX_SAFE_INTEGER;
+    const cx = (bbox.minLon + bbox.maxLon) / 2;
+    const cy = (bbox.minLat + bbox.maxLat) / 2;
+    const dx = cx - MERKEZ.lon;
+    const dy = cy - MERKEZ.lat;
+    return Math.sqrt(dx * dx + dy * dy);
+  } catch (_) { return Number.MAX_SAFE_INTEGER; }
+}
+
 // Çok-zoom kademeli önbellek: minZoom..maxZoom aralığındaki her zoom katı için karo
 // çeker; onlyHighFirst=true ise yüksek zoom önce gelir (ön-yüklemede en kritik
 // görünüm erkenden hazır olur). Plan üst sınırı 5000 karo; aşılırsa kalan zoomlar
@@ -151,10 +170,65 @@ async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst
   return sayac;
 }
 
-// ALAN_OZET: KARO_AD anahtarlarından (/tile/z/y/x) zoom dağılımı ve toplam üretir
-async function alanOzetAl() {
-  const ozet = { toplam: 0, dagilim: {} };
+// ADIM 4 — komşu öngörülü ön-yükleme: tamamlanan alanın 4 komşusu (batı/doğu/güney/kuzey,
+// alanın kendi genişliği/yüksekliği kadar kaydırılmış) düşük zoomda (maxZoom-3, en az 1)
+// onlyEksik=true ile arka planda çekilir. Her çağrı kendi 5000 plan sınırı + LRU içinde.
+async function komsuOnYukle(bbox, maxZoom) {
+  if (!bboxGecerliMi(bbox)) return;
+  const w = bbox.maxLon - bbox.minLon;
+  const h = bbox.maxLat - bbox.minLat;
+  if (!(w > 0) || !(h > 0)) return;
+  const z = Math.max(1, Math.min(19, Math.floor(maxZoom || 15) - 3));
+  const komsular = [
+    { minLon: bbox.minLon - w, minLat: bbox.minLat, maxLon: bbox.minLon, maxLat: bbox.maxLat },       // batı
+    { minLon: bbox.maxLon, minLat: bbox.minLat, maxLon: bbox.maxLon + w, maxLat: bbox.maxLat },       // doğu
+    { minLon: bbox.minLon, minLat: bbox.minLat - h, maxLon: bbox.maxLon, maxLat: bbox.minLat },       // güney
+    { minLon: bbox.minLon, minLat: bbox.maxLat, maxLon: bbox.maxLon, maxLat: bbox.maxLat + h }        // kuzey
+  ];
+  for (const k of komsular) {
+    if (!bboxGecerliMi(k)) continue;
+    try { await alanOnbellekle(k, z, z, true, false); } catch (_) {}
+  }
+}
+
+// ADIM 4 — ALAN_ONCELIK kuyruğu: gelen alan istekleri kuyruğa eklenir, skorla sıralanır
+// (aynı anda tek alan işlenir — kuyruk zinciri ardışık promise'lerle koşturulur; her mesaj
+// handler'ı dönen zinciri waitUntil'e verir, SW iş bitmeden kapanmaz). Yanıtlar kuyruk
+// içinde gönderilir; yanıt tipleri ve mesajIsle garanti-yanıt fallback'ı korunur.
+const alanKuyruk = [];
+let alanZinciri = Promise.resolve();
+
+function kuyrugaEkle(is) {
   try {
+    is.skor = alanOncelikSkoru(is.bbox);
+    alanKuyruk.push(is);
+    alanKuyruk.sort((a, b) => a.skor - b.skor);
+  } catch (_) {}
+  alanZinciri = alanZinciri.then(() => kuyrukAdimi()).catch(() => {});
+  return alanZinciri;
+}
+
+async function kuyrukAdimi() {
+  const is = alanKuyruk.shift();
+  if (!is) return;
+  let sayi = 0;
+  try {
+    sayi = await alanOnbellekle(is.bbox, is.minZoom, is.maxZoom, is.sadeceEksik, is.onlyHighFirst);
+  } catch (_) { sayi = 0; }
+  try {
+    if (is.tip === "ONBELLEKLE_ALAN" && sayi > 0) onbellekYapildi = true;
+    portYanitla(is.port, { tip: is.yanitTipi, sayi: sayi });
+    // Komşu öngörülü ön-yükleme: yanıt gönderildikten sonra arka planda hafifçe başlar
+    komsuOnYukle(is.bbox, is.maxZoom).catch(() => {});
+  } catch (_) {}
+}
+
+// ALAN_OZET: KARO_AD anahtarlarından (/tile/z/y/x) zoom dağılımı ve toplam üretir;
+// ADIM 4: yanıtta ek olarak kuyrukta bekleyen alan sayısı (bekleyen) raporlanır
+async function alanOzetAl() {
+  const ozet = { toplam: 0, dagilim: {}, bekleyen: 0 };
+  try {
+    ozet.bekleyen = alanKuyruk.length;
     const c = await caches.open(KARO_AD);
     const keys = await c.keys();
     for (const k of keys) {
@@ -217,7 +291,8 @@ function bosYanit(url) {
 
 // Nihai sertleştirme: her mesaj tipi için garanti yanıt — fn hata verse bile
 // port asla yanıtsız kalmaz; BILINMEYEN fallback tüm tipleri kapsar.
-// YENİ (adım 3): ALAN_OZET ve ONBELLEK_DURUMU da garanti-yanıt fallback'ına eklendi.
+// ADIM 4: kuyrukta işlenen tipler de fallback'da korunur (kuyruğa alınamasa bile
+// garanti yanıt gönderilir).
 function mesajIsle(e, fn) {
   const port = e.ports && e.ports[0];
   const garantiYanit = () => {
@@ -228,7 +303,7 @@ function mesajIsle(e, fn) {
     else if (tip === "TAZELE_ALAN") portYanitla(port, { tip: "TAZELE_TAMAM", sayi: 0 });
     else if (tip === "GUNCEL_ALAN") portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: 0 });
     else if (tip === "ALAN_GENISLET") portYanitla(port, { tip: "ALAN_GENISLET_TAMAM", sayi: 0 });
-    else if (tip === "ALAN_OZET") portYanitla(port, { tip: "ALAN_OZET_TAMAM", toplam: 0, dagilim: {} });
+    else if (tip === "ALAN_OZET") portYanitla(port, { tip: "ALAN_OZET_TAMAM", toplam: 0, dagilim: {}, bekleyen: alanKuyruk.length });
     else if (tip === "ONBELLEK_DURUMU") portYanitla(port, { tip: "ONBELLEK_DURUMU_TAMAM", durum: "yapilmadi" });
     else if (tip === "VERI_SENKRON") portYanitla(port, { tip: "VERI_SENKRON_TAMAM", sayi: 0 });
     else if (tip === "SKIP_WAITING") portYanitla(port, { tip: "SKIP_WAITING_TAMAM" });
@@ -276,7 +351,7 @@ self.addEventListener("install", e => {
 });
 
 // Nihai sertleştirme: activate'te GÜNCEL sürümler dışındaki TÜM önbellekler
-// (eski v36/v35/... dahil her ad) kalıcı silinir; beş önbellek varestelle garanti edilir
+// (eski v41/v33/... dahil her ad) kalıcı silinir; beş önbellek varestelle garanti edilir
 self.addEventListener("activate", e => {
   const guncelAdlar = [AD, VERI_AD, KARO_AD, VEKTOR_AD, SDK_AD];
   e.waitUntil(
@@ -324,48 +399,59 @@ self.addEventListener("message", e => {
     return;
   }
 
+  // ADIM 4 — alan tipleri ARTIK kuyruğa: aynı anda tek alan işlenir, kuyruk merkez
+  // yakınlığına göre sıralı; yanıt tipleri (ONBELLEKLE_TAMAM/TAZELE_TAMAM/GUNCEL_TAMAM/
+  // ALAN_GENISLET_TAMAM) kuyruk içinde gönderilir, mesajIsle garanti-yanıt fallback'ı korunur.
   if (tip === "ONBELLEKLE_ALAN") {
     mesajIsle(e, port =>
-      alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false, true)
-        .then(sayi => {
-          if (sayi > 0) onbellekYapildi = true;
-          portYanitla(port, { tip: "ONBELLEKLE_TAMAM", sayi: sayi });
-        })
+      kuyrugaEkle({
+        tip: tip, port: port, yanitTipi: "ONBELLEKLE_TAMAM",
+        bbox: veri.bbox, minZoom: veri.minZoom || 15, maxZoom: veri.maxZoom || 17,
+        sadeceEksik: false, onlyHighFirst: true
+      })
     );
     return;
   }
 
   if (tip === "TAZELE_ALAN") {
     mesajIsle(e, port =>
-      alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, false)
-        .then(sayi => portYanitla(port, { tip: "TAZELE_TAMAM", sayi: sayi }))
+      kuyrugaEkle({
+        tip: tip, port: port, yanitTipi: "TAZELE_TAMAM",
+        bbox: veri.bbox, minZoom: veri.minZoom || 15, maxZoom: veri.maxZoom || 17,
+        sadeceEksik: false, onlyHighFirst: false
+      })
     );
     return;
   }
 
   if (tip === "GUNCEL_ALAN") {
     mesajIsle(e, port =>
-      alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, true)
-        .then(sayi => portYanitla(port, { tip: "GUNCEL_TAMAM", sayi: sayi }))
+      kuyrugaEkle({
+        tip: tip, port: port, yanitTipi: "GUNCEL_TAMAM",
+        bbox: veri.bbox, minZoom: veri.minZoom || 15, maxZoom: veri.maxZoom || 17,
+        sadeceEksik: true, onlyHighFirst: false
+      })
     );
     return;
   }
 
   // Sözleşme: ALAN_GENISLET — gezilen alanın karoları YALNIZCA EKSİK those çekilerek
-  // önbelleğe genişletilir (sadeceEksik=true, çok-zoom kademesiz); yanıt her durumda
-  // ALAN_GENISLET_TAMAM (mesajIsle garanti-yanıt fallback'ı da bu tipi kapsar)
+  // önbelleğe genişletilir (sadeceEksik=true); yanıt kuyrukta ALAN_GENISLET_TAMAM
   if (tip === "ALAN_GENISLET") {
     mesajIsle(e, port =>
-      alanOnbellekle(veri.bbox, veri.minZoom || 15, veri.maxZoom || 17, true, false)
-        .then(sayi => portYanitla(port, { tip: "ALAN_GENISLET_TAMAM", sayi: sayi }))
+      kuyrugaEkle({
+        tip: tip, port: port, yanitTipi: "ALAN_GENISLET_TAMAM",
+        bbox: veri.bbox, minZoom: veri.minZoom || 15, maxZoom: veri.maxZoom || 17,
+        sadeceEksik: true, onlyHighFirst: false
+      })
     );
     return;
   }
 
-  // YENİ (adım 3): ALAN_OZET — KARO_AD önbelleğinin zoom dağılımı + toplamı → ALAN_OZET_TAMAM
+  // ADIM 4: ALAN_OZET — yanıtta bekleyen kuyruk sayısı da var (bekleyen: n)
   if (tip === "ALAN_OZET") {
     mesajIsle(e, port =>
-      alanOzetAl().then(ozet => portYanitla(port, { tip: "ALAN_OZET_TAMAM", toplam: ozet.toplam, dagilim: ozet.dagilim }))
+      alanOzetAl().then(ozet => portYanitla(port, { tip: "ALAN_OZET_TAMAM", toplam: ozet.toplam, dagilim: ozet.dagilim, bekleyen: ozet.bekleyen }))
     );
     return;
   }
