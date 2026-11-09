@@ -499,6 +499,7 @@ require([
       });
     });
     duyur("Katmanlar yeniden yükleniyor");
+    duyur("Katmanlar yeniden yükleniyor");
   }
   function yuklemeHatasiIzle(lyr) {
     reactiveUtils.watch(() => lyr.loadStatus, status => {
