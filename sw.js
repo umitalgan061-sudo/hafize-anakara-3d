@@ -1,4 +1,4 @@
-const AD = "ankara3d-v40";
+const AD = "ankara3d-v41";
 const VERI_AD = "ankara3d-veri-v1";
 const KARO_AD = "ankara3d-karolar-v31";
 const VEKTOR_AD = "ankara3d-vektor-v5";
