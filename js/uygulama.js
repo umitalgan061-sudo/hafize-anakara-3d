@@ -1438,7 +1438,7 @@ require([
       if (a.ad) satirlar.push(a.ad);
       seciliVurgula(sonuc.graphic.geometry, "point");
       binaKartiGoster({ ad: ad, satirlar: satirlar });
-    } else if (layer === _maksYapiLayer) { // MAKSYAPI katmanı (eski Yapılar yerinde)
+    } else if (layer === _maksYapiLayer) { // İsteğe bağlı MAKSYAPI ruhsat katmanı
       // MAKSYAPI alan şeması servis sürümüne göre değişebileceğinden,
       // alan adları katman metaverisinden okunur; teknik geometri/kimlik alanları gizlenir.
       const alanlar = Object.entries(a).filter(([alan, deger]) =>
@@ -1481,7 +1481,7 @@ require([
   function hitTestSec(e) {
     try {
       view.hitTest(e).then(response => {
-        // Sözleşme önceliği: Numarataj > MAKSYAPI > 3B Binalar —
+        // Sözleşme önceliği: Numarataj > MAKSYAPI > Yapılar > 3B Binalar —
         // sonuçlar katman önceliğine göre dizilir, ilk öncelikli olan seçilir
         const oncelik = [numaratajLayer, _maksYapiLayer, yapilarLayer, binalarLayer].filter(Boolean);
         const uyusanlar = (response.results || []).filter(r =>
