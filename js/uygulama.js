@@ -518,7 +518,7 @@ require([
       }
     });
   }
-  [binalarLayer, yapilarLayer, numaratajLayer].forEach(yuklemeHatasiIzle);
+  [binalarLayer, maksYapiLayer, numaratajLayer].forEach(yuklemeHatasiIzle);
 
   // Ağ durumu + çevrimdışı rozet + önbellek kurtarma akışı
   const cevrimoGosterge = document.getElementById("cevrimo-gosterge");
