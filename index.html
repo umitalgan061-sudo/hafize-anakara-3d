@@ -18,8 +18,10 @@
   <link rel="preconnect" href="https://basemaps.arcgis.com" crossorigin />
   <link rel="preconnect" href="https://geocode.arcgis.com" crossorigin />
   <link rel="preconnect" href="https://baskentcbs.ankara.bel.tr" crossorigin />
+  <link rel="preconnect" href="https://gisserver.ankara.bel.tr" crossorigin />
   <!-- preconnect desteklemeyen eski tarayıcılar için DNS çözümlemesi erkenden başlasın (kritik veri + 3B bina servisleri) -->
   <link rel="dns-prefetch" href="https://baskentcbs.ankara.bel.tr" />
+  <link rel="dns-prefetch" href="https://gisserver.ankara.bel.tr" />
   <link rel="dns-prefetch" href="https://basemaps3d.arcgis.com" />
   <link rel="dns-prefetch" href="https://js.arcgis.com" />
   <link rel="dns-prefetch" href="https://server.arcgisonline.com" />
@@ -126,6 +128,7 @@
   <div class="katman-karti" id="katman-karti" role="dialog" aria-modal="true" aria-label="Katmanlar ve taban seçimi" tabindex="-1" hidden>
     <label class="katman-satir"><input type="checkbox" id="cb-binalar" checked /> 3B Binalar</label>
     <label class="katman-satir"><input type="checkbox" id="cb-yapilar" checked /> Yapılar</label>
+    <label class="katman-satir"><input type="checkbox" id="cb-maksyapi" /> MAKSYAPI (Ruhsat)</label>
     <label class="katman-satir"><input type="checkbox" id="cb-numarataj" checked /> Numarataj</label>
     <label class="katman-satir"><input type="checkbox" id="cb-mahalleler" /> Mahalleler</label>
     <label class="katman-satir"><input type="checkbox" id="cb-yollar" /> Yollar</label>
