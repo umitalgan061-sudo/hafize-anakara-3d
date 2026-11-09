@@ -1065,13 +1065,20 @@ require([
     if (!cb) return;
     cb.addEventListener("change", () => {
       titresim();
-      // Gizli katmanlar (Mahalleler/Yollar) fabrika ile ilk açılışlarında
-      // tek seferlik oluşturulup haritaya eklenir; sonraki aç/kapa yalnızca visible.
+      // Gizli katmanlar (Mahalleler/Yollar/MAKSYAPI) ilk açıldığında bir kez oluşturulur;
+      // sonraki aç/kapa yalnızca visible özelliğini değiştirir.
       const lyr = katmanAl();
       lyr.visible = cb.checked;
       duyur(ad + (cb.checked ? " açıldı" : " kapatıldı"));
     });
   });
+
+  // MAKSYAPI, kaldırılan Yapılar katmanının yerine varsayılan görünürdür.
+  // SceneView hazır olduktan sonra oluşturulduğu için view sıralama hatası üretmez.
+  if (cbMaksYapi && cbMaksYapi.checked) {
+    const maksYapi = maksYapiKatmani();
+    maksYapi.visible = true;
+  }
 
   const tabanSecenekleri = [
     { dugme: tabanUydu, id: "hybrid", ad: "Uydu" },
