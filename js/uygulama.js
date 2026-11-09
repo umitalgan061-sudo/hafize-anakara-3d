@@ -238,8 +238,8 @@ require([
       basemap: "hybrid",
       // Gizli katmanlar (Mahalleler/Yollar) ilk açılışta yüklenmez;
       // ilk açıldıklarında haritaya eklenir (ilk açılış performansı).
-      // Yükleme önceliği: Numarataj → Yapılar → Konum → 3B Binalar (en son)
-      layers: [numaratajLayer, yapilarLayer, konumLayer, binalarLayer]
+      // Yükleme önceliği: Numarataj → MAKSYAPI → Konum → 3B Binalar (en son)
+      layers: [numaratajLayer, maksYapiLayer, konumLayer, binalarLayer]
     }),
     camera: {
       position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
