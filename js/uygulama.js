@@ -282,7 +282,7 @@ require([
       basemap: "hybrid",
       // Gizli katmanlar (Mahalleler/Yollar) ilk açılışta yüklenmez;
       // ilk açıldıklarında haritaya eklenir (ilk açılış performansı).
-      // Yükleme önceliği: Numarataj → MAKSYAPI → Konum → 3B Binalar (en son)
+      // Yükleme önceliği: Numarataj → Yapılar → Konum → 3B Binalar; MAKSYAPI kullanıcı açınca eklenir.
       layers: [numaratajLayer, yapilarLayer, konumLayer, binalarLayer]
     }),
     camera: {
