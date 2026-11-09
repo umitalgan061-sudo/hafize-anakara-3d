@@ -131,21 +131,65 @@ require([
 
   const MAKS_URL = "https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer";
   // ABB ruhsat birimindeki MAKSYAPI servisi (MapServer alt katman 0).
-  // Yapılar katmanının yerine geçer; açılışta hemen yüklenir.
+  // İlk açılış performansını etkilememesi için kullanıcı katmanı açana kadar oluşturulmaz.
   const MAKS_YAPI_URL = "https://gisserver.ankara.bel.tr/webgis/rest/services/ruhsat/MAKSYAPI/MapServer/0";
-  const maksYapiLayer = new FeatureLayer({
-    url: MAKS_YAPI_URL,
-    title: "MAKSYAPI (Ruhsat)",
+  let _maksYapiLayer = null;
+  function maksYapiKatmani() {
+    if (!_maksYapiLayer) {
+      _maksYapiLayer = new FeatureLayer({
+        url: MAKS_YAPI_URL,
+        title: "MAKSYAPI (Ruhsat)",
+        visible: false,
+        outFields: ["*"],
+        popupTemplate: {
+          title: "MAKSYAPI Yapısı",
+          content: [{ type: "fields" }]
+        }
+      });
+      // Bu fonksiyon yalnızca SceneView kurulduktan sonra, kullanıcı katmanı açtığında çağrılır.
+      view.map.add(_maksYapiLayer);
+      yuklemeHatasiIzle(_maksYapiLayer);
+      console.log("MAKSYAPI (Ruhsat) katmanı ilk açılışta oluşturuldu (lazy)");
+    }
+    return _maksYapiLayer;
+  }
+
+  const yapiEtiketi = {
+    labelExpressionInfo: { expression: "$feature.ad" },
+    symbol: new LabelSymbol3D({
+      symbolLayers: [new TextSymbol3DLayer({
+        material: { color: [20, 20, 20, 1] },
+        halo: { color: [255, 255, 255, 0.9], size: 1 },
+        size: 11,
+        font: { family: "system-ui", weight: "bold" }
+      })]
+    }),
+    minScale: 5000
+  };
+
+  // Mevcut Yapılar (MAKS MapServer/2) katmanı korunur; MAKSYAPI ayrı ve isteğe bağlıdır.
+  const yapilarLayer = new FeatureLayer({
+    url: MAKS_URL + "/2",
+    title: "Yapılar",
     visible: true,
-    outFields: ["*"],
+    outFields: ["ad", "zeminustukatsayisi", "zeminaltikatsayisi", "postakodu", "siteveyakooperatifadi", "bagimsizbolumsayi"],
+    labelingInfo: [yapiEtiketi],
+    labelsVisible: true,
     popupTemplate: {
-      title: "MAKSYAPI Yapısı",
-      content: [{ type: "fields" }]
+      title: "{ad}",
+      content: [{
+        type: "fields",
+        fieldInfos: [
+          { fieldName: "ad", label: "Ad" },
+          { fieldName: "zeminustukatsayisi", label: "Kat" },
+          { fieldName: "zeminaltikatsayisi", label: "Bodrum" },
+          { fieldName: "bagimsizbolumsayi", label: "Bağımsız bölüm" },
+          { fieldName: "postakodu", label: "Posta kodu" },
+          { fieldName: "siteveyakooperatifadi", label: "Site/Kooperatif" }
+        ]
+      }]
     }
   });
-  view.map.add(maksYapiLayer);
-  yuklemeHatasiIzle(maksYapiLayer);
-  console.log("MAKSYAPI (Ruhsat) katmanı açılışta yüklendi");
 
   const numaratajLayer = new FeatureLayer({
     url: MAKS_URL + "/0",
@@ -238,8 +282,8 @@ require([
       basemap: "hybrid",
       // Gizli katmanlar (Mahalleler/Yollar) ilk açılışta yüklenmez;
       // ilk açıldıklarında haritaya eklenir (ilk açılış performansı).
-      // Yükleme önceliği: Numarataj → MAKSYAPI → Konum → 3B Binalar (en son)
-      layers: [numaratajLayer, maksYapiLayer, konumLayer, binalarLayer]
+      // Yükleme önceliği: Numarataj → Yapılar → Konum → 3B Binalar; MAKSYAPI kullanıcı açınca eklenir.
+      layers: [numaratajLayer, yapilarLayer, konumLayer, binalarLayer]
     }),
     camera: {
       position: { longitude: 32.8387, latitude: 39.9090, z: 650 },
@@ -261,7 +305,7 @@ require([
   window.view = view;
 
   // Katman yükleme önceliği katılaştırıldı: sıralı zincir — önce Numarataj,
-  // sonra MAKSYAPI, en son 3B Binalar (Promise.all değil; her biri bir öncekinin
+  // sonra Yapılar, en son 3B Binalar (Promise.all değil; her biri bir öncekinin
   // yüklenmesini bekler). Hata durumunda aşağıdaki basarisizKatmanlar akışı
   // devreye girer ve tek satır uyarı + Yeniden dene gösterir.
   // NOT: zincir catch'i asenkron çalışır; o zamana kadar basarisizKatmanlar
@@ -273,10 +317,10 @@ require([
   numaratajLayer.load()
     .then(() => {
       console.log("Yükleme adımı 1/3 Numarataj: " + Math.round(performance.now() - zincirBaslangic) + " ms");
-      return maksYapiLayer.load();
+      return yapilarLayer.load();
     })
     .then(() => {
-      console.log("Yükleme adımı 2/3 MAKSYAPI: " + Math.round(performance.now() - zincirBaslangic) + " ms");
+      console.log("Yükleme adımı 2/3 Yapılar: " + Math.round(performance.now() - zincirBaslangic) + " ms");
       // Sözleşme: 3B bina yüklemesi view hazır olana + boş zamana kadar ertelenir;
       // Anıtkabir açılış görünümü <2 sn hedefine kilitlenir. Zincir sırası ve catch akışı korunur.
       return view.when().then(() => new Promise(resolve => {
@@ -519,7 +563,7 @@ require([
       }
     });
   }
-  [binalarLayer, maksYapiLayer, numaratajLayer].forEach(yuklemeHatasiIzle);
+  [binalarLayer, yapilarLayer, numaratajLayer].forEach(yuklemeHatasiIzle);
 
   // Ağ durumu + çevrimdışı rozet + önbellek kurtarma akışı
   const cevrimoGosterge = document.getElementById("cevrimo-gosterge");
@@ -1010,7 +1054,8 @@ require([
 
   [
     [cbBinalar, () => binalarLayer, "3B Binalar"],
-    [cbMaksYapi, () => maksYapiLayer, "MAKSYAPI (Ruhsat)"],
+    [cbYapilar, () => yapilarLayer, "Yapılar"],
+    [cbMaksYapi, maksYapiKatmani, "MAKSYAPI (Ruhsat)"],
     [cbNumarataj, () => numaratajLayer, "Numarataj"],
     [cbMahalleler, mahallelerKatmani, "Mahalleler"],
     [cbYollar, yollarKatmani, "Yollar"]
@@ -1379,7 +1424,7 @@ require([
     } catch (err) { return bos; }
   }
 
-  // Katmana göre seçim: Yapı (çok satır), Numarataj (No + adres), 3B bina (yükseklik + kat)
+  // Katmana göre seçim: Yapılar ve MAKSYAPI (öznitelikler), Numarataj, 3B bina
   function secimIsle(sonuc) {
     // Seçim bilgi kartı açılınca yerleşik popup kapanır (mobilde altta üst üste binmez, bilgi tek kartta)
     if (view.popup) view.popup.close();
@@ -1393,34 +1438,7 @@ require([
       if (a.ad) satirlar.push(a.ad);
       seciliVurgula(sonuc.graphic.geometry, "point");
       binaKartiGoster({ ad: ad, satirlar: satirlar });
-    } else if (layer === maksYapiLayer) { // MAKSYAPI katmanı (eski Yapılar yerinde)
-      // MAKSYAPI alan şeması servis sürümüne göre değişebileceğinden,
-      // alan adları katman metaverisinden okunur; teknik geometri/kimlik alanları gizlenir.
-      const alanlar = Object.entries(a).filter(([alan, deger]) =>
-        deger !== null && deger !== undefined && deger !== "" &&
-        !/^(shape|shape_|geometry|globalid|objectid|esri_oid|fid)/i.test(alan)
-      );
-      const alanTanimlari = Array.isArray(layer.fields) ? layer.fields : [];
-      const baslikAdayi = alanlar.find(([alan]) =>
-        /^(ad|yapiadi|yapi_adi|ruhsatno|binakimlikno|id)$/i.test(alan)
-      );
-      const baslik = baslikAdayi
-        ? "MAKSYAPI · " + String(baslikAdayi[1])
-        : "MAKSYAPI Yapısı";
-      const satirlar = alanlar.slice(0, 12).map(([alan, deger]) => {
-        const tanim = alanTanimlari.find(f => String(f.name).toLowerCase() === alan.toLowerCase());
-        const etiket = (tanim && tanim.alias) || alan.replace(/_/g, " ");
-        let metin = String(deger);
-        if (tanim && tanim.type === "date" && Number.isFinite(Number(deger))) {
-          metin = new Date(Number(deger)).toLocaleDateString("tr-TR");
-        }
-        return etiket + ": " + metin;
-      });
-      const geometriTipi = sonuc.graphic.geometry && sonuc.graphic.geometry.type;
-      if (geometriTipi === "point") seciliVurgula(sonuc.graphic.geometry, "point");
-      else if (geometriTipi === "polygon") seciliVurgula(sonuc.graphic.geometry, "polygon");
-      binaKartiGoster({ ad: baslik, satirlar: satirlar });
-    } else if (false) { // eski _maksYapiLayer referansı kaldırıldı
+    } else if (layer === _maksYapiLayer) { // İsteğe bağlı MAKSYAPI ruhsat katmanı
       // MAKSYAPI alan şeması servis sürümüne göre değişebileceğinden,
       // alan adları katman metaverisinden okunur; teknik geometri/kimlik alanları gizlenir.
       const alanlar = Object.entries(a).filter(([alan, deger]) =>
@@ -1463,9 +1481,9 @@ require([
   function hitTestSec(e) {
     try {
       view.hitTest(e).then(response => {
-        // Sözleşme önceliği: Numarataj > MAKSYAPI > 3B Binalar —
+        // Sözleşme önceliği: Numarataj > MAKSYAPI > Yapılar > 3B Binalar —
         // sonuçlar katman önceliğine göre dizilir, ilk öncelikli olan seçilir
-        const oncelik = [numaratajLayer, maksYapiLayer, binalarLayer].filter(Boolean);
+        const oncelik = [numaratajLayer, _maksYapiLayer, yapilarLayer, binalarLayer].filter(Boolean);
         const uyusanlar = (response.results || []).filter(r =>
           r.graphic && oncelik.includes(r.graphic.layer) && r.graphic.layer.visible !== false);
         sonHitTestSonuclari = uyusanlar;
@@ -1480,7 +1498,7 @@ require([
     } catch (err) { console.warn("Bina seçimi hatası (ele alındı):", err); }
   }
 
-  // Harita tıklaması: Yapılar / 3B Binalar / Numarataj grafik yakalanırsa kart açılır, boş alanda kart kapanır
+  // Harita tıklaması: Numarataj / Yapılar / MAKSYAPI / 3B Binalar seçilir; boş alanda kart kapanır
   view.on("click", hitTestSec);
   // Uzun basma (hold) aynı tek seçim akışına bağlanır; çift dokunuş zumu tetiklemez (ayrı olay)
   // NOT: bu olay TEK KEZ bağlanır — yinelenirse aynı dokunuşta kart iki kez işlenir
