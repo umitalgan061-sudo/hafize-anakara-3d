@@ -1008,8 +1008,7 @@ require([
 
   [
     [cbBinalar, () => binalarLayer, "3B Binalar"],
-    [cbYapilar, () => yapilarLayer, "Yapılar"],
-    [cbMaksYapi, maksYapiKatmani, "MAKSYAPI (Ruhsat)"],
+    [cbMaksYapi, () => maksYapiLayer, "MAKSYAPI (Ruhsat)"],
     [cbNumarataj, () => numaratajLayer, "Numarataj"],
     [cbMahalleler, mahallelerKatmani, "Mahalleler"],
     [cbYollar, yollarKatmani, "Yollar"]
