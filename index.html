@@ -27,16 +27,11 @@
   <link rel="dns-prefetch" href="https://server.arcgisonline.com" />
   <link rel="dns-prefetch" href="https://basemaps.arcgis.com" />
   <link rel="dns-prefetch" href="https://geocode.arcgis.com" />
-  <!-- Yükleme zincirinin ilk halkaları (Numarataj → Yapılar) için servis ve katman meta verisi erkenden çekilir; AMD yükleyici çalıştığında istek zaten tamamlanmış olur (ilk açılış <2 sn hedefine katkı) -->
+  <!-- Açılış zincirinin ilk katmanı (Numarataj) için servis meta verisi erkenden çekilir. -->
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer?f=json" />
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/0?f=json" />
-  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/2?f=json" />
-  <!-- Çevrimdışı veri önbelleği (adım 6 fazı): Numarataj ve Yapılar sorgu uçlarının
-       (f=json) meta verisi de erkenden çekilir; uçak modunda bu sorgular sw.js
-       VERI_AD önbelleğinden döneceği için ilk yanıtlar önbellek yazımıyla çakışmaz,
-       ilk açılış <2 sn hedefini etkilemez -->
+  <!-- Çevrimdışı veri önbelleği: yalnız Numarataj sorgu uçları ön-yüklenir. -->
   <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/0/query?f=json" />
-  <link rel="preload" as="fetch" crossorigin fetchpriority="high" href="https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer/2/query?f=json" />
   <!-- Zincirin SON halkası (3B binalar) view.when + requestIdleCallback ile erteleniyor;
        SceneServer meta verisi yine de erkenden çekilir — idle callback tetiklenince istek
        çoktan tamamlanmış olur, açılış Anıtkabir görünümü <2 sn hedefini geciktirmez -->
@@ -79,9 +74,8 @@
   <a class="atla-link" href="#viewDiv">Haritaya geç</a>
   <noscript><p style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center;background:#fff;color:#1f1f1f;font-family:system-ui,sans-serif;">Ankara 3D haritasının çalışması için JavaScript gereklidir.</p></noscript>
   <div id="viewDiv" tabindex="-1" role="application" aria-label="Ankara 3D harita görünümü. Haritada gezinmek için ok tuşlarını, yakınlaşmak için artı ve eksi tuşlarını kullanın; merkezdeki nesneyi seçmek için Enter."></div>
-  <!-- Yükleniyor göstergesi: aria değerleri (0-3) js/uygulama.js zinciriyle birebir eşleşir
-       (Numarataj 1/3, Yapılar 2/3, 3B binalar 3/3 — yuklemeIlerleme() bu değerleri yazar) -->
-  <div id="yukleniyor" class="yukleniyor" role="progressbar" aria-label="Harita yükleniyor" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0" aria-valuetext="Yükleniyor (0/3)">
+  <!-- Yükleniyor göstergesi: Numarataj ve 3B bina katmanlarının iki aşamalı ilerlemesi. -->
+  <div id="yukleniyor" class="yukleniyor" role="progressbar" aria-label="Harita yükleniyor" aria-valuemin="0" aria-valuemax="2" aria-valuenow="0" aria-valuetext="Yükleniyor (0/2)">
     <span class="gorsel-gizli">Harita yükleniyor</span>
     <svg viewBox="0 0 40 100" class="yukleniyor__logo" aria-hidden="true" focusable="false"><g fill="#b3261e"><rect x="19" y="1" width="2" height="9"/><path d="M15 11h10l-1.5 5h-7z"/><path fill-rule="evenodd" d="M12 20h16q7 0 7 7t-7 7H12q-7 0-7-7t7-7zM5 24h30v2.5H5zM5 29h30v2.5H5z"/><path d="M16 34h8l2 62H14z"/><rect x="12" y="96" width="16" height="3"/></g></svg>
     <span class="yukleniyor__halka" aria-hidden="true"></span>
@@ -127,8 +121,7 @@
 
   <div class="katman-karti" id="katman-karti" role="dialog" aria-modal="true" aria-label="Katmanlar ve taban seçimi" tabindex="-1" hidden>
     <label class="katman-satir"><input type="checkbox" id="cb-binalar" checked /> 3B Binalar</label>
-    <label class="katman-satir"><input type="checkbox" id="cb-yapilar" checked /> Yapılar</label>
-    <label class="katman-satir"><input type="checkbox" id="cb-maksyapi" /> MAKSYAPI (Ruhsat)</label>
+    <label class="katman-satir"><input type="checkbox" id="cb-maksyapi" checked /> MAKSYAPI</label>
     <label class="katman-satir"><input type="checkbox" id="cb-numarataj" checked /> Numarataj</label>
     <label class="katman-satir"><input type="checkbox" id="cb-mahalleler" /> Mahalleler</label>
     <label class="katman-satir"><input type="checkbox" id="cb-yollar" /> Yollar</label>
