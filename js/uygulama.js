@@ -965,6 +965,7 @@ require([
   const cbYollar = document.getElementById("cb-yollar");
   const tabanUydu = document.getElementById("taban-uydu");
   const tabanHarita = document.getElementById("taban-harita");
+  const tabanKoyu = document.getElementById("taban-koyu");
 
   if (btnKatmanlar) btnKatmanlar.addEventListener("click", () => {
     if (!katmanKarti) return;
@@ -1025,23 +1026,37 @@ require([
     });
   });
 
+  const tabanSecenekleri = [
+    { dugme: tabanUydu, id: "hybrid", ad: "Uydu" },
+    { dugme: tabanHarita, id: "streets-vector", ad: "Harita" },
+    // SceneView için Esri'nin 3B Dark Gray Canvas taban kimliği kullanılır.
+    { dugme: tabanKoyu, id: "dark-gray-3d", ad: "Dark Gray Canvas" }
+  ];
   function tabanSec(taban) {
-    // Çevrimdışı taban geçişi: vektör taban kaynakları ve karolar önbellekten
-    // sunulur; kullanıcı tek satır bildirim + kurtarma akışıyla bilgilendirilir
-    if (!navigator.onLine) gosterBildirim("Çevrimdışı — taban önbellekten açıldı", () => tabanSec(taban));
+    // Vektör taban kaynakları ağ üzerinden yüklenir ve service worker tarafından önbelleğe alınır.
+    if (!navigator.onLine) gosterBildirim("Çevrimdışı — önbellekteki taban kaynakları kullanılıyor", () => tabanSec(taban));
     view.map.basemap = taban;
-    if (tabanUydu) tabanUydu.setAttribute("aria-pressed", String(taban === "hybrid"));
-    if (tabanHarita) tabanHarita.setAttribute("aria-pressed", String(taban === "streets-vector"));
-    duyur(taban === "hybrid" ? "Uydu taban seçildi" : "Harita taban seçildi");
+    tabanSecenekleri.forEach(secenek => {
+      if (secenek.dugme) secenek.dugme.setAttribute("aria-pressed", String(taban === secenek.id));
+    });
+    const secili = tabanSecenekleri.find(secenek => secenek.id === taban);
+    duyur((secili ? secili.ad : "Harita") + " tabanı seçildi");
   }
   if (tabanUydu) tabanUydu.addEventListener("click", () => tabanSec("hybrid"));
   if (tabanHarita) tabanHarita.addEventListener("click", () => tabanSec("streets-vector"));
-  // Taban seçiminde ok tuşlarıyla gezinme
+  if (tabanKoyu) tabanKoyu.addEventListener("click", () => tabanSec("dark-gray-3d"));
+  // Taban seçiminde sol/sağ ok tuşlarıyla üç seçenek arasında döngüsel gezinme
   const tabanSecimiEl = document.querySelector(".taban-secimi");
   if (tabanSecimiEl) tabanSecimiEl.addEventListener("keydown", e => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    const mevcut = tabanSecenekleri.findIndex(secenek => secenek.dugme === document.activeElement);
+    if (mevcut < 0) return;
     e.preventDefault();
-    tabanSec(e.key === "ArrowRight" ? "streets-vector" : "hybrid");
+    const yon = e.key === "ArrowRight" ? 1 : -1;
+    const sonraki = (mevcut + yon + tabanSecenekleri.length) % tabanSecenekleri.length;
+    const secenek = tabanSecenekleri[sonraki];
+    if (secenek.dugme) secenek.dugme.focus();
+    tabanSec(secenek.id);
   });
 
   // ---------- Durum satırı: koordinat/zoom/eğim/yön (yalnızca masaüstünde görünür) ----------
