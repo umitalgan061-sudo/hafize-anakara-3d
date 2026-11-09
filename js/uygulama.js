@@ -131,63 +131,21 @@ require([
 
   const MAKS_URL = "https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer";
   // ABB ruhsat birimindeki MAKSYAPI servisi (MapServer alt katman 0).
-  // İlk açılış performansını etkilememesi için kullanıcı katmanı açana kadar oluşturulmaz.
+  // Yapılar katmanının yerine geçer; açılışta hemen yüklenir.
   const MAKS_YAPI_URL = "https://gisserver.ankara.bel.tr/webgis/rest/services/ruhsat/MAKSYAPI/MapServer/0";
-  let _maksYapiLayer = null;
-  function maksYapiKatmani() {
-    if (!_maksYapiLayer) {
-      _maksYapiLayer = new FeatureLayer({
-        url: MAKS_YAPI_URL,
-        title: "MAKSYAPI (Ruhsat)",
-        visible: false,
-        outFields: ["*"],
-        popupTemplate: {
-          title: "MAKSYAPI Yapısı",
-          content: [{ type: "fields" }]
-        }
-      });
-      view.map.add(_maksYapiLayer);
-      yuklemeHatasiIzle(_maksYapiLayer);
-      console.log("MAKSYAPI (Ruhsat) katmanı ilk açılışta oluşturuldu (lazy)");
-    }
-    return _maksYapiLayer;
-  }
-
-  const yapiEtiketi = {
-    labelExpressionInfo: { expression: "$feature.ad" },
-    symbol: new LabelSymbol3D({
-      symbolLayers: [new TextSymbol3DLayer({
-        material: { color: [20, 20, 20, 1] },
-        halo: { color: [255, 255, 255, 0.9], size: 1 },
-        size: 11,
-        font: { family: "system-ui", weight: "bold" }
-      })]
-    }),
-    minScale: 5000
-  };
-
-  const yapilarLayer = new FeatureLayer({
-    url: MAKS_URL + "/2",
-    title: "Yapılar",
+  const maksYapiLayer = new FeatureLayer({
+    url: MAKS_YAPI_URL,
+    title: "MAKSYAPI (Ruhsat)",
     visible: true,
-    outFields: ["ad", "zeminustukatsayisi", "zeminaltikatsayisi", "postakodu", "siteveyakooperatifadi", "bagimsizbolumsayi"],
-    labelingInfo: [yapiEtiketi],
-    labelsVisible: true,
+    outFields: ["*"],
     popupTemplate: {
-      title: "{ad}",
-      content: [{
-        type: "fields",
-        fieldInfos: [
-          { fieldName: "ad", label: "Ad" },
-          { fieldName: "zeminustukatsayisi", label: "Kat" },
-          { fieldName: "zeminaltikatsayisi", label: "Bodrum" },
-          { fieldName: "bagimsizbolumsayi", label: "Bağımsız bölüm" },
-          { fieldName: "postakodu", label: "Posta kodu" },
-          { fieldName: "siteveyakooperatifadi", label: "Site/Kooperatif" }
-        ]
-      }]
+      title: "MAKSYAPI Yapısı",
+      content: [{ type: "fields" }]
     }
   });
+  view.map.add(maksYapiLayer);
+  yuklemeHatasiIzle(maksYapiLayer);
+  console.log("MAKSYAPI (Ruhsat) katmanı açılışta yüklendi");
 
   const numaratajLayer = new FeatureLayer({
     url: MAKS_URL + "/0",
