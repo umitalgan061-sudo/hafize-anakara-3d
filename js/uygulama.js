@@ -261,7 +261,7 @@ require([
   window.view = view;
 
   // Katman yükleme önceliği katılaştırıldı: sıralı zincir — önce Numarataj,
-  // sonra Yapılar, en son 3B Binalar (Promise.all değil; her biri bir öncekinin
+  // sonra MAKSYAPI, en son 3B Binalar (Promise.all değil; her biri bir öncekinin
   // yüklenmesini bekler). Hata durumunda aşağıdaki basarisizKatmanlar akışı
   // devreye girer ve tek satır uyarı + Yeniden dene gösterir.
   // NOT: zincir catch'i asenkron çalışır; o zamana kadar basarisizKatmanlar
@@ -273,10 +273,10 @@ require([
   numaratajLayer.load()
     .then(() => {
       console.log("Yükleme adımı 1/3 Numarataj: " + Math.round(performance.now() - zincirBaslangic) + " ms");
-      return yapilarLayer.load();
+      return maksYapiLayer.load();
     })
     .then(() => {
-      console.log("Yükleme adımı 2/3 Yapılar: " + Math.round(performance.now() - zincirBaslangic) + " ms");
+      console.log("Yükleme adımı 2/3 MAKSYAPI: " + Math.round(performance.now() - zincirBaslangic) + " ms");
       // Sözleşme: 3B bina yüklemesi view hazır olana + boş zamana kadar ertelenir;
       // Anıtkabir açılış görünümü <2 sn hedefine kilitlenir. Zincir sırası ve catch akışı korunur.
       return view.when().then(() => new Promise(resolve => {
