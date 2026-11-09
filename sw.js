@@ -1,5 +1,5 @@
-const AD = "ankara3d-v41";
-const VERI_AD = "ankara3d-veri-v1";
+const AD = "ankara3d-v42";
+const VERI_AD = "ankara3d-veri-v2";
 const KARO_AD = "ankara3d-karolar-v31";
 const VEKTOR_AD = "ankara3d-vektor-v5";
 const SDK_AD = "ankara3d-sdk-v4";
@@ -143,9 +143,9 @@ async function alanOnbellekle(bbox, minZoom, maxZoom, sadeceEksik, onlyHighFirst
   return sayac;
 }
 
-// VERİ (özellik) önbelleği: Numarataj (katman 0) ve Yapılar (katman 2) sorgu
-// uçlarını bbox zarfıyla sorgular, yanıtları tam sorgu URL'siyle VERI_AD'e yazar.
-const VERI_KATMANLAR = [0, 2];
+// VERİ (özellik) önbelleği: yalnız Numarataj (katman 0) sorgu ucunu bbox zarfıyla
+// sorgular; MAKSYAPI harici ruhsat sunucusunda kendi servisinden yüklenir.
+const VERI_KATMANLAR = [0];
 async function veriOnbellekle(bbox) {
   if (!bboxGecerliMi(bbox)) return 0;
   let c;
