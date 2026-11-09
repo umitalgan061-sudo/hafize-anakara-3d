@@ -130,6 +130,28 @@ require([
   });
 
   const MAKS_URL = "https://baskentcbs.ankara.bel.tr/server/rest/services/ortak/adres/MapServer";
+  // ABB ruhsat birimindeki MAKSYAPI servisi (MapServer alt katman 0).
+  // İlk açılış performansını etkilememesi için kullanıcı katmanı açana kadar oluşturulmaz.
+  const MAKS_YAPI_URL = "https://gisserver.ankara.bel.tr/webgis/rest/services/ruhsat/MAKSYAPI/MapServer/0";
+  let _maksYapiLayer = null;
+  function maksYapiKatmani() {
+    if (!_maksYapiLayer) {
+      _maksYapiLayer = new FeatureLayer({
+        url: MAKS_YAPI_URL,
+        title: "MAKSYAPI (Ruhsat)",
+        visible: false,
+        outFields: ["*"],
+        popupTemplate: {
+          title: "MAKSYAPI Yapısı",
+          content: [{ type: "fields" }]
+        }
+      });
+      view.map.add(_maksYapiLayer);
+      yuklemeHatasiIzle(_maksYapiLayer);
+      console.log("MAKSYAPI (Ruhsat) katmanı ilk açılışta oluşturuldu (lazy)");
+    }
+    return _maksYapiLayer;
+  }
 
   const yapiEtiketi = {
     labelExpressionInfo: { expression: "$feature.ad" },
@@ -978,6 +1000,7 @@ require([
   if (btnKatmanlar) btnKatmanlar.setAttribute("aria-controls", "katman-karti");
   const cbBinalar = document.getElementById("cb-binalar");
   const cbYapilar = document.getElementById("cb-yapilar");
+  const cbMaksYapi = document.getElementById("cb-maksyapi");
   const cbNumarataj = document.getElementById("cb-numarataj");
   const cbMahalleler = document.getElementById("cb-mahalleler");
   const cbYollar = document.getElementById("cb-yollar");
@@ -1028,6 +1051,7 @@ require([
   [
     [cbBinalar, () => binalarLayer, "3B Binalar"],
     [cbYapilar, () => yapilarLayer, "Yapılar"],
+    [cbMaksYapi, maksYapiKatmani, "MAKSYAPI (Ruhsat)"],
     [cbNumarataj, () => numaratajLayer, "Numarataj"],
     [cbMahalleler, mahallelerKatmani, "Mahalleler"],
     [cbYollar, yollarKatmani, "Yollar"]
@@ -1406,6 +1430,33 @@ require([
       if (a.postakodu) satirlar.push("Posta kodu " + a.postakodu);
       seciliVurgula(sonuc.graphic.geometry, "polygon");
       binaKartiGoster({ ad: ad, satirlar: satirlar });
+    } else if (layer === _maksYapiLayer) {
+      // MAKSYAPI alan şeması servis sürümüne göre değişebileceğinden,
+      // alan adları katman metaverisinden okunur; teknik geometri/kimlik alanları gizlenir.
+      const alanlar = Object.entries(a).filter(([alan, deger]) =>
+        deger !== null && deger !== undefined && deger !== "" &&
+        !/^(shape|shape_|geometry|globalid|objectid|esri_oid|fid)/i.test(alan)
+      );
+      const alanTanimlari = Array.isArray(layer.fields) ? layer.fields : [];
+      const baslikAdayi = alanlar.find(([alan]) =>
+        /^(ad|yapiadi|yapi_adi|ruhsatno|binakimlikno|id)$/i.test(alan)
+      );
+      const baslik = baslikAdayi
+        ? "MAKSYAPI · " + String(baslikAdayi[1])
+        : "MAKSYAPI Yapısı";
+      const satirlar = alanlar.slice(0, 12).map(([alan, deger]) => {
+        const tanim = alanTanimlari.find(f => String(f.name).toLowerCase() === alan.toLowerCase());
+        const etiket = (tanim && tanim.alias) || alan.replace(/_/g, " ");
+        let metin = String(deger);
+        if (tanim && tanim.type === "date" && Number.isFinite(Number(deger))) {
+          metin = new Date(Number(deger)).toLocaleDateString("tr-TR");
+        }
+        return etiket + ": " + metin;
+      });
+      const geometriTipi = sonuc.graphic.geometry && sonuc.graphic.geometry.type;
+      if (geometriTipi === "point") seciliVurgula(sonuc.graphic.geometry, "point");
+      else if (geometriTipi === "polygon") seciliVurgula(sonuc.graphic.geometry, "polygon");
+      binaKartiGoster({ ad: baslik, satirlar: satirlar });
     } else if (layer === binalarLayer) {
       // 3B bina: başlık ad yoksa '3B Bina'; yükseklik ve kat tahmini satır olarak eklenir (null ise yazılmaz)
       const ad = a.ad || "3B Bina";
@@ -1424,7 +1475,7 @@ require([
       view.hitTest(e).then(response => {
         // Sözleşme önceliği: Numarataj > Yapılar > 3B Binalar —
         // sonuçlar katman önceliğine göre dizilir, ilk öncelikli olan seçilir
-        const oncelik = [numaratajLayer, yapilarLayer, binalarLayer];
+        const oncelik = [numaratajLayer, _maksYapiLayer, yapilarLayer, binalarLayer].filter(Boolean);
         const uyusanlar = (response.results || []).filter(r =>
           r.graphic && oncelik.includes(r.graphic.layer) && r.graphic.layer.visible !== false);
         sonHitTestSonuclari = uyusanlar;
