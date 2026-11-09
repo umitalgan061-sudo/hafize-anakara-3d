@@ -1431,9 +1431,9 @@ require([
   function hitTestSec(e) {
     try {
       view.hitTest(e).then(response => {
-        // Sözleşme önceliği: Numarataj > Yapılar > 3B Binalar —
+        // Sözleşme önceliği: Numarataj > MAKSYAPI > 3B Binalar —
         // sonuçlar katman önceliğine göre dizilir, ilk öncelikli olan seçilir
-        const oncelik = [numaratajLayer, _maksYapiLayer, yapilarLayer, binalarLayer].filter(Boolean);
+        const oncelik = [numaratajLayer, maksYapiLayer, binalarLayer].filter(Boolean);
         const uyusanlar = (response.results || []).filter(r =>
           r.graphic && oncelik.includes(r.graphic.layer) && r.graphic.layer.visible !== false);
         sonHitTestSonuclari = uyusanlar;
