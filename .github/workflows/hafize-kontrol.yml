@@ -4,9 +4,6 @@ name: Hafize kontrol
 on:
   push:
     branches: ['hafize/**', 'main']
-  # The live site is audited every two hours and right after every release (started by Hafize).
-  schedule:
-    - cron: '17 */2 * * *'
   workflow_dispatch:
 permissions:
   contents: write
